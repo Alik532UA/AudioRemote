@@ -1,3 +1,4 @@
+import { untrack } from 'svelte';
 import { AudioEngine, EngineError } from '$lib/audio/engine.svelte';
 import { LocalFolderSource } from '$lib/audio/localSource';
 import type { SourceStatus, SourceTrack } from '$lib/audio/source';
@@ -37,6 +38,42 @@ export class PlayerController {
 	/** Колір треку: `trackId` → назва заготовки з `config/trackColors.ts`. */
 	colors = $state<Record<string, string>>({});
 
+	/**
+	 * Треки з номерами гарячих клавіш.
+	 *
+	 * `$derived`, а НЕ геттер, і це теж із розбору аварії. Геттер перераховувався
+	 * на кожне читання, тобто на кожен такт реактивності: для теки в кілька сотень
+	 * треків це означало стільки ж нових обʼєктів щоразу, і Svelte звіряв увесь
+	 * список наново. Похідне значення перераховується лише коли змінилося те, з
+	 * чого воно складене, — перелік, приховане або кольори.
+	 *
+	 * Номери дістаються ЛИШЕ показаним, і в тому ж порядку, у якому їх бачить
+	 * пульт. Інакше «двійка» означала б на двох екранах різні треки: тут
+	 * приховані видно (перекресленими), а там їх немає взагалі.
+	 */
+	readonly numbered: {
+		track: SourceTrack;
+		hidden: boolean;
+		color: string | null;
+		hotkey: string | null;
+	}[] = $derived.by(() => {
+		let shown = 0;
+		return this.tracks.map((track) => {
+			const isHidden = this.hidden[track.id] === true;
+			return {
+				track,
+				hidden: isHidden,
+				color: this.colors[track.id] ?? null,
+				hotkey: isHidden ? null : hotkeyLabel(shown++)
+			};
+		});
+	});
+
+	/** Показані треки в порядку списку — те, на що дивляться гарячі клавіші. */
+	readonly visibleTracks: SourceTrack[] = $derived(
+		this.tracks.filter((track) => this.hidden[track.id] !== true)
+	);
+
 	/** Чи належить дошка САМЕ ЦЬОМУ браузеру. */
 	owned = $state(true);
 	remotes = $state(0);
@@ -48,6 +85,16 @@ export class PlayerController {
 	private readonly source: LocalFolderSource;
 	private readonly cleanups: (() => void)[] = [];
 	private publishing = false;
+	/**
+	 * Сторінку вже покинули.
+	 *
+	 * `start()` асинхронний і ставить підписки одну за одною. Якщо людина вийшла
+	 * раніше, ніж він доїхав до кінця, `stop()` спорожнює перелік — а решта
+	 * підписок падає в НЬОГО вже після цього й не знімається ніколи. Наступний
+	 * вхід ставить другий комплект поверх першого: команди виконуються двічі, а
+	 * стан оголошується двома контролерами.
+	 */
+	private stopped = false;
 
 	constructor(private readonly board: ActiveBoard) {
 		this.source = new LocalFolderSource(board.key);
@@ -56,6 +103,17 @@ export class PlayerController {
 
 	get supported(): boolean {
 		return this.source.supported;
+	}
+
+	/**
+	 * Записати прибирання — або виконати його одразу, якщо вже пізно.
+	 *
+	 * Саме тут закривається гонка: підписка, що встигла народитися після виходу
+	 * зі сторінки, знімається тим самим рядком, який мав би її зберегти.
+	 */
+	private track(cleanup: () => void): void {
+		if (this.stopped) cleanup();
+		else this.cleanups.push(cleanup);
 	}
 
 	/** Підняти все. Повертає функцію, яка знімає все назад. */
@@ -68,13 +126,13 @@ export class PlayerController {
 		this.folderName = this.source.label;
 		if (this.sourceStatus === 'ready') await this.rescan();
 
-		this.cleanups.push(await trackPresence(this.board.key, 'player'));
-		this.cleanups.push(
+		this.track(await trackPresence(this.board.key, 'player'));
+		this.track(
 			await watchPresence(this.board.key, (present) => (this.remotes = countRemotes(present)))
 		);
-		this.cleanups.push(await watchHidden(this.board.key, (map) => (this.hidden = map)));
-		this.cleanups.push(await watchColors(this.board.key, (map) => (this.colors = map)));
-		this.cleanups.push(await watchCommands(this.board.key, (command) => this.execute(command)));
+		this.track(await watchHidden(this.board.key, (map) => (this.hidden = map)));
+		this.track(await watchColors(this.board.key, (map) => (this.colors = map)));
+		this.track(await watchCommands(this.board.key, (command) => this.execute(command)));
 
 		await pruneAcks(this.board.key);
 		await this.announce();
@@ -94,12 +152,13 @@ export class PlayerController {
 				void this.announce();
 			});
 		});
-		this.cleanups.push(stopEffect);
+		this.track(stopEffect);
 
 		return () => this.stop();
 	}
 
 	stop(): void {
+		this.stopped = true;
 		for (const cleanup of this.cleanups.splice(0)) cleanup();
 		this.engine.destroy();
 	}
@@ -143,36 +202,6 @@ export class PlayerController {
 	/** Пофарбувати трек. `null` — зняти колір. */
 	async setColor(trackId: string, slug: string | null): Promise<void> {
 		await setTrackColor(this.board.key, trackId, slug);
-	}
-
-	/**
-	 * Треки з номерами гарячих клавіш.
-	 *
-	 * Номери дістаються ЛИШЕ показаним, і в тому ж порядку, у якому їх бачить
-	 * пульт. Інакше «двійка» означала б на двох екранах різні треки: тут
-	 * приховані видно (перекресленими), а там їх немає взагалі.
-	 */
-	get numbered(): {
-		track: SourceTrack;
-		hidden: boolean;
-		color: string | null;
-		hotkey: string | null;
-	}[] {
-		let shown = 0;
-		return this.tracks.map((track) => {
-			const isHidden = this.hidden[track.id] === true;
-			return {
-				track,
-				hidden: isHidden,
-				color: this.colors[track.id] ?? null,
-				hotkey: isHidden ? null : hotkeyLabel(shown++)
-			};
-		});
-	}
-
-	/** Показані треки в порядку списку — те, на що дивляться гарячі клавіші. */
-	get visibleTracks(): SourceTrack[] {
-		return this.tracks.filter((track) => this.hidden[track.id] !== true);
 	}
 
 	/**
@@ -250,6 +279,7 @@ export class PlayerController {
 	 * мусить діяти й у цьому випадку.
 	 */
 	private async execute(command: Command): Promise<string | null> {
+		if (this.stopped) return null;
 		try {
 			switch (command.type) {
 				case 'play': {
@@ -300,16 +330,35 @@ export class PlayerController {
 	 * записи в базу щосекунди на кожен трек, що грає.
 	 */
 	private async announce(): Promise<void> {
-		if (!this.owned || this.publishing) return;
+		// `stopped` тут теж: `start()` міг не добігти до кінця, і оголошувати стан
+		// від імені сторінки, яку вже покинули, нема чого.
+		if (this.stopped || !this.owned || this.publishing) return;
 		this.publishing = true;
 		try {
-			await publishState(this.board.key, {
+			/*
+			 * ЧИТАННЯ ПОЗА ВІДСТЕЖЕННЯМ — і це не оптимізація, а виправлення
+			 * аварії.
+			 *
+			 * `announce()` кличе ефект, і все, що вона читає синхронно, стає його
+			 * залежністю. Серед прочитаного був `positionMs`, а його оновлює подія
+			 * `timeupdate` — чотири рази на СЕКУНДУ під час відтворення.
+			 *
+			 * Далі це множилося: кожен такт ефекту перебудовував `numbered`, тобто
+			 * створював заново по обʼєкту на кожен трек у теці, і Svelte звіряв
+			 * увесь список. На теці в кілька сотень треків вкладка з'їдала памʼять
+			 * і падала — тим помітніше, чим довше грало.
+			 *
+			 * `untrack` лишає ефекту рівно ті залежності, які в ньому названі
+			 * явно: що грає, чи грає, чи озброєно, гучність.
+			 */
+			const snapshot = untrack(() => ({
 				trackId: this.engine.trackId,
 				playing: this.engine.playing,
 				positionMs: this.engine.positionMs,
 				volume: this.engine.volume,
 				armed: this.engine.armed
-			});
+			}));
+			await publishState(this.board.key, snapshot);
 		} catch {
 			// Мережа впала — стан оголосимо наступною зміною. Ламати відтворення
 			// через невдалий запис довідки було б гірше за застарілу довідку.

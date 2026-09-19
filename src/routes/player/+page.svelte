@@ -6,6 +6,8 @@
 		IconBack,
 		IconEye,
 		IconEyeOff,
+		IconCheck,
+		IconCopy,
 		IconFolder,
 		IconKeyboard,
 		IconMute,
@@ -21,11 +23,28 @@
 	import { PlayerController } from '$lib/player/controller.svelte';
 	import { hotkeyFor } from '$lib/hotkeys/hotkeys';
 	import { colorNumber, colorOf, TRACK_COLORS } from '$lib/config/trackColors';
+	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 
 	let controller = $state<PlayerController | null>(null);
 	let fatal = $state<string | null>(null);
 	/** Для якого треку відкрита палітра. `null` — для жодного. */
 	let paletteFor = $state<string | null>(null);
+	let copied = $state(false);
+
+	async function copySecret() {
+		const board = boardSession.current;
+		if (!board?.password) return;
+		try {
+			await navigator.clipboard.writeText(
+				`${t('create.idLabel')}: ${board.id}
+${t('create.passwordLabel')}: ${board.password}`
+			);
+			copied = true;
+			setTimeout(() => (copied = false), 2000);
+		} catch {
+			// Буфер заборонений політикою — обидва рядки й так на екрані.
+		}
+	}
 
 	const hiddenCount = $derived(
 		controller ? Object.values(controller.hidden).filter(Boolean).length : 0
@@ -97,6 +116,48 @@
 			</div>
 			<p class="muted">{t('player.listeners', { count: controller.remotes })}</p>
 		</header>
+
+		{#if board.password}
+			<!--
+				ПАРОЛЬ ВИДНО Й ТУТ, а не лише в мить створення дошки.
+
+				Доти його показував один екран, який більше ніколи не відкривався:
+				людина, у якої завтра спитали «а який пароль?», не мала де глянути —
+				а відновити його з адреси неможливо за побудовою, бо адреса це хеш.
+				Лишалося створювати дошку заново.
+
+				Поле лишається замаскованим, поки його не відкрити: пароль на екрані
+				в залі бачить не лише той, хто його спитав.
+			-->
+			<details class="secret card" data-testid="board-secret">
+				<summary class="secret__toggle">{t('player.showSecret')}</summary>
+
+				<div class="secret__body">
+					<div class="field">
+						<span class="field__label">{t('create.idLabel')}</span>
+						<output class="secret__id mono">{board.id}</output>
+					</div>
+
+					<PasswordField
+						id="player-password"
+						label={t('create.passwordLabel')}
+						value={board.password}
+						autocomplete="off"
+						readonly
+					/>
+
+					<button class="btn" type="button" onclick={copySecret} data-testid="copy-secret">
+						{#if copied}
+							<IconCheck size={18} aria-hidden="true" />
+							{t('common.copied')}
+						{:else}
+							<IconCopy size={18} aria-hidden="true" />
+							{t('common.copy')}
+						{/if}
+					</button>
+				</div>
+			</details>
+		{/if}
 
 		{#if !controller.supported}
 			<p class="note note--warn" data-testid="no-support">
@@ -373,6 +434,37 @@
 
 	.head__title {
 		font-size: 1.2rem;
+	}
+
+	.secret {
+		padding: 0;
+	}
+
+	.secret__toggle {
+		min-height: var(--tap);
+		padding: var(--gap-sm) var(--gap);
+		color: var(--text-secondary);
+		cursor: pointer;
+		font-size: 0.9rem;
+		/* Стрілку лишаємо нативну: вона й каже, що блок розгортається. */
+		list-style-position: inside;
+	}
+
+	.secret__toggle:hover {
+		color: var(--accent);
+	}
+
+	.secret__body {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap-sm);
+		padding: 0 var(--gap) var(--gap);
+	}
+
+	.secret__id {
+		font-size: 1.6rem;
+		font-weight: 700;
+		line-height: 1.1;
 	}
 
 	.arm {

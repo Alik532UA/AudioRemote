@@ -12,6 +12,7 @@
 	import { settings } from '$lib/settings/settings.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import ThemeSwitcher from '$lib/components/ui/ThemeSwitcher.svelte';
+	import { isEmulator } from '$lib/net/firebase';
 
 	const LOCALE_NAMES: Record<Locale, string> = { uk: 'Українська', en: 'English' };
 
@@ -182,6 +183,24 @@
 				{/if}
 			</div>
 		</div>
+
+		<hr class="rule" />
+
+		<!--
+			Версія переїхала сюди з підвалу кожної сторінки. Вона потрібна рівно
+			тоді, коли про неї питають («а яка у вас збірка?»), — тобто в
+			налаштуваннях, а не під очима щохвилини.
+
+			Поруч — ознака емулятора: інакше «дошка не створюється» на бойовій
+			адресі й на локальній виглядають однаково.
+		-->
+		<p class="about muted" data-testid="about">
+			<span>{t('app.name')}</span>
+			<span class="mono">{t('settings.version')} {__APP_VERSION__}</span>
+			{#if isEmulator()}
+				<span class="about__badge">{t('settings.emulator')}</span>
+			{/if}
+		</p>
 	</section>
 </div>
 
@@ -251,5 +270,20 @@
 
 	.note--warn {
 		color: var(--warn);
+	}
+
+	.about {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--gap-sm);
+	}
+
+	.about__badge {
+		padding: 2px 8px;
+		border: 1px solid var(--warn);
+		border-radius: var(--radius-full);
+		color: var(--warn);
+		font-size: 0.75rem;
 	}
 </style>

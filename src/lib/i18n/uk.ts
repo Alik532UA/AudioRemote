@@ -46,6 +46,8 @@ export const uk = {
 	'settings.title': 'Налаштування',
 	'settings.open': 'Налаштування',
 	'settings.language': 'Мова',
+	'settings.version': 'Версія',
+	'settings.emulator': 'Локальний емулятор',
 	'settings.fixedTitle': 'Стала дошка',
 	'settings.fixedLead':
 		'Запишіть сюди ідентифікатор і пароль, які не мінятимуться. Тоді «Створити» щоразу відкриватиме ТУ САМУ дошку, і диктувати колегам щось нове не доведеться.',
@@ -113,6 +115,7 @@ export const uk = {
 	'player.listeners': 'Підключено пультів: {count}',
 	'player.playHere': 'Запустити на цьому пристрої',
 	'player.volume': 'Гучність',
+	'player.showSecret': 'Ідентифікатор і пароль дошки',
 	'color.pick': 'Колір треку',
 	'color.label': 'Колір {n}',
 	'color.none': 'Без кольору',

@@ -44,25 +44,41 @@
 	onclick={() => themeState.toggle()}
 >
 	<!-- Кулька — це `::before` доріжки; ці двоє лише міняють колір під нею. -->
-	<IconSun class="theme-switch-sun" size={15} aria-hidden="true" />
-	<IconMoon class="theme-switch-moon" size={15} aria-hidden="true" />
+	<IconSun class="theme-switch-sun" size={18} aria-hidden="true" />
+	<IconMoon class="theme-switch-moon" size={18} aria-hidden="true" />
 </button>
 
 <style>
 	/*
-	 * Геометрія й кольори — дослівно з джерела. Вони НАВМИСНО не через токени
-	 * тем: доріжка мусить виглядати однаково в обох темах, інакше перемикач
-	 * перефарбовувався б разом із тим, що він перемикає, і положення кульки
-	 * читалося б гірше за сам колір сторінки.
+	 * КОЛЬОРИ — дослівно з джерела, і НАВМИСНО не через токени тем: доріжка
+	 * мусить виглядати однаково в обох темах. Інакше перемикач перефарбовувався б
+	 * разом із тим, що він перемикає, і положення кульки читалося б гірше за сам
+	 * колір сторінки.
+	 */
+	/*
+	 * ГЕОМЕТРІЯ ВИВОДИТЬСЯ З ВИСОТИ, а не вписана чотирма числами.
+	 *
+	 * Джерело мало 60×30 із кулькою 24 і зсувом 30. Тут тугал підріс до висоти
+	 * сенсорної цілі, щоб стояти в одному ряду з круглою кнопкою налаштувань:
+	 * два органи керування різної висоти поруч читаються як недороблені.
+	 *
+	 * Числа лишилися пропорціями, тож зміна `--switch-h` тягне за собою й ширину,
+	 * і кульку, і зсув. Вписані окремо, вони розійшлися б при першій же правці —
+	 * і кулька або не доїхала б до краю, або виїхала б за нього.
 	 */
 	.theme-switch {
+		--switch-h: var(--tap);
+		--switch-w: calc(var(--switch-h) * 1.9);
+		--switch-pad: 4px;
+		--switch-knob: calc(var(--switch-h) - var(--switch-pad) * 2);
+
 		position: relative;
 		display: inline-block;
-		width: 60px;
-		height: 30px;
+		width: var(--switch-w);
+		height: var(--switch-h);
 		padding: 0;
 		border: none;
-		border-radius: 30px;
+		border-radius: var(--switch-h);
 		background: #94a3b8;
 		cursor: pointer;
 		transition: background var(--transition-normal);
@@ -71,10 +87,10 @@
 	.theme-switch::before {
 		content: '';
 		position: absolute;
-		top: 3px;
-		left: 3px;
-		width: 24px;
-		height: 24px;
+		top: var(--switch-pad);
+		left: var(--switch-pad);
+		width: var(--switch-knob);
+		height: var(--switch-knob);
 		border-radius: 50%;
 		background: #ffffff;
 		transition:
@@ -87,7 +103,7 @@
 	}
 
 	.theme-switch[aria-checked='true']::before {
-		transform: translateX(30px);
+		transform: translateX(calc(var(--switch-w) - var(--switch-knob) - var(--switch-pad) * 2));
 		background: #0f172a;
 	}
 
@@ -102,19 +118,19 @@
 	 */
 	.theme-switch :global(svg) {
 		position: absolute;
-		top: 8px;
+		top: calc((var(--switch-h) - 18px) / 2);
 		z-index: 1;
 		transition: color var(--transition-normal);
 	}
 
 	.theme-switch :global(.theme-switch-sun) {
-		left: 8px;
+		left: calc(var(--switch-h) * 0.25);
 		/* У світлому положенні сонце лежить на білій кульці — звідси темний колір. */
 		color: #334155;
 	}
 
 	.theme-switch :global(.theme-switch-moon) {
-		right: 8px;
+		right: calc(var(--switch-h) * 0.25);
 		color: #f8fafc;
 	}
 

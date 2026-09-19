@@ -48,6 +48,8 @@ export const en: Record<TranslationKey, string> = {
 	'settings.title': 'Settings',
 	'settings.open': 'Settings',
 	'settings.language': 'Language',
+	'settings.version': 'Version',
+	'settings.emulator': 'Local emulator',
 	'settings.fixedTitle': 'Fixed board',
 	'settings.fixedLead':
 		'Put a board ID and password here that will not change. “Create” will then open THE SAME board every time, so there is nothing new to read out to colleagues.',
@@ -110,6 +112,7 @@ export const en: Record<TranslationKey, string> = {
 	'player.listeners': 'Remotes connected: {count}',
 	'player.playHere': 'Play on this device',
 	'player.volume': 'Volume',
+	'player.showSecret': 'Board ID and password',
 	'color.pick': 'Track colour',
 	'color.label': 'Colour {n}',
 	'color.none': 'No colour',

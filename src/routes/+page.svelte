@@ -26,7 +26,12 @@
 </script>
 
 <div class="stack">
-	<p class="lead">{t('entry.lead')}</p>
+	<!--
+		Заголовок сторінки, а не підпис. Він переїхав сюди з шапки й виріс: на
+		цьому екрані він єдиний текст, який людина читає перед вибором, і
+		зменшувати його нема заради чого.
+	-->
+	<h1 class="lead">{t('entry.lead')}</h1>
 
 	<!--
 		ДВІ КНОПКИ, І БІЛЬШЕ НІЧОГО НА ПЕРШОМУ ЕКРАНІ.
@@ -81,7 +86,10 @@
 
 <style>
 	.lead {
-		color: var(--text-secondary);
+		margin-block: var(--gap-lg) var(--gap-sm);
+		font-size: clamp(2rem, 9vw, 3rem);
+		font-weight: 700;
+		line-height: 1.1;
 		text-align: center;
 		text-wrap: balance;
 	}

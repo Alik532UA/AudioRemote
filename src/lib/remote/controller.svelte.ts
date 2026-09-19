@@ -41,18 +41,24 @@ export class RemoteController {
 	trouble = $state<string | null>(null);
 
 	private readonly cleanups: (() => void)[] = [];
+	/** Сторінку вже покинули — див. той самий коментар у контролері приймача. */
+	private stopped = false;
 
 	constructor(private readonly board: ActiveBoard) {}
 
 	/**
 	 * Видимі треки — без прихованих, у порядку бібліотеки.
 	 *
+	 * `$derived`, а не геттер: інакше список перебудовувався б на кожне читання,
+	 * тобто на кожне оновлення стану з приймача. Для сотні треків це сотня нових
+	 * обʼєктів щоразу — і повне звіряння списку замість жодного.
+	 *
 	 * Порядок бере `Object.entries`, а не сортування тут: приймач уже впорядкував
 	 * список за назвою, коли викладав його. Друге сортування на пульті могло б
 	 * дати ІНШИЙ порядок (інша локаль у телефоні), і «наступний трек» означав би
 	 * на двох екранах різне.
 	 */
-	get tracks(): VisibleTrack[] {
+	readonly tracks: VisibleTrack[] = $derived.by(() => {
 		if (!this.library?.tracks) return [];
 		return Object.entries(this.library.tracks)
 			.filter(([id]) => !this.hidden[id])
@@ -62,7 +68,7 @@ export class RemoteController {
 				hotkey: hotkeyLabel(index),
 				color: this.colors[id] ?? null
 			}));
-	}
+	});
 
 	get currentTitle(): string | null {
 		const id = this.state?.trackId;
@@ -70,14 +76,20 @@ export class RemoteController {
 		return this.library?.tracks?.[id]?.title ?? null;
 	}
 
+	/** Записати прибирання — або виконати одразу, якщо сторінку вже покинули. */
+	private track(cleanup: () => void): void {
+		if (this.stopped) cleanup();
+		else this.cleanups.push(cleanup);
+	}
+
 	async start(): Promise<() => void> {
-		this.cleanups.push(await trackPresence(this.board.key, 'remote'));
-		this.cleanups.push(await watchInfo(this.board.key, (info) => (this.info = info)));
-		this.cleanups.push(await watchLibrary(this.board.key, (library) => (this.library = library)));
-		this.cleanups.push(await watchHidden(this.board.key, (hidden) => (this.hidden = hidden)));
-		this.cleanups.push(await watchColors(this.board.key, (colors) => (this.colors = colors)));
-		this.cleanups.push(await watchState(this.board.key, (state) => (this.state = state)));
-		this.cleanups.push(
+		this.track(await trackPresence(this.board.key, 'remote'));
+		this.track(await watchInfo(this.board.key, (info) => (this.info = info)));
+		this.track(await watchLibrary(this.board.key, (library) => (this.library = library)));
+		this.track(await watchHidden(this.board.key, (hidden) => (this.hidden = hidden)));
+		this.track(await watchColors(this.board.key, (colors) => (this.colors = colors)));
+		this.track(await watchState(this.board.key, (state) => (this.state = state)));
+		this.track(
 			await watchPresence(this.board.key, (present) => (this.playerOnline = hasPlayer(present)))
 		);
 
@@ -85,6 +97,7 @@ export class RemoteController {
 	}
 
 	stop(): void {
+		this.stopped = true;
 		for (const cleanup of this.cleanups.splice(0)) cleanup();
 	}
 
