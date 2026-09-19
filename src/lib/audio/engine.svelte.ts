@@ -83,6 +83,8 @@ export class AudioEngine {
 	private objectUrl: string | null = null;
 	/** Порядок треків — щоб «наступний» мав від чого рахуватися. */
 	private order: SourceTrack[] = [];
+	/** Гучність до тиші. `null` — тиші немає. */
+	private mutedFrom = $state<number | null>(null);
 
 	constructor(private readonly source: AudioSource) {}
 
@@ -180,6 +182,45 @@ export class AudioEngine {
 	setVolume(value: number): void {
 		this.volume = Math.max(0, Math.min(1, value));
 		if (this.element) this.element.volume = this.volume;
+		// Рух повзунка знімає тишу: інакше кнопка «повернути звук» лишилася б
+		// натиснутою при гучності, яку щойно виставили руками.
+		if (this.volume > 0) this.mutedFrom = null;
+	}
+
+	/**
+	 * ТИША — це запамʼятана гучність, а не окремий прапорець у плеєра.
+	 *
+	 * `HTMLAudioElement.muted` існує, але він НЕ видно ззовні: пульт бачить лише
+	 * те, що приймач оголосив, а оголошує він `volume`. Два джерела правди про
+	 * одне («гучність 80, але тиша») розійшлися б при першому ж дотику до
+	 * повзунка на другому пристрої.
+	 *
+	 * Тому тиша — це `volume = 0` плюс памʼять про те, звідки ми прийшли. Пульт
+	 * при цьому не мусить знати про тишу нічого: нуль і є нуль.
+	 */
+	toggleMute(): void {
+		if (this.mutedFrom !== null) {
+			const restore = this.mutedFrom;
+			this.mutedFrom = null;
+			this.setVolume(restore);
+			return;
+		}
+
+		// Тиша з уже нульової гучності нічого не означає й нічого не памʼятає.
+		if (this.volume === 0) return;
+		const previous = this.volume;
+		this.setVolume(0);
+		this.mutedFrom = previous;
+	}
+
+	/** Чи зараз тиша, увімкнена саме кнопкою. */
+	get muted(): boolean {
+		return this.mutedFrom !== null;
+	}
+
+	/** Змінити гучність на стільки відсотків. Межі — у `setVolume`. */
+	adjustVolume(deltaPercent: number): void {
+		this.setVolume(this.volume + deltaPercent / 100);
 	}
 
 	/** Прибрати за собою: адреса Blob, елемент, слухачі. */

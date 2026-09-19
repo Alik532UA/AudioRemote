@@ -11,6 +11,7 @@
 	} from '$lib/board/secret';
 	import { settings } from '$lib/settings/settings.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
+	import ThemeSwitcher from '$lib/components/ui/ThemeSwitcher.svelte';
 
 	const LOCALE_NAMES: Record<Locale, string> = { uk: 'Українська', en: 'English' };
 
@@ -67,6 +68,22 @@
 						{LOCALE_NAMES[locale]}
 					</button>
 				{/each}
+			</div>
+		</div>
+
+		<div class="field">
+			<span class="field__label" id="theme-label">{t('theme.group')}</span>
+			<!--
+				ТРИТАКТНИЙ ВИБІР ЖИВЕ САМЕ ТУТ.
+
+				У шапці стоїть двопозиційний тугал: він показує, що людина бачить,
+				і перемикає одним рухом. Третє положення — «як у пристрої», тобто
+				ВІДМОВА від вибору — у перемикача з двома станами не вміщається.
+				Тому воно тут, разом із показом теми на наведенні, якого тугал теж
+				не вміє (THEME-SWITCHER § 2–4).
+			-->
+			<div aria-labelledby="theme-label">
+				<ThemeSwitcher />
 			</div>
 		</div>
 

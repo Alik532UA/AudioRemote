@@ -15,6 +15,8 @@ export const en: Record<TranslationKey, string> = {
 	'theme.light': 'Light',
 	'theme.dark': 'Dark',
 	'theme.system': 'Match device',
+	'theme.switchToLight': 'Switch to the light theme',
+	'theme.switchToDark': 'Switch to the dark theme',
 
 	'lang.group': 'Language',
 
@@ -106,6 +108,14 @@ export const en: Record<TranslationKey, string> = {
 	'player.insecure': 'An https connection or a localhost address is required.',
 	'player.keepOpen': 'Keep this tab open — it is the one playing the sound.',
 	'player.listeners': 'Remotes connected: {count}',
+	'player.playHere': 'Play on this device',
+	'player.volume': 'Volume',
+
+	'hotkeys.hint': 'Keys: 1…9 and 0 for tracks, − and + for volume, M for mute',
+	'hotkeys.slot': 'Key {key}',
+
+	'sound.mute': 'Mute',
+	'sound.unmute': 'Unmute',
 
 	'remote.title': 'Remote',
 	'remote.online': 'Computer is online',

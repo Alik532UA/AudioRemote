@@ -5,7 +5,7 @@
 	import '$lib/css/base/base.css';
 	import { themeState } from '$lib/services/theme.svelte';
 	import { i18n, t } from '$lib/i18n/i18n.svelte';
-	import ThemeSwitcher from '$lib/components/ui/ThemeSwitcher.svelte';
+	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 	import { IconSettings } from '$lib/config/icons';
 	import ReloadPrompt from '$lib/components/ui/ReloadPrompt.svelte';
 
@@ -29,12 +29,12 @@
 		</a>
 		{#if ready}
 			<!--
-				Мова переїхала в налаштування: у шапці лишається те, що
-				перемикають часто (тема — одним кліком, із показом на наведенні),
-				а те, що ставлять раз, живе там, де його шукатимуть.
+				У шапці лишається те, що перемикають часто: тема — одним рухом.
+				Мова й третій стан теми («як у пристрої») живуть у налаштуваннях,
+				бо їх ставлять раз.
 			-->
 			<div class="shell__controls">
-				<ThemeSwitcher />
+				<ThemeToggle />
 				<a
 					class="shell__settings"
 					href={resolve('/settings')}

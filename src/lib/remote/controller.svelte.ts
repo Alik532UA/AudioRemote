@@ -3,9 +3,12 @@ import { watchHidden, watchInfo, watchLibrary, watchState } from '$lib/net/board
 import type { BoardInfo, CommandType, Library, PlayerState, Track } from '$lib/net/boardTypes';
 import { sendCommand, waitForAck } from '$lib/net/commands';
 import { hasPlayer, trackPresence, watchPresence } from '$lib/net/presence';
+import { hotkeyLabel, type HotkeyAction } from '$lib/hotkeys/hotkeys';
 
 export interface VisibleTrack extends Track {
 	id: string;
+	/** Підпис гарячої клавіші, або `null` — далі десятого треку їх немає. */
+	hotkey: string | null;
 }
 
 /**
@@ -50,7 +53,7 @@ export class RemoteController {
 		if (!this.library?.tracks) return [];
 		return Object.entries(this.library.tracks)
 			.filter(([id]) => !this.hidden[id])
-			.map(([id, track]) => ({ id, ...track }));
+			.map(([id, track], index) => ({ id, ...track, hotkey: hotkeyLabel(index) }));
 	}
 
 	get currentTitle(): string | null {
@@ -111,6 +114,69 @@ export class RemoteController {
 	 * назад у `state`.
 	 */
 	private volumeTimer: ReturnType<typeof setTimeout> | null = null;
+
+	/**
+	 * Гучність до тиші — памʼять САМОГО ПУЛЬТА.
+	 *
+	 * Приймач має свою; ця потрібна тому, що пульт мусить намалювати кнопку
+	 * натиснутою одразу, не чекаючи, поки стан приїде назад. Розходження тут
+	 * нешкідливе: «повернути звук» шле число, а число приймач приймає завжди.
+	 */
+	private mutedFrom: number | null = null;
+
+	get muted(): boolean {
+		return this.mutedFrom !== null;
+	}
+
+	/** Поточна гучність у відсотках, як її оголосив приймач. */
+	get volumePercent(): number {
+		return Math.round((this.state?.volume ?? 0) * 100);
+	}
+
+	/** Змінити гучність на стільки відсотків. */
+	adjustVolume(delta: number): void {
+		const next = Math.max(0, Math.min(100, this.volumePercent + delta));
+		if (next > 0) this.mutedFrom = null;
+		this.setVolume(next);
+	}
+
+	/**
+	 * Тиша на пульті — це гучність нуль плюс памʼять, а не окрема команда.
+	 *
+	 * Окрема команда означала б новий тип у правилах бази й новий стан, який
+	 * приймач мусив би оголошувати. Нуль робить те саме тими словами, які в
+	 * протоколі вже є, — і на екрані приймача це видно так само чесно.
+	 */
+	toggleMute(): void {
+		if (this.mutedFrom !== null) {
+			const restore = this.mutedFrom;
+			this.mutedFrom = null;
+			this.setVolume(restore);
+			return;
+		}
+
+		const current = this.volumePercent;
+		if (current === 0) return;
+		this.mutedFrom = current;
+		this.setVolume(0);
+	}
+
+	/** Гаряча клавіша на боці пульта — усе через ті самі команди. */
+	async handleHotkey(action: HotkeyAction): Promise<void> {
+		switch (action.kind) {
+			case 'play': {
+				const track = this.tracks[action.index];
+				if (track) await this.send('play', track.id);
+				break;
+			}
+			case 'volume':
+				this.adjustVolume(action.delta);
+				break;
+			case 'mute':
+				this.toggleMute();
+				break;
+		}
+	}
 
 	setVolume(percent: number): void {
 		if (this.volumeTimer) clearTimeout(this.volumeTimer);

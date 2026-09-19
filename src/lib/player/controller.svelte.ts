@@ -1,6 +1,7 @@
 import { AudioEngine, EngineError } from '$lib/audio/engine.svelte';
 import { LocalFolderSource } from '$lib/audio/localSource';
 import type { SourceStatus, SourceTrack } from '$lib/audio/source';
+import { hotkeyLabel, type HotkeyAction } from '$lib/hotkeys/hotkeys';
 import type { ActiveBoard } from '$lib/board/session.svelte';
 import { ensureBoard, publishLibrary, publishState, setHidden, watchHidden } from '$lib/net/board';
 import type { BoardInfo, Command, Track } from '$lib/net/boardTypes';
@@ -126,6 +127,85 @@ export class PlayerController {
 
 	async toggleHidden(trackId: string): Promise<void> {
 		await setHidden(this.board.key, trackId, !this.hidden[trackId]);
+	}
+
+	/**
+	 * Треки з номерами гарячих клавіш.
+	 *
+	 * Номери дістаються ЛИШЕ показаним, і в тому ж порядку, у якому їх бачить
+	 * пульт. Інакше «двійка» означала б на двох екранах різні треки: тут
+	 * приховані видно (перекресленими), а там їх немає взагалі.
+	 */
+	get numbered(): { track: SourceTrack; hidden: boolean; hotkey: string | null }[] {
+		let shown = 0;
+		return this.tracks.map((track) => {
+			const isHidden = this.hidden[track.id] === true;
+			return {
+				track,
+				hidden: isHidden,
+				hotkey: isHidden ? null : hotkeyLabel(shown++)
+			};
+		});
+	}
+
+	/** Показані треки в порядку списку — те, на що дивляться гарячі клавіші. */
+	get visibleTracks(): SourceTrack[] {
+		return this.tracks.filter((track) => this.hidden[track.id] !== true);
+	}
+
+	/**
+	 * Запустити трек ТУТ, із цього ж пристрою.
+	 *
+	 * Через базу це не йде, і не з міркувань швидкості: команда від себе самого
+	 * мусила б пройти запис, підписку й квитанцію, щоб повернутися в той самий
+	 * процес. Дорога туди — це ще й спосіб не програти нічого, якщо мережа впала,
+	 * хоч файл лежить на цьому ж диску.
+	 *
+	 * ОЗБРОЮЄ ЗАОДНО. Натискання на трек — це жест людини, тобто рівно те, чого
+	 * браузер чекає для дозволу грати. Вимагати перед ним ще й окремого
+	 * натискання «увімкнути звук» означало б два кліки там, де вистачає одного.
+	 */
+	async playLocal(trackId: string): Promise<void> {
+		if (this.hidden[trackId]) return;
+
+		try {
+			if (!this.engine.armed && !(await this.engine.arm())) {
+				this.trouble = { key: 'error.playback', name: '' };
+				return;
+			}
+			await this.engine.play(trackId);
+			this.trouble = null;
+		} catch (error) {
+			if (error instanceof EngineError) {
+				this.trouble = {
+					key: error.kind === 'missing' ? 'error.fileGone' : 'error.playback',
+					name: error.trackTitle
+				};
+			} else {
+				this.trouble = { key: 'error.unknown', name: '' };
+			}
+		} finally {
+			await this.announce();
+		}
+	}
+
+	/** Гаряча клавіша на боці приймача — робить усе напряму, без бази. */
+	async handleHotkey(action: HotkeyAction): Promise<void> {
+		switch (action.kind) {
+			case 'play': {
+				const track = this.visibleTracks[action.index];
+				if (track) await this.playLocal(track.id);
+				break;
+			}
+			case 'volume':
+				this.engine.adjustVolume(action.delta);
+				await this.announce();
+				break;
+			case 'mute':
+				this.engine.toggleMute();
+				await this.announce();
+				break;
+		}
 	}
 
 	/** Озброїти звук. Лише з жесту. */

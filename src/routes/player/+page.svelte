@@ -7,14 +7,19 @@
 		IconEye,
 		IconEyeOff,
 		IconFolder,
+		IconKeyboard,
+		IconMute,
+		IconPlay,
 		IconPower,
 		IconRefresh,
+		IconVolume,
 		IconWarning
 	} from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import { PlayerController } from '$lib/player/controller.svelte';
+	import { hotkeyFor } from '$lib/hotkeys/hotkeys';
 
 	let controller = $state<PlayerController | null>(null);
 	let fatal = $state<string | null>(null);
@@ -45,10 +50,25 @@
 				fatal = t(describeError(error));
 			});
 
-		// Знімається ВСЕ: підписки на команди, присутність, приховане й сам
-		// програвач. Без цього друге відкриття сторінки виконувало б кожну
-		// команду двічі.
+		/*
+		 * Гарячі клавіші вішаються на ВІКНО, а не на якийсь елемент: людина біля
+		 * комп'ютера тисне цифру, не клікнувши перед тим нікуди, тож фокуса
+		 * всередині сторінки може й не бути. Набір у полі вводу від цього не
+		 * страждає — `hotkeyFor` сам відмовляється, коли фокус у полі.
+		 */
+		const onKeydown = (event: KeyboardEvent) => {
+			const action = hotkeyFor(event);
+			if (!action) return;
+			event.preventDefault();
+			void instance.handleHotkey(action);
+		};
+		window.addEventListener('keydown', onKeydown);
+
+		// Знімається ВСЕ: підписки на команди, присутність, приховане, слухач
+		// клавіш і сам програвач. Без цього друге відкриття сторінки виконувало б
+		// кожну команду двічі.
 		return () => {
+			window.removeEventListener('keydown', onKeydown);
 			dispose?.();
 			instance.stop();
 		};
@@ -109,6 +129,52 @@
 				</p>
 			{/if}
 
+			<!--
+					ГУЧНІСТЬ ВИДНА ЗАВЖДИ, а не лише після озброєння.
+
+					Доки вона ховалася в гілці «звук увімкнено», рівень можна було
+					виставити ЛИШЕ після першого звуку — тобто перший трек у залі йшов
+					на тій гучності, яка випадково лишилася. Плюс гарячі клавіші міняли
+					число, якого на екрані не було, і виглядало це як «мінус не працює».
+
+					Цей пристрій і є той, що звучить, тож людині біля нього не треба
+					шукати телефон, щоб прибрати звук.
+				-->
+			<div class="card volume">
+				<button
+					class="volume__mute"
+					class:volume__mute--on={engine.muted}
+					type="button"
+					aria-pressed={engine.muted}
+					title={engine.muted ? t('sound.unmute') : t('sound.mute')}
+					aria-label={engine.muted ? t('sound.unmute') : t('sound.mute')}
+					onclick={() => engine.toggleMute()}
+					data-testid="player-mute"
+				>
+					{#if engine.muted}
+						<IconMute size={20} aria-hidden="true" />
+					{:else}
+						<IconVolume size={20} aria-hidden="true" />
+					{/if}
+				</button>
+
+				<label class="volume__slider-wrap">
+					<span class="visually-hidden">{t('player.volume')}</span>
+					<input
+						class="volume__slider"
+						type="range"
+						min="0"
+						max="100"
+						step="1"
+						value={Math.round(engine.volume * 100)}
+						data-testid="player-volume"
+						oninput={(event) => engine.setVolume(Number(event.currentTarget.value) / 100)}
+					/>
+				</label>
+
+				<output class="volume__value mono">{Math.round(engine.volume * 100)}</output>
+			</div>
+
 			<section class="card stack">
 				{#if controller.sourceStatus === 'none'}
 					<button
@@ -159,24 +225,49 @@
 							{/if}
 						</p>
 
+						<p class="hint">
+							<IconKeyboard size={16} aria-hidden="true" />
+							<span>{t('hotkeys.hint')}</span>
+						</p>
+
 						<ul class="tracks">
-							{#each controller.tracks as track (track.id)}
-								{@const isHidden = controller.hidden[track.id] === true}
-								<li class="tracks__row" class:tracks__row--hidden={isHidden}>
-									<span
-										class="tracks__title"
-										class:tracks__title--playing={engine.trackId === track.id}
+							{#each controller.numbered as entry (entry.track.id)}
+								<li class="tracks__row" class:tracks__row--hidden={entry.hidden}>
+									<!--
+										Кнопка, а не підпис: трек запускають і звідси теж. Номер
+										гарячої клавіші стоїть НА НІЙ — так домовленість «двійка
+										грає другий» видно, а не тримається в голові.
+									-->
+									<button
+										class="tracks__play"
+										class:tracks__play--playing={engine.trackId === entry.track.id}
+										type="button"
+										disabled={entry.hidden}
+										title={t('player.playHere')}
+										onclick={() => controller?.playLocal(entry.track.id)}
+										data-testid="play-here-{entry.track.id}"
 									>
-										{track.title}
-									</span>
+										{#if entry.hotkey}
+											<kbd
+												class="tracks__key"
+												aria-label={t('hotkeys.slot', { key: entry.hotkey })}
+											>
+												{entry.hotkey}
+											</kbd>
+										{:else}
+											<IconPlay class="tracks__icon" size={16} aria-hidden="true" />
+										{/if}
+										<span class="tracks__title">{entry.track.title}</span>
+									</button>
+
 									<button
 										class="tracks__toggle"
 										type="button"
-										title={isHidden ? t('player.show') : t('player.hide')}
-										aria-label={isHidden ? t('player.show') : t('player.hide')}
-										onclick={() => controller?.toggleHidden(track.id)}
+										title={entry.hidden ? t('player.show') : t('player.hide')}
+										aria-label={entry.hidden ? t('player.show') : t('player.hide')}
+										onclick={() => controller?.toggleHidden(entry.track.id)}
 									>
-										{#if isHidden}
+										{#if entry.hidden}
 											<IconEyeOff size={18} aria-hidden="true" />
 										{:else}
 											<IconEye size={18} aria-hidden="true" />
@@ -291,6 +382,60 @@
 		background: var(--bg-sunken);
 	}
 
+	.tracks__play {
+		display: flex;
+		flex: 1;
+		align-items: center;
+		gap: var(--gap-sm);
+		min-width: 0;
+		min-height: var(--tap);
+		padding: 0 var(--gap-sm);
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		color: inherit;
+		cursor: pointer;
+		text-align: start;
+	}
+
+	.tracks__play:hover:not(:disabled),
+	.tracks__play:focus-visible {
+		border-color: var(--accent);
+	}
+
+	.tracks__play:disabled {
+		cursor: default;
+		opacity: 0.55;
+	}
+
+	.tracks__play--playing {
+		border-color: var(--accent);
+		color: var(--accent);
+		font-weight: 700;
+	}
+
+	/* Номер клавіші — у вигляді клавіші, щоб його не читали як порядковий номер. */
+	.tracks__key {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 24px;
+		height: 24px;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-sm);
+		background: var(--bg-sunken);
+		color: var(--text-secondary);
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
+		line-height: 1;
+	}
+
+	.tracks__play :global(.tracks__icon) {
+		flex: none;
+		width: 24px;
+		color: var(--text-muted);
+	}
+
 	.tracks__row--hidden .tracks__title {
 		color: var(--text-secondary);
 		text-decoration: line-through;
@@ -304,9 +449,60 @@
 		white-space: nowrap;
 	}
 
-	.tracks__title--playing {
+	.hint {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-sm);
+		color: var(--text-muted);
+		font-size: 0.8rem;
+	}
+
+	.volume {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-sm);
+		padding: var(--gap-sm) var(--gap);
+	}
+
+	.volume__mute {
+		display: grid;
+		place-items: center;
+		width: var(--tap);
+		min-height: var(--tap);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--bg-surface-raised);
+		color: var(--text-secondary);
+		cursor: pointer;
+	}
+
+	.volume__mute:hover,
+	.volume__mute:focus-visible {
+		border-color: var(--accent);
 		color: var(--accent);
-		font-weight: 700;
+	}
+
+	.volume__mute--on {
+		border-color: var(--warn);
+		color: var(--warn);
+	}
+
+	.volume__slider-wrap {
+		display: flex;
+		flex: 1;
+		min-width: 0;
+	}
+
+	.volume__slider {
+		width: 100%;
+		height: var(--tap);
+		accent-color: var(--accent);
+	}
+
+	.volume__value {
+		min-width: 3ch;
+		text-align: end;
+		color: var(--text-secondary);
 	}
 
 	.tracks__toggle {

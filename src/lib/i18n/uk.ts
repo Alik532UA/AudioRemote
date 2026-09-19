@@ -13,6 +13,8 @@ export const uk = {
 	'theme.light': 'Світла',
 	'theme.dark': 'Темна',
 	'theme.system': 'Як у пристрої',
+	'theme.switchToLight': 'Перемкнути на світлу тему',
+	'theme.switchToDark': 'Перемкнути на темну тему',
 
 	'lang.group': 'Мова',
 
@@ -109,6 +111,14 @@ export const uk = {
 	'player.insecure': 'Потрібне з’єднання https або адреса localhost.',
 	'player.keepOpen': 'Не закривайте цю вкладку — саме вона грає звук.',
 	'player.listeners': 'Підключено пультів: {count}',
+	'player.playHere': 'Запустити на цьому пристрої',
+	'player.volume': 'Гучність',
+
+	'hotkeys.hint': 'Клавіші: 1…9 і 0 — треки, − та + — гучність, M — тиша',
+	'hotkeys.slot': 'Клавіша {key}',
+
+	'sound.mute': 'Вимкнути звук',
+	'sound.unmute': 'Повернути звук',
 
 	'remote.title': 'Пульт',
 	'remote.online': 'Комп’ютер на зв’язку',

@@ -39,6 +39,32 @@ class ThemeState {
 		return this.previewed ?? this.chosen;
 	}
 
+	/**
+	 * Чи темно ЗАРАЗ — з урахуванням системної переваги.
+	 *
+	 * Потрібне тугалу: він двопозиційний, тож мусить показувати не «що обрано»
+	 * (обраного може й не бути), а що людина бачить. Доки вибору немає,
+	 * відповідь дає система.
+	 */
+	get isDark(): boolean {
+		const current = this.effective;
+		if (current !== null) return current === 'dark';
+		return typeof window !== 'undefined'
+			? window.matchMedia('(prefers-color-scheme: dark)').matches
+			: false;
+	}
+
+	/**
+	 * Перемкнути на протилежну від ВИДИМОЇ.
+	 *
+	 * Перший клік на системній темі робить вибір явним — і це правильно: людина
+	 * щойно сказала, чого хоче. Повернутися до «як у пристрої» можна в
+	 * налаштуваннях; двопозиційний перемикач третього стану не має за побудовою.
+	 */
+	toggle(): void {
+		this.choose(this.isDark ? 'light' : 'dark');
+	}
+
 	/** Прочитати збережений вибір. Атрибут уже виставив скрипт у `app.html`. */
 	init(): void {
 		const saved = readItem(STORAGE_KEY);

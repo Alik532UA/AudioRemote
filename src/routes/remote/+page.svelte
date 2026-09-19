@@ -7,6 +7,8 @@
 		IconNext,
 		IconPause,
 		IconPlay,
+		IconKeyboard,
+		IconMute,
 		IconStop,
 		IconVolume,
 		IconWarning
@@ -14,6 +16,7 @@
 	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { RemoteController } from '$lib/remote/controller.svelte';
+	import { hotkeyFor } from '$lib/hotkeys/hotkeys';
 
 	let controller = $state<RemoteController | null>(null);
 	let volume = $state(80);
@@ -36,7 +39,21 @@
 			dispose = stop;
 		});
 
+		/*
+		 * Гарячі клавіші є й тут: пультом може бути ноутбук, а не лише телефон.
+		 * На телефоні вони просто не спрацьовують — клавіатури немає, і жодної
+		 * шкоди від слухача теж.
+		 */
+		const onKeydown = (event: KeyboardEvent) => {
+			const action = hotkeyFor(event);
+			if (!action) return;
+			event.preventDefault();
+			void instance.handleHotkey(action);
+		};
+		window.addEventListener('keydown', onKeydown);
+
 		return () => {
+			window.removeEventListener('keydown', onKeydown);
 			dispose?.();
 			instance.stop();
 		};
@@ -148,10 +165,27 @@
 				</button>
 			</div>
 
-			<label class="volume">
-				<IconVolume size={20} aria-hidden="true" />
-				<span class="visually-hidden">{t('remote.volume')}</span>
+			<div class="volume">
+				<!-- Значок був підписом, тепер це кнопка: тиша потрібна найчастіше. -->
+				<button
+					class="volume__mute"
+					class:volume__mute--on={controller.muted}
+					type="button"
+					aria-pressed={controller.muted}
+					title={controller.muted ? t('sound.unmute') : t('sound.mute')}
+					aria-label={controller.muted ? t('sound.unmute') : t('sound.mute')}
+					onclick={() => controller?.toggleMute()}
+					data-testid="remote-mute"
+				>
+					{#if controller.muted}
+						<IconMute size={20} aria-hidden="true" />
+					{:else}
+						<IconVolume size={20} aria-hidden="true" />
+					{/if}
+				</button>
+				<label class="visually-hidden" for="remote-volume">{t('remote.volume')}</label>
 				<input
+					id="remote-volume"
 					class="volume__slider"
 					type="range"
 					min="0"
@@ -164,7 +198,7 @@
 					oninput={() => controller?.setVolume(volume)}
 				/>
 				<output class="volume__value mono">{volume}</output>
-			</label>
+			</div>
 		</section>
 
 		{#if controller.trouble}
@@ -177,6 +211,11 @@
 			{#if controller.tracks.length === 0}
 				<p class="muted">{t('remote.emptyLibrary')}</p>
 			{:else}
+				<p class="hint">
+					<IconKeyboard size={16} aria-hidden="true" />
+					<span>{t('hotkeys.hint')}</span>
+				</p>
+
 				<ul class="tracks">
 					{#each controller.tracks as track (track.id)}
 						<li>
@@ -188,7 +227,13 @@
 								onclick={() => controller?.send('play', track.id)}
 								data-testid="play-{track.id}"
 							>
-								<IconPlay size={18} aria-hidden="true" />
+								{#if track.hotkey}
+									<kbd class="tracks__key" aria-label={t('hotkeys.slot', { key: track.hotkey })}>
+										{track.hotkey}
+									</kbd>
+								{:else}
+									<IconPlay size={18} aria-hidden="true" />
+								{/if}
 								<span class="tracks__title">{track.title}</span>
 							</button>
 						</li>
@@ -281,11 +326,59 @@
 		color: var(--text-secondary);
 	}
 
+	.volume__mute {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: var(--tap);
+		min-height: var(--tap);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--bg-surface-raised);
+		color: var(--text-secondary);
+		cursor: pointer;
+	}
+
+	.volume__mute:hover,
+	.volume__mute:focus-visible {
+		border-color: var(--accent);
+		color: var(--accent);
+	}
+
+	.volume__mute--on {
+		border-color: var(--warn);
+		color: var(--warn);
+	}
+
 	.volume__slider {
 		flex: 1;
 		min-width: 0;
 		height: var(--tap);
 		accent-color: var(--accent);
+	}
+
+	/* Номер клавіші — у вигляді клавіші, а не порядкового номера. */
+	.tracks__key {
+		display: grid;
+		place-items: center;
+		flex: none;
+		width: 24px;
+		height: 24px;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-sm);
+		background: var(--bg-sunken);
+		color: var(--text-secondary);
+		font-family: var(--font-mono);
+		font-size: 0.8rem;
+		line-height: 1;
+	}
+
+	.hint {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-sm);
+		color: var(--text-muted);
+		font-size: 0.8rem;
 	}
 
 	.volume__value {
