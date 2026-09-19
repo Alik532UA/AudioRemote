@@ -15,6 +15,14 @@
 	let { track, controller, onclose }: Props = $props();
 
 	/**
+	 * Цифра, яка діє за порядком, доки клавіші нікому не призначені.
+	 *
+	 * Без цього вікно казало б «Не призначено» про трек, біля якого в списку
+	 * стоїть `3` і який справді запускається трійкою.
+	 */
+	const byOrder = $derived(track.hotkey ? null : (controller.keyLabels[track.id] ?? null));
+
+	/**
 	 * НАЛАШТУВАННЯ ТРЕКУ — ОКРЕМЕ ВІКНО, а не панель під рядком.
 	 *
 	 * Панель під рядком розсовувала список: усе нижче зʼїжджало, а на довгому
@@ -116,6 +124,8 @@
 						{t('hotkeys.pressAny')}
 					{:else if track.hotkey}
 						{labelForCode(track.hotkey)}
+					{:else if byOrder}
+						{t('hotkeys.byOrder', { key: byOrder })}
 					{:else}
 						{t('hotkeys.none')}
 					{/if}

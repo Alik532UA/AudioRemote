@@ -135,6 +135,81 @@ describe('гарячі клавіші треків', () => {
 	});
 });
 
+describe('підпис клавіші в списку', () => {
+	let controller: PlayerController;
+
+	beforeEach(async () => {
+		controller = build(withFiles('Автобус.mp3', 'Криниця.mp3', 'Ялина.mp3'));
+		await controller.rescan();
+	});
+
+	it('доки нікому нічого не призначено — стоять запасні цифри', () => {
+		/*
+		 * Це не про красу підпису, а про правду: цифри в цьому стані СПРАЦЬОВУЮТЬ,
+		 * а в списку біля кожного треку стояла крапка. Екран заперечував клавішу,
+		 * яка є.
+		 */
+		const [first, second, third] = controller.entries;
+		expect(controller.keyLabels).toEqual({
+			[first.id]: '1',
+			[second.id]: '2',
+			[third.id]: '3'
+		});
+	});
+
+	it('призначена клавіша гасить запасні цифри в усьому списку', () => {
+		// Рівно так поводиться й `byHotkey`: інакше підпис обіцяв би не те.
+		const [first, second] = controller.entries;
+		controller.setHotkey(second.id, 'KeyQ');
+
+		expect(controller.keyLabels).toEqual({ [second.id]: 'Q' });
+		expect(controller.keyLabels[first.id]).toBeUndefined();
+	});
+
+	it('прихований трек підпису не має — і не зсуває чужі номери', () => {
+		const [first, second, third] = controller.entries;
+		controller.toggleHidden(second.id);
+
+		expect(controller.keyLabels[second.id]).toBeUndefined();
+		expect(controller.keyLabels[first.id]).toBe('1');
+		expect(controller.keyLabels[third.id]).toBe('2');
+	});
+});
+
+describe('проба звуку', () => {
+	it('після озброєння плеєр НЕ вважає, що грає', async () => {
+		/*
+		 * Проба вмикає тихий файл і одразу ставить на паузу, а тоді знімає
+		 * джерело через `load()`. За специфікацією `load()` викидає з черги ще не
+		 * доставлені події елемента — і `pause` туди не доїжджала. Виходило, що
+		 * `play` порахували, а `pause` ні: над написом «Нічого не грає» світилася
+		 * зелена «Пауза».
+		 *
+		 * Підставка відтворює саме це: `play` подію шле, `pause` — ні.
+		 */
+		const media = window.HTMLMediaElement.prototype;
+		const play = media.play;
+		const pause = media.pause;
+		media.play = function (this: HTMLMediaElement) {
+			this.dispatchEvent(new Event('play'));
+			return Promise.resolve();
+		};
+		media.pause = function () {};
+
+		try {
+			const controller = build(withFiles('Автобус.mp3'));
+			await controller.rescan();
+			expect(await controller.engine.arm()).toBe(true);
+
+			expect(controller.engine.playing).toBe(false);
+			expect(controller.engine.trackId).toBeNull();
+		} finally {
+			media.play = play;
+			media.pause = pause;
+		}
+	});
+});
+
 describe('власний підпис треку', () => {
 	it('замінює імʼя файлу, не чіпаючи самого файлу', async () => {
 		const source = withFiles('Автобус.mp3');

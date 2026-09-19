@@ -85,7 +85,7 @@
 	}
 </script>
 
-<div class="stack">
+<div class="stack stack--auth">
 	<a class="back" href={resolve('/')}>
 		<IconBack size={18} aria-hidden="true" />
 		{t('common.back')}

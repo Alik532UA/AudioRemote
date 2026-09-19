@@ -8,7 +8,13 @@ import { ensureBoard, publishLibrary, publishState } from '$lib/net/board';
 import type { BoardInfo, Command, Track } from '$lib/net/boardTypes';
 import { pruneAcks, watchCommands } from '$lib/net/commands';
 import { countRemotes, trackPresence, watchPresence } from '$lib/net/presence';
-import { builtinFor, isAssignable, isHotkeyEvent, type HotkeyAction } from '$lib/hotkeys/hotkeys';
+import {
+	builtinFor,
+	isAssignable,
+	isHotkeyEvent,
+	keyLabelsFor,
+	type HotkeyAction
+} from '$lib/hotkeys/hotkeys';
 import { mark } from '$lib/services/breadcrumbs';
 
 /** Трек так, як його бачить дошка: файл плюс рішення людини про нього. */
@@ -100,6 +106,15 @@ export class PlayerController {
 	/** Показані треки в порядку дошки — те, що бачить пульт і клавіші. */
 	readonly visible: BoardTrack[] = $derived(this.entries.filter((entry) => !entry.hidden));
 
+	/**
+	 * Яка клавіша ДІЄ для кожного показаного треку — разом із запасними цифрами.
+	 *
+	 * Береться не з `hotkey`, а з правила: доки нікому нічого не призначено,
+	 * цифри працюють за порядком, і в списку має стояти саме та цифра, яка
+	 * спрацює. Раніше там стояла крапка, і екран заперечував клавішу, яка є.
+	 */
+	readonly keyLabels: Record<string, string> = $derived(keyLabelsFor(this.visible));
+
 	/** Скільки треків приховано — для підпису над списком. */
 	readonly hiddenCount: number = $derived(this.entries.filter((entry) => entry.hidden).length);
 
@@ -127,6 +142,20 @@ export class PlayerController {
 		this.track(await watchCommands(this.board.key, (command) => this.execute(command)));
 
 		await pruneAcks(this.board.key);
+
+		/*
+		 * СПЕРШУ СПРОБУВАТИ, І ЛИШЕ ПОТІМ ПРОСИТИ.
+		 *
+		 * Жест потрібен не завжди: сайту, з яким людина вже працювала, браузер
+		 * дозволяє звук одразу. Доти сторінка просила «Увімкнути звук» після
+		 * КОЖНОГО оновлення — тобто вимагала обряд, якого браузер не вимагав, і
+		 * людина бачила прохання ввімкнути те, що вже працює.
+		 *
+		 * Проба беззвучна й безпечна: якщо браузер відмовить, `arm()` поверне
+		 * `false`, і кнопка лишиться на своєму місці — рівно як раніше.
+		 */
+		if (!this.engine.armed) await this.engine.arm();
+
 		await this.announce();
 
 		/*
@@ -431,6 +460,10 @@ export class PlayerController {
 	 * Спершу той, кому клавішу ПРИЗНАЧИЛИ: рішення людини важить більше за
 	 * позицію. Якщо не призначено нікому — працює порядок списку, щоб клавіатура
 	 * діяла одразу, без попереднього налаштування.
+	 *
+	 * Те саме правило другою половиною лежить у `keyLabelsFor`, звідки беруться
+	 * підписи: міняти тут, не глянувши туди, означає знову показати людині не ту
+	 * клавішу, яка спрацює.
 	 */
 	private byHotkey(index: number): BoardTrack | undefined {
 		// Цифри працюють за порядком ЛИШЕ доки клавіші нікому не призначені:

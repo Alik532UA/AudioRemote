@@ -16,7 +16,6 @@
 	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { RemoteController } from '$lib/remote/controller.svelte';
-	import { labelForCode } from '$lib/hotkeys/hotkeys';
 	import { colorOf } from '$lib/config/trackColors';
 
 	let controller = $state<RemoteController | null>(null);
@@ -257,6 +256,7 @@
 				<ul class="tracks">
 					{#each controller.tracks as track (track.id)}
 						{@const hex = colorOf(track.color)}
+						{@const key = controller.keyLabels[track.id]}
 						<li>
 							<button
 								class="tracks__btn"
@@ -268,12 +268,9 @@
 								onclick={() => controller?.send('play', track.id)}
 								data-testid="play-{track.id}"
 							>
-								{#if track.hotkey}
-									<kbd
-										class="tracks__key"
-										aria-label={t('hotkeys.slot', { key: labelForCode(track.hotkey) })}
-									>
-										{labelForCode(track.hotkey)}
+								{#if key}
+									<kbd class="tracks__key" aria-label={t('hotkeys.slot', { key })}>
+										{key}
 									</kbd>
 								{:else}
 									<IconPlay size={18} aria-hidden="true" />

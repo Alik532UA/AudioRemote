@@ -2,8 +2,10 @@
 import { describe, expect, it } from 'vitest';
 import {
 	builtinFor,
+	HOTKEY_SLOTS,
 	isAssignable,
 	isHotkeyEvent,
+	keyLabelsFor,
 	labelForCode,
 	RESERVED_CODES,
 	SEEK_STEP_MS,
@@ -148,6 +150,36 @@ describe('які клавіші можна віддати треку', () => {
 			expect(builtinFor(press({ code }))).not.toBeNull();
 			expect(isAssignable(code)).toBe(false);
 		}
+	});
+});
+
+describe('keyLabelsFor', () => {
+	const track = (id: string, hotkey?: string) => ({ id, hotkey: hotkey ?? null });
+
+	it('доки нікому нічого не призначено — запасні цифри за порядком', () => {
+		/*
+		 * Саме цього бракувало: цифри працювали, а в списку біля кожного треку
+		 * стояла крапка. Екран казав «клавіші немає» про клавішу, яка працює.
+		 */
+		const labels = keyLabelsFor([track('a'), track('b'), track('c')]);
+		expect(labels).toEqual({ a: '1', b: '2', c: '3' });
+	});
+
+	it('запасних цифр рівно девʼять', () => {
+		const many = Array.from({ length: 12 }, (_, index) => track(`t${index}`));
+		const labels = keyLabelsFor(many);
+		expect(Object.keys(labels)).toHaveLength(HOTKEY_SLOTS);
+		expect(labels.t8).toBe('9');
+		expect(labels.t9).toBeUndefined();
+	});
+
+	it('щойно комусь призначено свою — запасні гаснуть у ВСІХ', () => {
+		/*
+		 * Інакше та сама цифра означала б і «трек, якому її дали», і «третій у
+		 * списку», і підпис на екрані не міг би бути правдою для обох.
+		 */
+		const labels = keyLabelsFor([track('a'), track('b', 'KeyQ'), track('c')]);
+		expect(labels).toEqual({ b: 'Q' });
 	});
 });
 

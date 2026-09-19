@@ -3,7 +3,7 @@ import { watchInfo, watchLibrary, watchState } from '$lib/net/board';
 import type { BoardInfo, CommandType, Library, PlayerState, Track } from '$lib/net/boardTypes';
 import { sendCommand, serverNow, waitForAck } from '$lib/net/commands';
 import { hasPlayer, trackPresence, watchPresence } from '$lib/net/presence';
-import { builtinFor, isHotkeyEvent, type HotkeyAction } from '$lib/hotkeys/hotkeys';
+import { builtinFor, isHotkeyEvent, keyLabelsFor, type HotkeyAction } from '$lib/hotkeys/hotkeys';
 
 export interface VisibleTrack extends Track {
 	id: string;
@@ -66,6 +66,15 @@ export class RemoteController {
 			.map(([id, track]) => ({ id, ...track }))
 			.sort((left, right) => left.order - right.order);
 	});
+
+	/**
+	 * Яка клавіша діє для кожного треку — те саме правило, що й на приймачі.
+	 *
+	 * Пульт отримує лише показані треки, тож список тут уже правильний. Підпис
+	 * потрібен і на телефоні: цифри натискають на клавіатурі планшета, а на
+	 * екрані номер ще й підказує, який трек під якою цифрою на комп'ютері.
+	 */
+	readonly keyLabels: Record<string, string> = $derived(keyLabelsFor(this.tracks));
 
 	get currentTitle(): string | null {
 		const id = this.state?.trackId;

@@ -25,7 +25,6 @@
 	import { boardSession } from '$lib/board/session.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import { PlayerController } from '$lib/player/controller.svelte';
-	import { labelForCode } from '$lib/hotkeys/hotkeys';
 	import { colorOf } from '$lib/config/trackColors';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
@@ -372,6 +371,12 @@
 				<section class="card stack">
 					{#if controller.scanning}
 						<p class="muted">{t('player.scanning')}</p>
+					{:else if controller.folderName === null}
+						<!--
+							Теки ще не обрано — це НЕ порожня тека. Один текст на два випадки
+							казав людині, що в теці нічого немає, тоді коли теки ще не було.
+						-->
+						<p class="muted" data-testid="no-folder">{t('player.noFolder')}</p>
 					{:else if controller.entries.length === 0}
 						<p class="muted">{t('player.empty')}</p>
 					{:else}
@@ -397,7 +402,7 @@
 											окремо — там, де раніше було «приховати».
 										-->
 										<kbd class="tracks__key" data-testid="key-{entry.id}">
-											{entry.hotkey ? labelForCode(entry.hotkey) : '·'}
+											{controller.keyLabels[entry.id] ?? '·'}
 										</kbd>
 
 										<button
@@ -602,13 +607,32 @@
 		text-wrap: balance;
 	}
 
+	/*
+	 * Мінімум 10rem на кнопку, а не 110px.
+	 *
+	 * «Зупинити» з іконкою займає близько 9rem, і на 110px кнопка ставала
+	 * вужчою за власний вміст. Тепер, коли три поруч не влазять, `auto-fit`
+	 * переносить їх у наступний ряд — замість того щоб чавити кожну.
+	 */
+	/*
+	 * Флекс, а не сітка.
+	 *
+	 * У сітці кнопка, яка не влізла в ряд, лишалася завширшки з колонку, і
+	 * поруч зяяла дірка. У флексі остання в ряду розтягується на весь рядок,
+	 * тож три кнопки на вузькому екрані читаються як 2 + 1, а не як 2 + огризок.
+	 */
 	.deck__buttons {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+		display: flex;
+		flex-wrap: wrap;
 		gap: var(--gap-sm);
 	}
 
+	/*
+	 * 10rem — це «Зупинити» з іконкою й повітрям. Менше — і кнопка стає вужчою
+	 * за власний вміст.
+	 */
 	.deck__btn {
+		flex: 1 1 10rem;
 		min-height: 56px;
 	}
 

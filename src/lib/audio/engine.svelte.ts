@@ -116,11 +116,19 @@ export class AudioEngine {
 
 		try {
 			element.src = url;
-			element.volume = 0;
+			/*
+			 * Проба йде на СПРАВЖНІЙ гучності, а не на нулі.
+			 *
+			 * Тиша тут у самому файлі, тож не чути нічого так чи так. Але нульова
+			 * гучність для браузера — «беззвучне відтворення», а його дозволяють
+			 * завжди. Тобто проба на нулі відповідала «так» навіть там, де чутний
+			 * звук заборонено, і кнопка зникала б, лишаючи плеєр німим.
+			 */
+			element.muted = false;
+			element.volume = this.volume;
 			await element.play();
 			element.pause();
 			element.currentTime = 0;
-			element.volume = this.volume;
 			this.armed = true;
 			return true;
 		} catch {
@@ -130,6 +138,18 @@ export class AudioEngine {
 			// Джерело прибирається: лишений тихий WAV показувався б як «грає тишу».
 			element.removeAttribute('src');
 			element.load();
+
+			/*
+			 * Стан вирівнюється РУКАМИ — єдине місце, де не з подій.
+			 *
+			 * `load()` за специфікацією викидає з черги ще не доставлені події
+			 * цього елемента, а там лежала `pause` від проби. Виходило, що `play`
+			 * уже порахували, а `pause` не доїхала: плеєр вважав, що грає, і над
+			 * написом «Нічого не грає» світилася зелена «Пауза».
+			 */
+			this.playing = false;
+			this.positionMs = 0;
+			this.durationMs = 0;
 		}
 	}
 

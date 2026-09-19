@@ -131,6 +131,38 @@ export function labelForCode(code: string): string {
 	return code;
 }
 
+/**
+ * ПІДПИСИ КЛАВІШ ДЛЯ СПИСКУ — призначені плюс запасні цифри.
+ *
+ * Правило тут одне на весь застосунок, і саме тому воно винесене: підпис на
+ * екрані й те, що станеться від натискання, — дві половини однієї домовленості,
+ * і розійтися вони можуть тихо. Так і сталося: доки нікому нічого не призначено,
+ * цифри `1`…`9` запускають треки за порядком, а в списку біля кожного стояла
+ * крапка. Тобто екран казав «клавіші немає» про клавішу, яка працює.
+ *
+ * Щойно хоч одному треку призначено свою клавішу, запасні цифри вимикаються —
+ * інакше та сама цифра означала б і «трек, якому її дали», і «третій у списку».
+ * Підписи гаснуть разом із ними.
+ *
+ * Приймає ЛИШЕ показані треки: прихованих немає ні в пульті, ні під клавішами.
+ */
+export function keyLabelsFor(
+	visible: readonly { id: string; hotkey?: string | null }[]
+): Record<string, string> {
+	const labels: Record<string, string> = {};
+	const assigned = visible.filter((entry) => entry.hotkey);
+
+	if (assigned.length > 0) {
+		for (const entry of assigned) labels[entry.id] = labelForCode(entry.hotkey as string);
+		return labels;
+	}
+
+	visible.slice(0, HOTKEY_SLOTS).forEach((entry, index) => {
+		labels[entry.id] = String(index + 1);
+	});
+	return labels;
+}
+
 /** Цифра з фізичної клавіші, або `null`. Основний ряд і цифровий блок. */
 function digitFromCode(code: string): number | null {
 	const main = /^Digit([0-9])$/.exec(code);
