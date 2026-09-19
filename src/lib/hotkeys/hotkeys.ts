@@ -3,41 +3,38 @@
  *
  * | Клавіші | Дія |
  * |---|---|
- * | `1`…`9` | запустити трек за номером |
+ * | пробіл | пауза / продовжити |
  * | `0` | зупинити |
- * | `-` / `+`, стрілки вгору/вниз | гучність |
- * | стрілки ліворуч/праворуч | перемотка на 5 секунд |
+ * | `-` / `+`, стрілки вгору-вниз | гучність |
+ * | стрілки ліворуч-праворуч | перемотка на 5 секунд |
  * | `m` | тиша |
+ * | будь-яка інша | трек, якому її призначили |
+ * | `1`…`9` | трек за порядком, ДОКИ нікому нічого не призначено |
  *
- * Стрілки такі самі, як у плеєрі YouTube: людина вже знає, куди тиснути, і
- * вигадувати тут своє означало б вимагати вчити те, що вона вміє.
+ * Пробіл і стрілки — такі самі, як у плеєрі YouTube: людина вже знає, куди
+ * тиснути, і вигадувати тут своє означало б вимагати вчити те, що вона вміє.
  *
  * ## Чому `event.code`, а не `event.key`
  *
  * `key` віддає символ, який дала РОЗКЛАДКА. У школі розкладка українська, і
  * клавіша `m` там дає `ь` — тобто перевірка `event.key === 'm'` не спрацювала б
  * саме там, де цим користуються. `code` називає фізичну клавішу: `KeyM`
- * лишається `KeyM` за будь-якої розкладки.
- *
- * Те саме з `-` і `+`: `Minus` і `Equal` — це клавіші, а не символи, тож
- * тримати Shift для плюса не треба (але й можна — див. нижче).
+ * лишається `KeyM` за будь-якої розкладки. З цієї ж причини призначені трекам
+ * клавіші зберігаються КОДОМ, а не символом: інакше зміна розкладки
+ * перемішала б усю дошку.
  *
  * ## Чому цифровий блок теж
  *
  * Комп'ютер у залі — стаціонарний, із повною клавіатурою, і рука лягає саме на
  * цифровий блок. `Numpad*` коштують одного рядка й знімають питання «чому не
  * працює».
- *
- * ## Чому це окремий модуль
- *
- * Розкладка клавіатури, фокус у полі вводу й модифікатори — три речі, у яких
- * легко помилитися тихо, і жодна з них не потребує ні браузера, ні застосунку,
- * щоб її перевірити. Тут вони чистою функцією; сторінки лише виконують дію.
  */
 
 export type HotkeyAction =
-	/** Запустити трек за порядковим номером серед ПОКАЗАНИХ, з нуля. */
+	/** Запустити трек за порядковим номером серед показаних, з нуля. */
 	| { kind: 'play'; index: number }
+	/** Пауза або продовження — одна клавіша на обидва стани. */
+	| { kind: 'playPause' }
 	/** Зупинити те, що грає. */
 	| { kind: 'stop' }
 	/** Перемотати на стільки мілісекунд. Відʼємне — назад. */
@@ -47,14 +44,7 @@ export type HotkeyAction =
 	/** Тиша / повернути звук. */
 	| { kind: 'mute' };
 
-/**
- * Скільки треків можна запустити з клавіатури: 1…9. Нуль сюди НЕ входить.
- *
- * Нуль — це «зупинити», і це не економія клавіші. Зупинка потрібна частіше за
- * десятий трек і потрібна ТЕРМІНОВО: коли в залі грає не те, рука має лягти на
- * клавішу, не рахуючи. Нуль стоїть скраю ряду й намацується наосліп — десятому
- * треку таке місце ні до чого.
- */
+/** Скільки треків беруть цифри, доки клавіші нікому не призначені. */
 export const HOTKEY_SLOTS = 9;
 
 /** На скільки відсотків міняє гучність одне натискання. */
@@ -64,12 +54,81 @@ export const VOLUME_STEP = 5;
 export const SEEK_STEP_MS = 5000;
 
 /**
- * Підпис клавіші для порядкового номера. `null` — для решти треків клавіші
- * немає, і показувати порожній значок не треба.
+ * Клавіші, які НЕ можна віддати треку.
+ *
+ * Це не обмеження заради обмеження: кожна з них уже щось робить, і віддати її
+ * треку означає забрати в людини керування. Пробіл, відданий треку, — це плеєр
+ * без паузи; `Escape` — вікно, яке не закрити; `Tab` — сторінка без
+ * клавіатурної навігації.
+ *
+ * Решта клавіатури вільна: літери, `F1`…`F12`, розділові, цифровий блок.
  */
-export function hotkeyLabel(index: number): string | null {
-	if (index < 0 || index >= HOTKEY_SLOTS) return null;
-	return String(index + 1);
+export const RESERVED_CODES: readonly string[] = [
+	'Space',
+	'Escape',
+	'Tab',
+	'Enter',
+	'NumpadEnter',
+	'Backspace',
+	'Delete',
+	'ArrowUp',
+	'ArrowDown',
+	'ArrowLeft',
+	'ArrowRight',
+	'Minus',
+	'Equal',
+	'NumpadSubtract',
+	'NumpadAdd',
+	'KeyM',
+	'Digit0',
+	'Numpad0'
+];
+
+/** Чи можна віддати цю клавішу треку. */
+export const isAssignable = (code: string): boolean =>
+	code.length > 0 && !RESERVED_CODES.includes(code);
+
+/**
+ * Підпис клавіші для екрана.
+ *
+ * `code` — це назва ФІЗИЧНОЇ клавіші, тобто `KeyQ` навіть тоді, коли на ній
+ * намальовано «Й». Показувати людині `KeyQ` не можна; показувати символ із
+ * розкладки теж не можна — він зміниться разом із нею. Береться латинський
+ * напис: він на клавіші є завжди.
+ */
+export function labelForCode(code: string): string {
+	const named: Record<string, string> = {
+		Space: 'Space',
+		Minus: '-',
+		Equal: '=',
+		BracketLeft: '[',
+		BracketRight: ']',
+		Semicolon: ';',
+		Quote: "'",
+		Backquote: '`',
+		Backslash: '\\',
+		Comma: ',',
+		Period: '.',
+		Slash: '/',
+		NumpadAdd: 'Num +',
+		NumpadSubtract: 'Num -',
+		NumpadMultiply: 'Num *',
+		NumpadDivide: 'Num /',
+		NumpadDecimal: 'Num .'
+	};
+	if (named[code]) return named[code];
+
+	const digit = /^Digit([0-9])$/.exec(code);
+	if (digit) return digit[1];
+
+	const numpad = /^Numpad([0-9])$/.exec(code);
+	if (numpad) return `Num ${numpad[1]}`;
+
+	const letter = /^Key([A-Z])$/.exec(code);
+	if (letter) return letter[1];
+
+	// `F5`, `Insert`, `Home` та інші приходять назвою й читаються як є.
+	return code;
 }
 
 /** Цифра з фізичної клавіші, або `null`. Основний ряд і цифровий блок. */
@@ -88,42 +147,46 @@ function digitFromCode(code: string): number | null {
  * полі пароля цифри й набирають. `isContentEditable` ловить редактори, які не є
  * `<input>`.
  */
-function typing(target: EventTarget | null): boolean {
+export function isTyping(target: EventTarget | null): boolean {
 	if (!(target instanceof HTMLElement)) return false;
 	if (target.isContentEditable) return true;
 	return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 }
 
 /**
- * Що робити на це натискання. `null` — нічого, і подію чіпати не треба.
+ * Чи взагалі варто дивитися на це натискання.
  *
- * Shift дозволений навмисно: на багатьох розкладках `+` набирається саме з ним,
- * і вимагати «плюс без Shift» означало б вимагати неможливого. Ctrl, Alt і Meta
- * заборонені: за ними стоять команди браузера й системи, і перехоплювати їх
- * означає ламати те, чого ми не писали.
+ * Shift дозволений навмисно: на багатьох розкладках `+` набирається саме з ним.
+ * Ctrl, Alt і Meta заборонені: за ними стоять команди браузера й системи, і
+ * перехоплювати їх означає ламати те, чого ми не писали.
  */
-export function hotkeyFor(event: KeyboardEvent): HotkeyAction | null {
-	if (event.ctrlKey || event.altKey || event.metaKey) return null;
-	if (event.repeat) return null;
-	if (typing(event.target)) return null;
+export function isHotkeyEvent(event: KeyboardEvent): boolean {
+	if (event.ctrlKey || event.altKey || event.metaKey) return false;
+	if (event.repeat) return false;
+	return !isTyping(event.target);
+}
 
-	const digit = digitFromCode(event.code);
-	if (digit !== null) {
-		// Нуль зупиняє, а не запускає десятий — див. `HOTKEY_SLOTS`.
-		return digit === 0 ? { kind: 'stop' } : { kind: 'play', index: digit - 1 };
-	}
+/**
+ * Вбудована дія для цього натискання. `null` — вбудованої немає.
+ *
+ * Призначені трекам клавіші сюди НЕ входять: про них знає лише той, хто має
+ * список треків. Тому порядок такий — спершу питають про призначену клавішу, і
+ * лише потім про вбудовану.
+ */
+export function builtinFor(event: KeyboardEvent): HotkeyAction | null {
+	if (!isHotkeyEvent(event)) return null;
 
 	switch (event.code) {
+		case 'Space':
+			return { kind: 'playPause' };
 		case 'Minus':
 		case 'NumpadSubtract':
+		case 'ArrowDown':
 			return { kind: 'volume', delta: -VOLUME_STEP };
 		case 'Equal':
 		case 'NumpadAdd':
-			return { kind: 'volume', delta: VOLUME_STEP };
 		case 'ArrowUp':
 			return { kind: 'volume', delta: VOLUME_STEP };
-		case 'ArrowDown':
-			return { kind: 'volume', delta: -VOLUME_STEP };
 		case 'ArrowLeft':
 			return { kind: 'seek', deltaMs: -SEEK_STEP_MS };
 		case 'ArrowRight':
@@ -131,6 +194,12 @@ export function hotkeyFor(event: KeyboardEvent): HotkeyAction | null {
 		case 'KeyM':
 			return { kind: 'mute' };
 		default:
-			return null;
+			break;
 	}
+
+	const digit = digitFromCode(event.code);
+	if (digit === 0) return { kind: 'stop' };
+	if (digit !== null) return { kind: 'play', index: digit - 1 };
+
+	return null;
 }

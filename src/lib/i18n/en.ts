@@ -125,9 +125,17 @@ export const en: Record<TranslationKey, string> = {
 	'color.label': 'Colour {n}',
 	'color.none': 'No colour',
 
-	'hotkeys.hint': 'Keys: 1…9 for tracks, 0 to stop, − and + for volume, M for mute',
+	'hotkeys.hint':
+		'Space pauses, 0 stops, arrows control volume and seeking, M mutes. Any key can be assigned to a track.',
 	'hotkeys.slot': 'Key {key}',
 	'hotkeys.assign': 'Hotkey',
+	'hotkeys.pressAny': 'Press any key…',
+	'hotkeys.none': 'Not assigned',
+	'hotkeys.clear': 'Clear',
+	'hotkeys.reserved': 'The {key} key is taken by a control — pick another one.',
+	'track.settings': 'Track settings',
+	'track.open': 'Track settings',
+	'track.displayName': 'Display name',
 
 	'sound.mute': 'Mute',
 	'sound.unmute': 'Unmute',

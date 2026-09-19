@@ -124,7 +124,7 @@ await must('господар викладає бібліотеку', () =>
 					path: 'act1/vyhid.mp3',
 					durationMs: 1000,
 					order: 0,
-					hotkey: 1,
+					hotkey: 'KeyQ',
 					color: 'azure'
 				}
 			}
@@ -247,9 +247,11 @@ await mustNot('колір довільним рядком', () =>
 	)
 );
 
-await mustNot('клавіша поза межами 1..9', () =>
+await mustNot('клавіша числом, а не кодом', () =>
 	write(
 		`boards/${KEY}/library`,
+		// Код клавіші — рядок (`KeyQ`, `F5`). Число тут означало б старий формат,
+		// який більше нікуди не пишеться.
 		{ rev: 4, tracks: { t4: { title: 'Т', path: 'a.mp3', durationMs: 0, order: 0, hotkey: 42 } } },
 		owner.token
 	)

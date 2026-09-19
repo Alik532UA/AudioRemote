@@ -8,17 +8,20 @@ import { ensureBoard, publishLibrary, publishState } from '$lib/net/board';
 import type { BoardInfo, Command, Track } from '$lib/net/boardTypes';
 import { pruneAcks, watchCommands } from '$lib/net/commands';
 import { countRemotes, trackPresence, watchPresence } from '$lib/net/presence';
-import { HOTKEY_SLOTS, type HotkeyAction } from '$lib/hotkeys/hotkeys';
+import { builtinFor, isAssignable, isHotkeyEvent, type HotkeyAction } from '$lib/hotkeys/hotkeys';
 import { mark } from '$lib/services/breadcrumbs';
 
 /** Трек так, як його бачить дошка: файл плюс рішення людини про нього. */
 export interface BoardTrack {
 	id: string;
-	title: string;
 	path: string;
+	/** Підпис на екрані: свій, якщо його дали, інакше імʼя файлу. */
+	title: string;
+	/** Імʼя файлу без розширення — щоб було видно, що саме перейменували. */
+	fileName: string;
 	color: string | null;
-	/** Гаряча клавіша 1…9, або `null`. */
-	hotkey: number | null;
+	/** Код гарячої клавіші (`KeyQ`, `F5`), або `null`. */
+	hotkey: string | null;
 	hidden: boolean;
 }
 
@@ -197,8 +200,9 @@ export class PlayerController {
 				const setting = settings[track.path];
 				return {
 					id: track.id,
-					title: track.title,
 					path: track.path,
+					fileName: track.title,
+					title: setting?.title ?? track.title,
 					color: setting?.color ?? null,
 					hotkey: setting?.hotkey ?? null,
 					hidden: setting?.hidden === true
@@ -228,8 +232,20 @@ export class PlayerController {
 	 * Альтернатива — «зайнято, оберіть іншу» — змушувала б людину спершу
 	 * звільняти клавішу, тобто робити два кроки замість одного.
 	 */
-	setHotkey(trackId: string, hotkey: number | null): void {
-		if (hotkey !== null && (hotkey < 1 || hotkey > HOTKEY_SLOTS)) return;
+	setTitle(trackId: string, title: string): void {
+		const trimmed = title.trim().slice(0, 200);
+		this.update(trackId, (entry) => ({
+			...entry,
+			title: trimmed.length > 0 ? trimmed : entry.fileName
+		}));
+	}
+
+	/**
+	 * Клавіші, зайняті керуванням, не приймаються: пробіл, відданий треку, —
+	 * це плеєр без паузи.
+	 */
+	setHotkey(trackId: string, hotkey: string | null): void {
+		if (hotkey !== null && !isAssignable(hotkey)) return;
 
 		this.entries = this.entries.map((entry) => {
 			if (entry.id === trackId) return { ...entry, hotkey };
@@ -276,6 +292,9 @@ export class PlayerController {
 			...emptyConfig(),
 			tracks: this.entries.map((entry) => ({
 				path: entry.path,
+				// Підпис пишеться, лише коли він СВІЙ: інакше файл заповнювався б
+				// іменами файлів, і перейменування файлу нічого б не змінило.
+				...(entry.title !== entry.fileName ? { title: entry.title } : {}),
 				...(entry.color ? { color: entry.color } : {}),
 				...(entry.hotkey ? { hotkey: entry.hotkey } : {}),
 				...(entry.hidden ? { hidden: true } : {})
@@ -345,9 +364,43 @@ export class PlayerController {
 		}
 	}
 
+	/**
+	 * Що робити на це натискання. `null` — нічого, подію чіпати не треба.
+	 *
+	 * Синхронна навмисно: `preventDefault()` мусить статися ДО будь-якого
+	 * `await`, інакше пробіл устигне прокрутити сторінку, а стрілка — перевести
+	 * фокус.
+	 *
+	 * Порядок питань має значення: спершу призначена треку клавіша, потім
+	 * вбудована дія. Призначити зайняту керуванням однаково не можна, тож
+	 * змагатися їм нема за що.
+	 */
+	resolveKey(event: KeyboardEvent): HotkeyAction | { kind: 'track'; id: string } | null {
+		if (!isHotkeyEvent(event)) return null;
+
+		const assigned = this.visible.find((entry) => entry.hotkey === event.code);
+		if (assigned) return { kind: 'track', id: assigned.id };
+
+		return builtinFor(event);
+	}
+
+	/** Виконати те, що повернув `resolveKey`. */
+	async run(action: HotkeyAction | { kind: 'track'; id: string }): Promise<void> {
+		if (action.kind === 'track') {
+			await this.playLocal(action.id);
+			return;
+		}
+		await this.handleHotkey(action);
+	}
+
 	/** Гаряча клавіша на боці приймача — усе напряму, без бази. */
 	async handleHotkey(action: HotkeyAction): Promise<void> {
 		switch (action.kind) {
+			case 'playPause':
+				if (this.engine.playing) this.engine.pause();
+				else await this.engine.resume();
+				await this.announce();
+				break;
 			case 'play': {
 				const track = this.byHotkey(action.index);
 				if (track) await this.playLocal(track.id);
@@ -380,8 +433,9 @@ export class PlayerController {
 	 * діяла одразу, без попереднього налаштування.
 	 */
 	private byHotkey(index: number): BoardTrack | undefined {
-		const assigned = this.visible.find((entry) => entry.hotkey === index + 1);
-		if (assigned) return assigned;
+		// Цифри працюють за порядком ЛИШЕ доки клавіші нікому не призначені:
+		// інакше та сама цифра означала б і «трек, якому її дали», і «третій
+		// у списку».
 		return this.visible.some((entry) => entry.hotkey !== null) ? undefined : this.visible[index];
 	}
 

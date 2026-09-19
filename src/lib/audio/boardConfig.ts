@@ -38,10 +38,23 @@ const SCHEMA = 1;
 export interface TrackSetting {
 	/** Шлях усередині теки — те саме, що `SourceTrack.path`. */
 	path: string;
+	/**
+	 * Підпис на екрані. Відсутній — береться імʼя файлу.
+	 *
+	 * Файл при цьому НЕ перейменовується: це тека людини, і застосунок не має
+	 * права чіпати в ній нічого, крім власного файлу налаштувань.
+	 */
+	title?: string;
 	/** Назва заготовки кольору. Відсутня — без кольору. */
 	color?: string;
-	/** Гаряча клавіша 1…9. Відсутня — трек запускають лише натисканням. */
-	hotkey?: number;
+	/**
+	 * Гаряча клавіша — КОД фізичної клавіші (`KeyQ`, `F5`, `Numpad3`).
+	 *
+	 * Не символ: символ залежить від розкладки, і зміна розкладки перемішала б
+	 * усю дошку. Старі файли зберігали тут число 1…9 — воно читається як
+	 * `Digit<число>`, щоб розкладка, зроблена вчора, не загубилася.
+	 */
+	hotkey?: string;
 	/** Прихований від пульта. */
 	hidden?: boolean;
 }
@@ -60,12 +73,20 @@ function toSetting(value: unknown): TrackSetting | null {
 	const record = value as Record<string, unknown>;
 	if (typeof record.path !== 'string' || record.path.length === 0) return null;
 
+	// Число — це файл, записаний до того, як клавішею стала будь-яка кнопка.
+	const legacy =
+		typeof record.hotkey === 'number' && record.hotkey >= 1 && record.hotkey <= 9
+			? `Digit${Math.round(record.hotkey)}`
+			: null;
+	const hotkey = typeof record.hotkey === 'string' ? record.hotkey : legacy;
+
 	return {
 		path: record.path,
-		...(typeof record.color === 'string' ? { color: record.color } : {}),
-		...(typeof record.hotkey === 'number' && record.hotkey >= 1 && record.hotkey <= 9
-			? { hotkey: Math.round(record.hotkey) }
+		...(typeof record.title === 'string' && record.title.trim().length > 0
+			? { title: record.title.trim().slice(0, 200) }
 			: {}),
+		...(typeof record.color === 'string' ? { color: record.color } : {}),
+		...(hotkey && /^[A-Za-z0-9]{1,20}$/.test(hotkey) ? { hotkey } : {}),
 		...(record.hidden === true ? { hidden: true } : {})
 	};
 }

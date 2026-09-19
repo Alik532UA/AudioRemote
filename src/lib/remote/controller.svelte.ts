@@ -3,7 +3,7 @@ import { watchInfo, watchLibrary, watchState } from '$lib/net/board';
 import type { BoardInfo, CommandType, Library, PlayerState, Track } from '$lib/net/boardTypes';
 import { sendCommand, serverNow, waitForAck } from '$lib/net/commands';
 import { hasPlayer, trackPresence, watchPresence } from '$lib/net/presence';
-import type { HotkeyAction } from '$lib/hotkeys/hotkeys';
+import { builtinFor, isHotkeyEvent, type HotkeyAction } from '$lib/hotkeys/hotkeys';
 
 export interface VisibleTrack extends Track {
 	id: string;
@@ -201,18 +201,36 @@ export class RemoteController {
 		await this.seek(this.positionMs + deltaMs);
 	}
 
+	/** Що робити на це натискання. Синхронна — див. пояснення в приймачі. */
+	resolveKey(event: KeyboardEvent): HotkeyAction | { kind: 'track'; id: string } | null {
+		if (!isHotkeyEvent(event)) return null;
+		const assigned = this.tracks.find((entry) => entry.hotkey === event.code);
+		if (assigned) return { kind: 'track', id: assigned.id };
+		return builtinFor(event);
+	}
+
+	async run(action: HotkeyAction | { kind: 'track'; id: string }): Promise<void> {
+		if (action.kind === 'track') {
+			await this.send('play', action.id);
+			return;
+		}
+		await this.handleHotkey(action);
+	}
+
 	/** Гаряча клавіша на боці пульта — усе через ті самі команди. */
 	async handleHotkey(action: HotkeyAction): Promise<void> {
 		switch (action.kind) {
 			case 'play': {
-				// Спершу той, кому клавішу ПРИЗНАЧИЛИ; якщо нікому — за порядком.
-				const wanted = action.index + 1;
-				const track =
-					this.tracks.find((entry) => entry.hotkey === wanted) ??
-					(this.tracks.some((entry) => entry.hotkey) ? undefined : this.tracks[action.index]);
+				// Цифри за порядком — лише доки клавіші нікому не призначені.
+				const track = this.tracks.some((entry) => entry.hotkey)
+					? undefined
+					: this.tracks[action.index];
 				if (track) await this.send('play', track.id);
 				break;
 			}
+			case 'playPause':
+				await this.send(this.state?.playing ? 'pause' : 'resume');
+				break;
 			case 'stop':
 				await this.send('stop');
 				break;

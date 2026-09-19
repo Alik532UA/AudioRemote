@@ -100,31 +100,73 @@ describe('гарячі клавіші треків', () => {
 		await controller.rescan();
 	});
 
-	it('клавіша УНІКАЛЬНА: попередній власник її втрачає', async () => {
+	it('клавіша УНІКАЛЬНА: попередній власник її втрачає', () => {
 		/*
 		 * Альтернатива — «зайнято, оберіть іншу» — змушувала б людину спершу
 		 * звільняти клавішу, тобто робити два кроки замість одного.
 		 */
 		const [first, second] = controller.entries;
-		controller.setHotkey(first.id, 3);
-		controller.setHotkey(second.id, 3);
+		controller.setHotkey(first.id, 'KeyQ');
+		controller.setHotkey(second.id, 'KeyQ');
 
 		expect(controller.entries.find((entry) => entry.id === first.id)?.hotkey).toBeNull();
-		expect(controller.entries.find((entry) => entry.id === second.id)?.hotkey).toBe(3);
+		expect(controller.entries.find((entry) => entry.id === second.id)?.hotkey).toBe('KeyQ');
 	});
 
-	it('поза межами 1…9 не приймається', () => {
+	it('будь-яка вільна клавіша приймається, не лише цифра', () => {
 		const [first] = controller.entries;
-		controller.setHotkey(first.id, 0);
-		controller.setHotkey(first.id, 10);
+		controller.setHotkey(first.id, 'F5');
+		expect(controller.entries[0].hotkey).toBe('F5');
+	});
+
+	it('зайнята керуванням не приймається', () => {
+		// Пробіл, відданий треку, — це плеєр без паузи.
+		const [first] = controller.entries;
+		controller.setHotkey(first.id, 'Space');
+		controller.setHotkey(first.id, 'ArrowLeft');
 		expect(controller.entries[0].hotkey).toBeNull();
 	});
 
-	it('знімається нулем', () => {
+	it('знімається порожнім значенням', () => {
 		const [first] = controller.entries;
-		controller.setHotkey(first.id, 5);
+		controller.setHotkey(first.id, 'KeyZ');
 		controller.setHotkey(first.id, null);
 		expect(controller.entries[0].hotkey).toBeNull();
+	});
+});
+
+describe('власний підпис треку', () => {
+	it('замінює імʼя файлу, не чіпаючи самого файлу', async () => {
+		const source = withFiles('Автобус.mp3');
+		const controller = build(source);
+		await controller.rescan();
+
+		controller.setTitle(controller.entries[0].id, '  Вихід на поклони  ');
+		expect(controller.entries[0].title).toBe('Вихід на поклони');
+		// Імʼя файлу лишається тим самим — застосунок нічого не перейменовує.
+		expect(controller.entries[0].fileName).toBe('Автобус');
+		expect(controller.entries[0].path).toBe('Автобус.mp3');
+	});
+
+	it('порожній підпис повертає імʼя файлу', async () => {
+		const controller = build(withFiles('Автобус.mp3'));
+		await controller.rescan();
+
+		controller.setTitle(controller.entries[0].id, 'Своє');
+		controller.setTitle(controller.entries[0].id, '   ');
+		expect(controller.entries[0].title).toBe('Автобус');
+	});
+
+	it('переживає перечитування теки', async () => {
+		const source = withFiles('Автобус.mp3');
+		const first = build(source);
+		await first.rescan();
+		first.setTitle(first.entries[0].id, 'Вихід на поклони');
+		await new Promise((resolve) => setTimeout(resolve, 700));
+
+		const second = build(source);
+		await second.rescan();
+		expect(second.entries[0].title).toBe('Вихід на поклони');
 	});
 });
 
@@ -145,7 +187,7 @@ describe('файл налаштувань', () => {
 		const source = withFiles('Автобус.mp3', 'Криниця.mp3');
 		const first = build(source);
 		await first.rescan();
-		first.setHotkey(first.entries[1].id, 7);
+		first.setHotkey(first.entries[1].id, 'KeyP');
 		first.setColor(first.entries[1].id, 'azure');
 		first.move(first.entries[1].id, -1);
 
@@ -157,7 +199,7 @@ describe('файл налаштувань', () => {
 		await second.rescan();
 
 		expect(second.entries.map((entry) => entry.title)).toEqual(['Криниця', 'Автобус']);
-		expect(second.entries[0].hotkey).toBe(7);
+		expect(second.entries[0].hotkey).toBe('KeyP');
 		expect(second.entries[0].color).toBe('azure');
 	});
 });

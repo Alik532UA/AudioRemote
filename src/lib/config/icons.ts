@@ -40,3 +40,4 @@ export { default as IconMoon } from '@lucide/svelte/icons/moon';
 export { default as IconKeyboard } from '@lucide/svelte/icons/keyboard';
 export { default as IconUp } from '@lucide/svelte/icons/chevron-up';
 export { default as IconDown } from '@lucide/svelte/icons/chevron-down';
+export { default as IconSliders } from '@lucide/svelte/icons/sliders-horizontal';

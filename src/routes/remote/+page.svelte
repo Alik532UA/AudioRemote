@@ -16,7 +16,7 @@
 	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { RemoteController } from '$lib/remote/controller.svelte';
-	import { hotkeyFor } from '$lib/hotkeys/hotkeys';
+	import { labelForCode } from '$lib/hotkeys/hotkeys';
 	import { colorOf } from '$lib/config/trackColors';
 
 	let controller = $state<RemoteController | null>(null);
@@ -54,10 +54,11 @@
 		 * шкоди від слухача теж.
 		 */
 		const onKeydown = (event: KeyboardEvent) => {
-			const action = hotkeyFor(event);
+			// Синхронно до `await`: інакше пробіл устигне прокрутити сторінку.
+			const action = instance.resolveKey(event);
 			if (!action) return;
 			event.preventDefault();
-			void instance.handleHotkey(action);
+			void instance.run(action);
 		};
 		window.addEventListener('keydown', onKeydown);
 
@@ -268,8 +269,11 @@
 								data-testid="play-{track.id}"
 							>
 								{#if track.hotkey}
-									<kbd class="tracks__key" aria-label={t('hotkeys.slot', { key: track.hotkey })}>
-										{track.hotkey}
+									<kbd
+										class="tracks__key"
+										aria-label={t('hotkeys.slot', { key: labelForCode(track.hotkey) })}
+									>
+										{labelForCode(track.hotkey)}
 									</kbd>
 								{:else}
 									<IconPlay size={18} aria-hidden="true" />

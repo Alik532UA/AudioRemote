@@ -7,8 +7,6 @@
 		IconCheck,
 		IconCopy,
 		IconDown,
-		IconEye,
-		IconEyeOff,
 		IconFolder,
 		IconKeyboard,
 		IconMute,
@@ -17,6 +15,7 @@
 		IconPlay,
 		IconPower,
 		IconRefresh,
+		IconSliders,
 		IconStop,
 		IconUp,
 		IconVolume,
@@ -26,20 +25,19 @@
 	import { boardSession } from '$lib/board/session.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import { PlayerController } from '$lib/player/controller.svelte';
-	import { hotkeyFor, HOTKEY_SLOTS } from '$lib/hotkeys/hotkeys';
-	import { colorNumber, colorOf, TRACK_COLORS } from '$lib/config/trackColors';
+	import { labelForCode } from '$lib/hotkeys/hotkeys';
+	import { colorOf } from '$lib/config/trackColors';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
+	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 
 	let controller = $state<PlayerController | null>(null);
 	let fatal = $state<string | null>(null);
-	/** Для якого треку відкрита панель призначень. `null` — для жодного. */
+	/** Для якого треку відкрите вікно налаштувань. `null` — для жодного. */
 	let openFor = $state<string | null>(null);
 	let copied = $state(false);
 	/** Палець на повзунку перемотки: доти позиція з плеєра його не смикає. */
 	let seeking = $state(false);
 	let seekValue = $state(0);
-
-	const slots = Array.from({ length: HOTKEY_SLOTS }, (_, index) => index + 1);
 
 	const clock = (ms: number) => {
 		const total = Math.max(0, Math.round(ms / 1000));
@@ -88,14 +86,20 @@
 		/*
 		 * Гарячі клавіші вішаються на ВІКНО, а не на якийсь елемент: людина біля
 		 * комп'ютера тисне цифру, не клікнувши перед тим нікуди. Набір у полі
-		 * вводу від цього не страждає — `hotkeyFor` сам відмовляється, коли фокус
+		 * вводу від цього не страждає — `resolveKey` сам відмовляється, коли фокус
 		 * у полі.
 		 */
 		const onKeydown = (event: KeyboardEvent) => {
-			const action = hotkeyFor(event);
+			// Поки відкрите вікно треку, клавіші належать ЙОМУ: там ловлять ту, яку
+			// саме призначають, і запускати нею трек посеред призначення безглуздо.
+			if (openFor !== null) return;
+
+			// `resolveKey` синхронна навмисно: `preventDefault()` мусить статися до
+			// будь-якого `await`, інакше пробіл устигне прокрутити сторінку.
+			const action = instance.resolveKey(event);
 			if (!action) return;
 			event.preventDefault();
-			void instance.handleHotkey(action);
+			void instance.run(action);
 		};
 		window.addEventListener('keydown', onKeydown);
 
@@ -387,17 +391,14 @@
 									style={hex ? `--track-color: ${hex}` : undefined}
 								>
 									<div class="tracks__main" class:tracks__main--tinted={hex !== null}>
-										<button
-											class="tracks__key"
-											type="button"
-											aria-expanded={openFor === entry.id}
-											title={t('hotkeys.assign')}
-											aria-label={t('hotkeys.assign')}
-											onclick={() => (openFor = openFor === entry.id ? null : entry.id)}
-											data-testid="key-{entry.id}"
-										>
-											{entry.hotkey ?? '·'}
-										</button>
+										<!--
+											Клавіша тут ПІДПИС, а не кнопка: натискають її на клавіатурі, а
+											мінять у вікні налаштувань. Кнопка, що відкриває вікно, стоїть
+											окремо — там, де раніше було «приховати».
+										-->
+										<kbd class="tracks__key" data-testid="key-{entry.id}">
+											{entry.hotkey ? labelForCode(entry.hotkey) : '·'}
+										</kbd>
 
 										<button
 											class="tracks__title"
@@ -437,70 +438,15 @@
 											<button
 												class="icon-btn"
 												type="button"
-												title={entry.hidden ? t('player.show') : t('player.hide')}
-												aria-label={entry.hidden ? t('player.show') : t('player.hide')}
-												onclick={() => controller?.toggleHidden(entry.id)}
+												title={t('track.open')}
+												aria-label={t('track.open')}
+												onclick={() => (openFor = entry.id)}
+												data-testid="open-{entry.id}"
 											>
-												{#if entry.hidden}
-													<IconEyeOff size={16} aria-hidden="true" />
-												{:else}
-													<IconEye size={16} aria-hidden="true" />
-												{/if}
+												<IconSliders size={16} aria-hidden="true" />
 											</button>
 										</div>
 									</div>
-
-									{#if openFor === entry.id}
-										<div class="picker" data-testid="picker-{entry.id}">
-											<div class="picker__row">
-												<span class="picker__label">{t('hotkeys.assign')}</span>
-												<button
-													class="picker__key"
-													type="button"
-													aria-pressed={entry.hotkey === null}
-													onclick={() => controller?.setHotkey(entry.id, null)}
-												>
-													·
-												</button>
-												{#each slots as slot (slot)}
-													<button
-														class="picker__key"
-														type="button"
-														aria-pressed={entry.hotkey === slot}
-														onclick={() => controller?.setHotkey(entry.id, slot)}
-														data-testid="assign-{entry.id}-{slot}"
-													>
-														{slot}
-													</button>
-												{/each}
-											</div>
-
-											<div class="picker__row">
-												<span class="picker__label">{t('color.pick')}</span>
-												<button
-													class="picker__cell picker__cell--none"
-													type="button"
-													title={t('color.none')}
-													aria-label={t('color.none')}
-													aria-pressed={entry.color === null}
-													onclick={() => controller?.setColor(entry.id, null)}
-												>
-												</button>
-												{#each TRACK_COLORS as swatch (swatch.slug)}
-													<button
-														class="picker__cell"
-														type="button"
-														style="--swatch: {swatch.hex}"
-														title={t('color.label', { n: colorNumber(swatch.slug) })}
-														aria-label={t('color.label', { n: colorNumber(swatch.slug) })}
-														aria-pressed={entry.color === swatch.slug}
-														onclick={() => controller?.setColor(entry.id, swatch.slug)}
-														data-testid="swatch-{swatch.slug}"
-													></button>
-												{/each}
-											</div>
-										</div>
-									{/if}
 								</li>
 							{/each}
 						</ul>
@@ -508,6 +454,12 @@
 				</section>
 			</div>
 		</div>
+		{#if openFor}
+			{@const chosen = controller.entries.find((entry) => entry.id === openFor)}
+			{#if chosen}
+				<TrackDialog track={chosen} {controller} onclose={() => (openFor = null)} />
+			{/if}
+		{/if}
 	{:else}
 		<p class="muted">{t('common.loading')}</p>
 	{/if}
@@ -830,63 +782,4 @@
 	}
 
 	/* --- Панель призначень -------------------------------------------------- */
-
-	.picker {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap-xs);
-		padding: var(--gap-xs) var(--gap-sm) var(--gap-sm) calc(var(--gap-sm) + 4px);
-	}
-
-	.picker__row {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--gap-xs);
-	}
-
-	.picker__label {
-		min-width: 9ch;
-		color: var(--text-muted);
-		font-size: 0.75rem;
-	}
-
-	.picker__key {
-		width: 28px;
-		height: 28px;
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-sm);
-		background: var(--bg-surface-raised);
-		color: var(--text-secondary);
-		cursor: pointer;
-		font-family: var(--font-mono);
-		font-size: 0.8rem;
-	}
-
-	.picker__cell {
-		width: 28px;
-		height: 28px;
-		border: 2px solid transparent;
-		border-radius: 50%;
-		background: var(--swatch);
-		cursor: pointer;
-	}
-
-	.picker__cell--none {
-		border-color: var(--border-strong);
-		background: var(--bg-sunken);
-	}
-
-	.picker__key:hover,
-	.picker__key:focus-visible,
-	.picker__cell:hover,
-	.picker__cell:focus-visible {
-		border-color: var(--accent);
-	}
-
-	.picker__key[aria-pressed='true'],
-	.picker__cell[aria-pressed='true'] {
-		border-color: var(--text-primary);
-		color: var(--text-primary);
-	}
 </style>

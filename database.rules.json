@@ -83,7 +83,8 @@
 							// теки. Джерело всіх трьох — файл `audioremote.json` у самій теці.
 							".validate": "newData.hasChildren(['title', 'path', 'order'])",
 							"order": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-							"hotkey": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9" },
+							// КОД клавіші, а не символ і не число: `KeyQ`, `F5`, `Numpad3`.
+							"hotkey": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,20}$/)" },
 							// Назва заготовки, а не код кольору: коротку назву можна перевірити.
 							"color": { ".validate": "newData.isString() && newData.val().matches(/^[a-z]{2,12}$/)" },
 							"title": { ".validate": "newData.isString() && newData.val().length <= 200" },
