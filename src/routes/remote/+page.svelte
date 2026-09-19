@@ -18,6 +18,8 @@
 	import { RemoteController } from '$lib/remote/controller.svelte';
 	import { colorOf } from '$lib/config/trackColors';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
+	import { boardPanel } from '$lib/services/boardPanel.svelte';
+	import { narrow } from '$lib/services/narrow.svelte';
 
 	let controller = $state<RemoteController | null>(null);
 	let volume = $state(80);
@@ -80,12 +82,41 @@
 
 	const armed = $derived(controller?.state?.armed === true);
 	const playing = $derived(controller?.state?.playing === true);
+
+	/**
+	 * На телефоні шапка дошки переїжджає під кнопку налаштувань.
+	 *
+	 * Медіазапитом цього не зробити: вузол мусить опинитися в ІНШОМУ
+	 * компоненті, а два однакові вузли з одними `data-testid` — це не розкладка,
+	 * а пастка. Прибирання обовʼязкове: інакше фрагмент пережив би сторінку, і в
+	 * налаштуваннях лишилася б дошка, з якої вже пішли.
+	 */
+	$effect(() => {
+		if (!narrow.matches) return;
+		boardPanel.content = boardHead;
+		return () => (boardPanel.content = null);
+	});
 </script>
+
+<!-- Та сама пара місць, що й у приймача: картка ліворуч або рядок у смузі. -->
+{#snippet boardHead()}
+	{#if controller && boardSession.current}
+		{@const board = boardSession.current}
+		<header class="head" class:card={!narrow.matches} data-testid="board-head">
+			<div class="head__who">
+				<h1 class="head__title">{controller.info?.name || t('remote.title')}</h1>
+				<p class="muted mono">{board.id}</p>
+			</div>
+			<p class="link" class:link--on={controller.playerOnline} data-testid="link-state">
+				<span class="link__dot" aria-hidden="true"></span>
+				{controller.playerOnline ? t('remote.online') : t('remote.offline')}
+			</p>
+		</header>
+	{/if}
+{/snippet}
 
 <div class="stack stack--wide">
 	{#if controller && boardSession.current}
-		{@const board = boardSession.current}
-
 		<!--
 			ТРИ КОЛОНКИ — ТІ САМІ, ЩО В ПЛЕЄРА.
 
@@ -97,17 +128,10 @@
 			стовпець, тож ширший екран нічого не коштує вузькому.
 		-->
 		<div class="board">
-			<div class="board__col">
-				<header class="head card">
-					<div class="head__who">
-						<h1 class="head__title">{controller.info?.name || t('remote.title')}</h1>
-						<p class="muted mono">{board.id}</p>
-					</div>
-					<p class="link" class:link--on={controller.playerOnline} data-testid="link-state">
-						<span class="link__dot" aria-hidden="true"></span>
-						{controller.playerOnline ? t('remote.online') : t('remote.offline')}
-					</p>
-				</header>
+			<div class="board__col board__col--side">
+				{#if !narrow.matches}
+					{@render boardHead()}
+				{/if}
 
 				{#if !controller.playerOnline}
 					<p class="note note--warn card" data-testid="offline-hint">
@@ -136,7 +160,7 @@
 			</div>
 
 			<!-- ─── Керування ─────────────────────────────────────────────── -->
-			<div class="board__col">
+			<div class="board__col board__col--deck">
 				<section class="now card">
 					<HotkeyTips id="remote-tips" />
 
@@ -275,7 +299,7 @@
 			</div>
 
 			<!-- ─── Список ────────────────────────────────────────────────── -->
-			<div class="board__col">
+			<div class="board__col board__col--list">
 				<section class="card stack">
 					{#if controller.tracks.length === 0}
 						<p class="muted">{t('remote.emptyLibrary')}</p>

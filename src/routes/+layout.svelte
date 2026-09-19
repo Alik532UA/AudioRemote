@@ -13,6 +13,9 @@
 	import { IconBack, IconSettings } from '$lib/config/icons';
 	import { mark, rotate } from '$lib/services/breadcrumbs';
 	import { purgeLegacyHandles } from '$lib/audio/localSource';
+	import BoardSheet from '$lib/components/ui/BoardSheet.svelte';
+	import { boardPanel } from '$lib/services/boardPanel.svelte';
+	import { narrow } from '$lib/services/narrow.svelte';
 
 	let { children } = $props();
 
@@ -40,6 +43,14 @@
 	 * Порожня історія буває, коли сторінку відкрили прямим посиланням: там
 	 * `history.back()` вивів би людину із застосунку зовсім.
 	 */
+	/*
+	 * На телефоні шестірня спершу відкриває вікно з дошкою, і вже звідти ведуть
+	 * налаштування застосунку. На широкому екрані шапка дошки стоїть карткою в
+	 * колонці, тож посередник не потрібен — шестірня веде прямо.
+	 */
+	const sheetFirst = $derived(narrow.matches && boardPanel.content !== null);
+	let sheetOpen = $state(false);
+
 	const goBack = () => {
 		if (window.history.length > 1) window.history.back();
 		else void goto(resolve('/'));
@@ -61,8 +72,11 @@
 		// Обидва читають сховище й `window`, тож лише після монтування.
 		themeState.init();
 		i18n.init();
+		const unwatch = narrow.init();
 		ready = true;
 		mark('app:ready');
+
+		return unwatch;
 	});
 </script>
 
@@ -99,15 +113,28 @@
 		{#if ready}
 			<div class="shell__controls">
 				<ThemeToggle />
-				<a
-					class="shell__settings"
-					href={resolve('/settings')}
-					title={t('settings.open')}
-					aria-label={t('settings.open')}
-					data-testid="go-settings"
-				>
-					<IconSettings size={20} aria-hidden="true" />
-				</a>
+				{#if sheetFirst}
+					<button
+						class="shell__settings"
+						type="button"
+						title={t('settings.open')}
+						aria-label={t('settings.open')}
+						onclick={() => (sheetOpen = true)}
+						data-testid="go-settings"
+					>
+						<IconSettings size={20} aria-hidden="true" />
+					</button>
+				{:else}
+					<a
+						class="shell__settings"
+						href={resolve('/settings')}
+						title={t('settings.open')}
+						aria-label={t('settings.open')}
+						data-testid="go-settings"
+					>
+						<IconSettings size={20} aria-hidden="true" />
+					</a>
+				{/if}
 			</div>
 		{/if}
 	</header>
@@ -116,6 +143,10 @@
 		{@render children()}
 	</main>
 </div>
+
+{#if sheetOpen && boardPanel.content}
+	<BoardSheet head={boardPanel.content} onclose={() => (sheetOpen = false)} />
+{/if}
 
 <ReloadPrompt />
 
@@ -128,6 +159,8 @@
 
 	.shell__top {
 		display: flex;
+		flex: none;
+		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--gap-sm);

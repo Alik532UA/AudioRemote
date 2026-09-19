@@ -44,6 +44,7 @@ export const uk = {
 	'entry.forget': 'Прибрати зі списку',
 
 	'settings.title': 'Налаштування',
+	'settings.app': 'Налаштування застосунку',
 	'settings.open': 'Налаштування',
 	'settings.language': 'Мова',
 	'settings.version': 'Версія',

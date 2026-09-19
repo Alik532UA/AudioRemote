@@ -46,6 +46,7 @@ export const en: Record<TranslationKey, string> = {
 	'entry.forget': 'Remove from list',
 
 	'settings.title': 'Settings',
+	'settings.app': 'App settings',
 	'settings.open': 'Settings',
 	'settings.language': 'Language',
 	'settings.version': 'Version',

@@ -27,6 +27,8 @@
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
+	import { boardPanel } from '$lib/services/boardPanel.svelte';
+	import { narrow } from '$lib/services/narrow.svelte';
 
 	let controller = $state<PlayerController | null>(null);
 	let fatal = $state<string | null>(null);
@@ -91,7 +93,52 @@
 			instance.stop();
 		};
 	});
+
+	/**
+	 * На телефоні шапка дошки переїжджає під кнопку налаштувань.
+	 *
+	 * Медіазапитом цього не зробити: вузол мусить опинитися в ІНШОМУ
+	 * компоненті, а два однакові вузли з одними `data-testid` — це не розкладка,
+	 * а пастка. Прибирання обовʼязкове: інакше фрагмент пережив би сторінку, і в
+	 * налаштуваннях лишилася б дошка, з якої вже пішли.
+	 */
+	$effect(() => {
+		if (!narrow.matches) return;
+		boardPanel.content = boardHead;
+		return () => (boardPanel.content = null);
+	});
 </script>
+
+<!--
+	Шапка дошки живе окремим фрагментом, бо місце їй різне: на широкому екрані
+	картка в лівій колонці, на телефоні — рядок у смузі застосунку. Вузол при
+	цьому ОДИН.
+-->
+{#snippet boardHead()}
+	{#if controller && boardSession.current}
+		{@const board = boardSession.current}
+		<header class="head" class:card={!narrow.matches} data-testid="board-head">
+			<div class="head__who">
+				<h1 class="head__title">{board.name || t('player.title')}</h1>
+				<p class="muted mono">{board.id}</p>
+			</div>
+			<div class="head__side">
+				<p class="muted">{t('player.listeners', { count: controller.remotes })}</p>
+				{#if board.password}
+					<button
+						class="btn btn--sm"
+						type="button"
+						onclick={() => (remoteOpen = true)}
+						data-testid="open-remote"
+					>
+						<IconPhone size={18} aria-hidden="true" />
+						{t('player.connect')}
+					</button>
+				{/if}
+			</div>
+		</header>
+	{/if}
+{/snippet}
 
 <div class="stack stack--wide">
 	{#if fatal}
@@ -112,33 +159,10 @@
 			Колонки згортаються самі: на телефоні один стовпець, на планшеті два.
 		-->
 		<div class="board">
-			<div class="board__col">
-				<!--
-					УСЕ ПРО ДОШКУ В ОДНІЙ КАРТЦІ. Пароль доти лежав у згорнутому блоці під
-					нею — окрема картка заради рядка, який читають раз на день. Тепер там
-					кнопка, а за нею інструкція разом із паролем: одне місце на одне
-					питання «як підключити телефон».
-				-->
-				<header class="head card">
-					<div class="head__who">
-						<h1 class="head__title">{board.name || t('player.title')}</h1>
-						<p class="muted mono">{board.id}</p>
-					</div>
-					<div class="head__side">
-						<p class="muted">{t('player.listeners', { count: controller.remotes })}</p>
-						{#if board.password}
-							<button
-								class="btn btn--sm"
-								type="button"
-								onclick={() => (remoteOpen = true)}
-								data-testid="open-remote"
-							>
-								<IconPhone size={18} aria-hidden="true" />
-								{t('player.connect')}
-							</button>
-						{/if}
-					</div>
-				</header>
+			<div class="board__col board__col--side">
+				{#if !narrow.matches}
+					{@render boardHead()}
+				{/if}
 
 				<!--
 					Прохання ввімкнути звук стоїть біля самої дошки, а не над керуванням:
@@ -163,7 +187,7 @@
 			</div>
 
 			<!-- ─── Керування ─────────────────────────────────────────────── -->
-			<div class="board__col">
+			<div class="board__col board__col--deck">
 				<section class="deck card">
 					<HotkeyTips keepOpen={engine.armed} id="deck-tips" />
 
@@ -316,7 +340,7 @@
 			</div>
 
 			<!-- ─── Список ────────────────────────────────────────────────── -->
-			<div class="board__col">
+			<div class="board__col board__col--list">
 				<!--
 					ПАПКА Й ЇЇ ТРЕКИ — ОДНА КАРТКА.
 
