@@ -110,8 +110,11 @@ export const en: Record<TranslationKey, string> = {
 	'player.listeners': 'Remotes connected: {count}',
 	'player.playHere': 'Play on this device',
 	'player.volume': 'Volume',
+	'color.pick': 'Track colour',
+	'color.label': 'Colour {n}',
+	'color.none': 'No colour',
 
-	'hotkeys.hint': 'Keys: 1…9 and 0 for tracks, − and + for volume, M for mute',
+	'hotkeys.hint': 'Keys: 1…9 for tracks, 0 to stop, − and + for volume, M for mute',
 	'hotkeys.slot': 'Key {key}',
 
 	'sound.mute': 'Mute',

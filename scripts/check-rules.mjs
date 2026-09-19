@@ -123,6 +123,10 @@ await must('господар викладає бібліотеку', () =>
 
 await must('господар ховає трек', () => write(`boards/${KEY}/hidden/t1`, true, owner.token));
 
+await must('господар фарбує трек', () =>
+	write(`boards/${KEY}/colors/t1`, 'azure', owner.token)
+);
+
 await must('господар оголошує стан плеєра', () =>
 	write(
 		`boards/${KEY}/state`,
@@ -221,6 +225,19 @@ await mustNot('чужий пише стан плеєра', () =>
 );
 
 await mustNot('чужий ховає трек', () => write(`boards/${KEY}/hidden/t1`, false, stranger.token));
+
+await mustNot('чужий фарбує трек', () =>
+	write(`boards/${KEY}/colors/t1`, 'ruby', stranger.token)
+);
+
+/*
+ * У базі лежить НАЗВА заготовки, а не код кольору. Довільний рядок сюди не
+ * пройде — інакше вузол став би місцем, куди можна класти що завгодно, а
+ * палітра застосунку перестала б бути єдиним джерелом кольорів.
+ */
+await mustNot('колір довільним рядком', () =>
+	write(`boards/${KEY}/colors/t1`, '#ff0000; drop', owner.token)
+);
 
 await mustNot('чужий пише квитанцію', () =>
 	write(`boards/${KEY}/ack/c9`, { ok: true, at: SERVER_TIME }, stranger.token)

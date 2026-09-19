@@ -17,9 +17,11 @@
 import { deflateSync } from 'node:zlib';
 import { writeFileSync } from 'node:fs';
 
-const BG = [16, 20, 24];
-const FG = [231, 236, 241];
-const ACCENT = [87, 170, 255];
+// Кольори — з палітри темної теми (`tokens.css`): значок мусить виглядати
+// частиною застосунку, а не лишатися від попередньої палітри.
+const BG = [8, 12, 20]; // --bg-page, темна
+const FG = [248, 250, 252]; // --text-primary, темна
+const ACCENT = [16, 185, 129]; // --accent, темна
 
 const crcTable = Array.from({ length: 256 }, (_, index) => {
 	let value = index;

@@ -20,9 +20,12 @@
 	import { describeError } from '$lib/net/describeError';
 	import { PlayerController } from '$lib/player/controller.svelte';
 	import { hotkeyFor } from '$lib/hotkeys/hotkeys';
+	import { colorNumber, colorOf, TRACK_COLORS } from '$lib/config/trackColors';
 
 	let controller = $state<PlayerController | null>(null);
 	let fatal = $state<string | null>(null);
+	/** Для якого треку відкрита палітра. `null` — для жодного. */
+	let paletteFor = $state<string | null>(null);
 
 	const hiddenCount = $derived(
 		controller ? Object.values(controller.hidden).filter(Boolean).length : 0
@@ -232,7 +235,12 @@
 
 						<ul class="tracks">
 							{#each controller.numbered as entry (entry.track.id)}
-								<li class="tracks__row" class:tracks__row--hidden={entry.hidden}>
+								{@const hex = colorOf(entry.color)}
+								<li
+									class="tracks__row"
+									class:tracks__row--hidden={entry.hidden}
+									style={hex ? `--track-color: ${hex}` : undefined}
+								>
 									<!--
 										Кнопка, а не підпис: трек запускають і звідси теж. Номер
 										гарячої клавіші стоїть НА НІЙ — так домовленість «двійка
@@ -240,6 +248,7 @@
 									-->
 									<button
 										class="tracks__play"
+										class:tracks__play--tinted={hex !== null}
 										class:tracks__play--playing={engine.trackId === entry.track.id}
 										type="button"
 										disabled={entry.hidden}
@@ -260,6 +269,24 @@
 										<span class="tracks__title">{entry.track.title}</span>
 									</button>
 
+									<!--
+										Колір — це те, за чим трек знаходять оком у темному залі,
+										швидше за будь-яку назву. Тому він живе поруч зі списком,
+										а не в окремих властивостях, куди ніхто не зайде.
+									-->
+									<button
+										class="tracks__color"
+										type="button"
+										aria-expanded={paletteFor === entry.track.id}
+										title={t('color.pick')}
+										aria-label={t('color.pick')}
+										onclick={() =>
+											(paletteFor = paletteFor === entry.track.id ? null : entry.track.id)}
+										data-testid="color-{entry.track.id}"
+									>
+										<span class="tracks__swatch" aria-hidden="true"></span>
+									</button>
+
 									<button
 										class="tracks__toggle"
 										type="button"
@@ -274,6 +301,40 @@
 										{/if}
 									</button>
 								</li>
+
+								{#if paletteFor === entry.track.id}
+									<li class="palette" data-testid="palette-{entry.track.id}">
+										<button
+											class="palette__cell palette__cell--none"
+											type="button"
+											title={t('color.none')}
+											aria-label={t('color.none')}
+											aria-pressed={entry.color === null}
+											onclick={() => {
+												void controller?.setColor(entry.track.id, null);
+												paletteFor = null;
+											}}
+										>
+											<IconEyeOff size={14} aria-hidden="true" />
+										</button>
+
+										{#each TRACK_COLORS as swatch (swatch.slug)}
+											<button
+												class="palette__cell"
+												type="button"
+												style="--swatch: {swatch.hex}"
+												title={t('color.label', { n: colorNumber(swatch.slug) })}
+												aria-label={t('color.label', { n: colorNumber(swatch.slug) })}
+												aria-pressed={entry.color === swatch.slug}
+												onclick={() => {
+													void controller?.setColor(entry.track.id, swatch.slug);
+													paletteFor = null;
+												}}
+												data-testid="swatch-{swatch.slug}"
+											></button>
+										{/each}
+									</li>
+								{/if}
 							{/each}
 						</ul>
 					{/if}
@@ -406,6 +467,75 @@
 	.tracks__play:disabled {
 		cursor: default;
 		opacity: 0.55;
+	}
+
+	/*
+	 * Колір ніколи не стає ТЛОМ ПІД ТЕКСТОМ: він смуга збоку плюс підкладка на
+	 * 12%. Інакше довелося б добирати пару «текст на кольорі» для кожної з десяти
+	 * заготовок і для обох тем — двадцять пар, з яких половина не існує.
+	 */
+	.tracks__play--tinted {
+		border-inline-start: 4px solid var(--track-color);
+		background: color-mix(in oklab, var(--track-color) 12%, transparent);
+	}
+
+	.tracks__color {
+		display: grid;
+		place-items: center;
+		width: var(--tap);
+		min-height: var(--tap);
+		border: 0;
+		border-radius: var(--radius-sm);
+		background: transparent;
+		cursor: pointer;
+	}
+
+	.tracks__swatch {
+		width: 16px;
+		height: 16px;
+		border: 1px solid var(--border-strong);
+		border-radius: 50%;
+		/* Без кольору кружечок лишається порожнім — це теж відповідь. */
+		background: var(--track-color, transparent);
+	}
+
+	.tracks__color:hover .tracks__swatch,
+	.tracks__color:focus-visible .tracks__swatch {
+		border-color: var(--accent);
+	}
+
+	.palette {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--gap-xs);
+		padding: var(--gap-xs) var(--gap-sm) var(--gap-sm);
+	}
+
+	.palette__cell {
+		width: 32px;
+		height: 32px;
+		border: 2px solid transparent;
+		border-radius: 50%;
+		background: var(--swatch);
+		cursor: pointer;
+	}
+
+	.palette__cell--none {
+		display: grid;
+		place-items: center;
+		background: var(--bg-sunken);
+		border-color: var(--border-strong);
+		color: var(--text-secondary);
+	}
+
+	.palette__cell:hover,
+	.palette__cell:focus-visible {
+		border-color: var(--text-primary);
+	}
+
+	.palette__cell[aria-pressed='true'] {
+		border-color: var(--text-primary);
+		box-shadow: 0 0 0 2px var(--bg-surface);
 	}
 
 	.tracks__play--playing {

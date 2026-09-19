@@ -1,5 +1,5 @@
 import type { ActiveBoard } from '$lib/board/session.svelte';
-import { watchHidden, watchInfo, watchLibrary, watchState } from '$lib/net/board';
+import { watchColors, watchHidden, watchInfo, watchLibrary, watchState } from '$lib/net/board';
 import type { BoardInfo, CommandType, Library, PlayerState, Track } from '$lib/net/boardTypes';
 import { sendCommand, waitForAck } from '$lib/net/commands';
 import { hasPlayer, trackPresence, watchPresence } from '$lib/net/presence';
@@ -7,8 +7,10 @@ import { hotkeyLabel, type HotkeyAction } from '$lib/hotkeys/hotkeys';
 
 export interface VisibleTrack extends Track {
 	id: string;
-	/** Підпис гарячої клавіші, або `null` — далі десятого треку їх немає. */
+	/** Підпис гарячої клавіші, або `null` — далі девʼятого треку їх немає. */
 	hotkey: string | null;
+	/** Назва заготовки кольору, або `null`. */
+	color: string | null;
 }
 
 /**
@@ -29,6 +31,7 @@ export class RemoteController {
 	info = $state<BoardInfo | null>(null);
 	library = $state<Library | null>(null);
 	hidden = $state<Record<string, boolean>>({});
+	colors = $state<Record<string, string>>({});
 	state = $state<PlayerState | null>(null);
 	playerOnline = $state(false);
 
@@ -53,7 +56,12 @@ export class RemoteController {
 		if (!this.library?.tracks) return [];
 		return Object.entries(this.library.tracks)
 			.filter(([id]) => !this.hidden[id])
-			.map(([id, track], index) => ({ id, ...track, hotkey: hotkeyLabel(index) }));
+			.map(([id, track], index) => ({
+				id,
+				...track,
+				hotkey: hotkeyLabel(index),
+				color: this.colors[id] ?? null
+			}));
 	}
 
 	get currentTitle(): string | null {
@@ -67,6 +75,7 @@ export class RemoteController {
 		this.cleanups.push(await watchInfo(this.board.key, (info) => (this.info = info)));
 		this.cleanups.push(await watchLibrary(this.board.key, (library) => (this.library = library)));
 		this.cleanups.push(await watchHidden(this.board.key, (hidden) => (this.hidden = hidden)));
+		this.cleanups.push(await watchColors(this.board.key, (colors) => (this.colors = colors)));
 		this.cleanups.push(await watchState(this.board.key, (state) => (this.state = state)));
 		this.cleanups.push(
 			await watchPresence(this.board.key, (present) => (this.playerOnline = hasPlayer(present)))
@@ -169,6 +178,9 @@ export class RemoteController {
 				if (track) await this.send('play', track.id);
 				break;
 			}
+			case 'stop':
+				await this.send('stop');
+				break;
 			case 'volume':
 				this.adjustVolume(action.delta);
 				break;

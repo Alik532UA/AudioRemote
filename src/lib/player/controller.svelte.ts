@@ -3,7 +3,15 @@ import { LocalFolderSource } from '$lib/audio/localSource';
 import type { SourceStatus, SourceTrack } from '$lib/audio/source';
 import { hotkeyLabel, type HotkeyAction } from '$lib/hotkeys/hotkeys';
 import type { ActiveBoard } from '$lib/board/session.svelte';
-import { ensureBoard, publishLibrary, publishState, setHidden, watchHidden } from '$lib/net/board';
+import {
+	ensureBoard,
+	publishLibrary,
+	publishState,
+	setHidden,
+	setTrackColor,
+	watchColors,
+	watchHidden
+} from '$lib/net/board';
 import type { BoardInfo, Command, Track } from '$lib/net/boardTypes';
 import { pruneAcks, watchCommands } from '$lib/net/commands';
 import { countRemotes, trackPresence, watchPresence } from '$lib/net/presence';
@@ -26,6 +34,8 @@ export class PlayerController {
 	/** Треки в порядку списку. Джерело правди для «наступного». */
 	tracks = $state<SourceTrack[]>([]);
 	hidden = $state<Record<string, boolean>>({});
+	/** Колір треку: `trackId` → назва заготовки з `config/trackColors.ts`. */
+	colors = $state<Record<string, string>>({});
 
 	/** Чи належить дошка САМЕ ЦЬОМУ браузеру. */
 	owned = $state(true);
@@ -63,6 +73,7 @@ export class PlayerController {
 			await watchPresence(this.board.key, (present) => (this.remotes = countRemotes(present)))
 		);
 		this.cleanups.push(await watchHidden(this.board.key, (map) => (this.hidden = map)));
+		this.cleanups.push(await watchColors(this.board.key, (map) => (this.colors = map)));
 		this.cleanups.push(await watchCommands(this.board.key, (command) => this.execute(command)));
 
 		await pruneAcks(this.board.key);
@@ -129,6 +140,11 @@ export class PlayerController {
 		await setHidden(this.board.key, trackId, !this.hidden[trackId]);
 	}
 
+	/** Пофарбувати трек. `null` — зняти колір. */
+	async setColor(trackId: string, slug: string | null): Promise<void> {
+		await setTrackColor(this.board.key, trackId, slug);
+	}
+
 	/**
 	 * Треки з номерами гарячих клавіш.
 	 *
@@ -136,13 +152,19 @@ export class PlayerController {
 	 * пульт. Інакше «двійка» означала б на двох екранах різні треки: тут
 	 * приховані видно (перекресленими), а там їх немає взагалі.
 	 */
-	get numbered(): { track: SourceTrack; hidden: boolean; hotkey: string | null }[] {
+	get numbered(): {
+		track: SourceTrack;
+		hidden: boolean;
+		color: string | null;
+		hotkey: string | null;
+	}[] {
 		let shown = 0;
 		return this.tracks.map((track) => {
 			const isHidden = this.hidden[track.id] === true;
 			return {
 				track,
 				hidden: isHidden,
+				color: this.colors[track.id] ?? null,
 				hotkey: isHidden ? null : hotkeyLabel(shown++)
 			};
 		});
@@ -197,6 +219,10 @@ export class PlayerController {
 				if (track) await this.playLocal(track.id);
 				break;
 			}
+			case 'stop':
+				this.engine.stop();
+				await this.announce();
+				break;
 			case 'volume':
 				this.engine.adjustVolume(action.delta);
 				await this.announce();

@@ -17,6 +17,7 @@
 	import { boardSession } from '$lib/board/session.svelte';
 	import { RemoteController } from '$lib/remote/controller.svelte';
 	import { hotkeyFor } from '$lib/hotkeys/hotkeys';
+	import { colorOf } from '$lib/config/trackColors';
 
 	let controller = $state<RemoteController | null>(null);
 	let volume = $state(80);
@@ -218,10 +219,13 @@
 
 				<ul class="tracks">
 					{#each controller.tracks as track (track.id)}
+						{@const hex = colorOf(track.color)}
 						<li>
 							<button
 								class="tracks__btn"
+								class:tracks__btn--tinted={hex !== null}
 								class:tracks__btn--playing={controller.state?.trackId === track.id}
+								style={hex ? `--track-color: ${hex}` : undefined}
 								type="button"
 								disabled={controller.sending}
 								onclick={() => controller?.send('play', track.id)}
@@ -417,6 +421,16 @@
 
 	.tracks__btn:disabled {
 		opacity: 0.6;
+	}
+
+	/*
+	 * Колір — смуга збоку плюс підкладка на 12%, а не тло під текстом: інакше
+	 * довелося б добирати читабельну пару для кожної з десяти заготовок у кожній
+	 * темі. Колір тут для того, щоб трек ЗНАХОДИЛИ оком, а не читали.
+	 */
+	.tracks__btn--tinted {
+		border-inline-start: 4px solid var(--track-color);
+		background: color-mix(in oklab, var(--track-color) 12%, var(--bg-surface-raised));
 	}
 
 	.tracks__btn--playing {

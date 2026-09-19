@@ -89,6 +89,16 @@
 					"$other": { ".validate": false }
 				},
 
+				"colors": {
+					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
+					"$trackId": {
+						// У базі лежить НАЗВА кольору з `src/lib/config/trackColors.ts`, а не
+						// його код. Коротка назва перевіряється правилом; довільний рядок
+						// кольору — ні, і саме тому вибір тут заготовками, а не піпеткою.
+						".validate": "newData.isString() && newData.val().matches(/^[a-z]{2,12}$/)"
+					}
+				},
+
 				"hidden": {
 					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
 					"$trackId": { ".validate": "newData.isBoolean()" }

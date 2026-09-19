@@ -113,8 +113,11 @@ export const uk = {
 	'player.listeners': 'Підключено пультів: {count}',
 	'player.playHere': 'Запустити на цьому пристрої',
 	'player.volume': 'Гучність',
+	'color.pick': 'Колір треку',
+	'color.label': 'Колір {n}',
+	'color.none': 'Без кольору',
 
-	'hotkeys.hint': 'Клавіші: 1…9 і 0 — треки, − та + — гучність, M — тиша',
+	'hotkeys.hint': 'Клавіші: 1…9 — треки, 0 — зупинити, − та + — гучність, M — тиша',
 	'hotkeys.slot': 'Клавіша {key}',
 
 	'sound.mute': 'Вимкнути звук',

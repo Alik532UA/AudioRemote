@@ -48,6 +48,22 @@
 			onpointerenter={(event) => onEnter(option, event)}
 			onclick={() => onChoose(option)}
 		>
+			{#if option.value === null}
+				<!--
+					«Як у пристрої» — це ВІДМОВА від вибору, а не третя палітра, тож і
+					пофарбувати кнопку «під свою тему» нема в що.
+
+					Доти вона була залита градієнтом навпіл, а підпис лежав просто
+					зверху: у темній темі світлий текст потрапляв на білу половину й
+					зникав, у світлій — навпаки. Читабельної пари для тексту, що лежить
+					одночасно на #ffffff і на #121927, не існує.
+
+					Тепер двоколірність винесена в кружечок поруч, а підпис лежить на
+					звичайній поверхні — тобто читається завжди, а «обидві теми»
+					лишається видно.
+				-->
+				<span class="themes__dot" aria-hidden="true"></span>
+			{/if}
 			{t(option.labelKey)}
 		</button>
 	{/each}
@@ -56,6 +72,7 @@
 <style>
 	.themes {
 		display: flex;
+		flex-wrap: wrap;
 		gap: var(--gap-xs);
 	}
 
@@ -67,16 +84,19 @@
 	 * буде не наше: порядок у бандлі задає порядок імпортів, а не наш намір.
 	 */
 	.themes__btn.themes__btn {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--gap-xs);
 		min-height: var(--tap);
-		min-width: var(--tap);
 		padding: 0 var(--gap-sm);
 		border: 2px solid transparent;
 		border-radius: var(--radius-sm);
 		font-size: 0.85rem;
+		font-weight: 600;
 		cursor: pointer;
 	}
 
-	/* Кожна кнопка — кольорами СВОЄЇ теми, а не поточної. */
+	/* Кожна кнопка теми — кольорами СВОЄЇ теми, а не поточної. */
 	.themes__btn--light.themes__btn--light {
 		background: var(--swatch-light-bg);
 		color: var(--swatch-light-fg);
@@ -89,22 +109,31 @@
 		border-color: var(--swatch-dark-border);
 	}
 
-	/* Системна — половина на половину: вибір «як у пристрої» видно з кнопки. */
+	/* Системна — звичайна поверхня плюс двоколірний кружечок. */
 	.themes__btn--system.themes__btn--system {
+		background: var(--bg-surface-raised);
+		color: var(--text-primary);
+		border-color: var(--border);
+	}
+
+	.themes__dot {
+		flex: none;
+		width: 14px;
+		height: 14px;
+		border: 1px solid var(--border-strong);
+		border-radius: 50%;
+		/* Половина на половину: ліворуч світла тема, праворуч темна. */
 		background: linear-gradient(
-			100deg,
+			90deg,
 			var(--swatch-light-bg) 0 50%,
 			var(--swatch-dark-bg) 50% 100%
 		);
-		color: var(--text-primary);
-		border-color: var(--border);
-		text-shadow: 0 0 6px var(--bg-surface);
 	}
 
 	/*
 	 * Наведення міняє РАМКУ, а не заливає акцентом (§ 4.1.2). Акцент —
 	 * середньотоновий, і читабельної пари «текст на акценті» для обох тем
-	 * одночасно не існує: заміряно близько 3,9:1 і з білим, і з чорним.
+	 * одночасно не існує.
 	 */
 	.themes__btn.themes__btn:hover,
 	.themes__btn.themes__btn:focus-visible {

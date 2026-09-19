@@ -17,19 +17,24 @@ describe('hotkeyFor: треки', () => {
 		['Digit1', 0],
 		['Digit5', 4],
 		['Digit9', 8],
-		['Digit0', 9],
 		['Numpad1', 0],
-		['Numpad0', 9]
+		['Numpad9', 8]
 	])('%s запускає трек №%i', (code, index) => {
 		expect(hotkeyFor(press({ code }))).toEqual({ kind: 'play', index });
 	});
 
-	it('нуль — це ДЕСЯТИЙ трек, а не нульовий', () => {
+	it.each(['Digit0', 'Numpad0'])('%s ЗУПИНЯЄ, а не запускає десятий', (code) => {
 		/*
-		 * Так цифри стоять на клавіатурі: 1…9, далі 0. Якби нуль означав перший
-		 * трек, дві клавіші робили б одне й те саме, а десятий не мав би жодної.
+		 * Зупинка потрібна частіше за десятий трек і потрібна терміново: коли в
+		 * залі грає не те, рука має лягти на клавішу, не рахуючи. Нуль скраю ряду
+		 * намацується наосліп.
 		 */
-		expect(hotkeyFor(press({ code: 'Digit0' }))).toEqual({
+		expect(hotkeyFor(press({ code }))).toEqual({ kind: 'stop' });
+	});
+
+	it('дев’ятий трек — останній, якому дісталася клавіша', () => {
+		expect(HOTKEY_SLOTS).toBe(9);
+		expect(hotkeyFor(press({ code: 'Digit9' }))).toEqual({
 			kind: 'play',
 			index: HOTKEY_SLOTS - 1
 		});
@@ -102,10 +107,10 @@ describe('hotkeyFor: коли НЕ реагувати', () => {
 });
 
 describe('hotkeyLabel', () => {
-	it('перші девʼять — свої цифри, десятий — нуль', () => {
+	it('перші девʼять — свої цифри, далі клавіші немає', () => {
 		expect(hotkeyLabel(0)).toBe('1');
 		expect(hotkeyLabel(8)).toBe('9');
-		expect(hotkeyLabel(9)).toBe('0');
+		expect(hotkeyLabel(9)).toBeNull();
 	});
 
 	it('для решти клавіші немає', () => {

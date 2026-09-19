@@ -1,5 +1,5 @@
 /**
- * ГАРЯЧІ КЛАВІШІ: 1…9, 0 — треки; `-` і `+` — гучність; `m` — тиша.
+ * ГАРЯЧІ КЛАВІШІ: 1…9 — треки, 0 — зупинити; `-` і `+` — гучність; `m` — тиша.
  *
  * ## Чому `event.code`, а не `event.key`
  *
@@ -27,13 +27,22 @@
 export type HotkeyAction =
 	/** Запустити трек за порядковим номером серед ПОКАЗАНИХ, з нуля. */
 	| { kind: 'play'; index: number }
+	/** Зупинити те, що грає. */
+	| { kind: 'stop' }
 	/** Змінити гучність на стільки відсотків. */
 	| { kind: 'volume'; delta: number }
 	/** Тиша / повернути звук. */
 	| { kind: 'mute' };
 
-/** Скільки треків можна запустити з клавіатури: 1…9 плюс 0 як десятий. */
-export const HOTKEY_SLOTS = 10;
+/**
+ * Скільки треків можна запустити з клавіатури: 1…9. Нуль сюди НЕ входить.
+ *
+ * Нуль — це «зупинити», і це не економія клавіші. Зупинка потрібна частіше за
+ * десятий трек і потрібна ТЕРМІНОВО: коли в залі грає не те, рука має лягти на
+ * клавішу, не рахуючи. Нуль стоїть скраю ряду й намацується наосліп — десятому
+ * треку таке місце ні до чого.
+ */
+export const HOTKEY_SLOTS = 9;
 
 /** На скільки відсотків міняє гучність одне натискання. */
 export const VOLUME_STEP = 5;
@@ -44,8 +53,7 @@ export const VOLUME_STEP = 5;
  */
 export function hotkeyLabel(index: number): string | null {
 	if (index < 0 || index >= HOTKEY_SLOTS) return null;
-	// Десятий трек — на нулі: так стоять цифри на клавіатурі.
-	return index === HOTKEY_SLOTS - 1 ? '0' : String(index + 1);
+	return String(index + 1);
 }
 
 /** Цифра з фізичної клавіші, або `null`. Основний ряд і цифровий блок. */
@@ -85,8 +93,8 @@ export function hotkeyFor(event: KeyboardEvent): HotkeyAction | null {
 
 	const digit = digitFromCode(event.code);
 	if (digit !== null) {
-		// Нуль — десятий слот, а не нульовий: так він стоїть на клавіатурі.
-		return { kind: 'play', index: digit === 0 ? HOTKEY_SLOTS - 1 : digit - 1 };
+		// Нуль зупиняє, а не запускає десятий — див. `HOTKEY_SLOTS`.
+		return digit === 0 ? { kind: 'stop' } : { kind: 'play', index: digit - 1 };
 	}
 
 	switch (event.code) {

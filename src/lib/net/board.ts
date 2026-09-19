@@ -119,6 +119,35 @@ export async function setHidden(key: string, trackId: string, hidden: boolean): 
 	await (hidden ? set(target, true) : remove(target));
 }
 
+/**
+ * Пофарбувати трек або зняти колір.
+ *
+ * Окремий вузол, як і `hidden`, і з тієї ж причини: бібліотеку пише сканування
+ * теки, а колір — людина. Одне поле означало б, що кожне перечитування або
+ * стирає її рішення, або мусить обережно їх зливати.
+ */
+export async function setTrackColor(
+	key: string,
+	trackId: string,
+	slug: string | null
+): Promise<void> {
+	const { db } = await connect();
+	const { ref, remove, set } = await import('firebase/database');
+	const target = ref(db, `${node(key, 'colors')}/${trackId}`);
+	await (slug ? set(target, slug) : remove(target));
+}
+
+export async function watchColors(
+	key: string,
+	onColors: (colors: Record<string, string>) => void
+): Promise<() => void> {
+	const { db } = await connect();
+	const { onValue, ref } = await import('firebase/database');
+	return onValue(ref(db, node(key, 'colors')), (snapshot) =>
+		onColors((snapshot.val() as Record<string, string> | null) ?? {})
+	);
+}
+
 export async function watchHidden(
 	key: string,
 	onHidden: (hidden: Record<string, boolean>) => void
