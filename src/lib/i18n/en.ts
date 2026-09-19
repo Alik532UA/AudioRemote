@@ -104,7 +104,9 @@ export const en: Record<TranslationKey, string> = {
 	'player.pickAgain':
 		'The folder has to be chosen after every page reload: the browser crashes if the app tries to remember it.',
 	'player.scanning': 'Reading the folder…',
-	'player.found': 'Tracks found: {count}',
+	'player.tracksOne': '{count} track',
+	'player.tracksFew': '{count} tracks',
+	'player.tracksMany': '{count} tracks',
 	'player.empty': 'There are no audio files in this folder.',
 	'player.hide': 'Hide from the remote',
 	'player.show': 'Show',

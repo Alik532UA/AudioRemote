@@ -107,7 +107,9 @@ export const uk = {
 	'player.pickAgain':
 		'Папку треба обирати після кожного перезавантаження сторінки: браузер аварійно закривається, якщо застосунок намагається її запамʼятати.',
 	'player.scanning': 'Читаємо папку…',
-	'player.found': 'Знайдено треків: {count}',
+	'player.tracksOne': '{count} трек',
+	'player.tracksFew': '{count} треки',
+	'player.tracksMany': '{count} треків',
 	'player.empty': 'У цій папці немає аудіофайлів.',
 	'player.hide': 'Приховати від пульта',
 	'player.show': 'Показати',

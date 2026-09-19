@@ -21,7 +21,7 @@
 		IconVolume,
 		IconWarning
 	} from '$lib/config/icons';
-	import { t } from '$lib/i18n/i18n.svelte';
+	import { plural, t } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import { PlayerController } from '$lib/player/controller.svelte';
@@ -421,26 +421,33 @@
 						-->
 						<div class="folder">
 							<IconFolder size={18} aria-hidden="true" />
-							<div class="folder__text">
-								<!--
-									Зверху — скільки треків, під нею — звідки вони.
+							<!--
+								ОДИН РЯДОК: назва папки, поруч меншим — скільки в ній треків.
 
-									Підпис «Папка з музикою» не казав нічого: те, що це папка,
-									видно зі значка поруч і з назви під ним. А кількість стояла
-									окремим рядком нижче — тобто заголовок списку був відірваний
-									від самого списку тим, що між ними.
-								-->
-								<span class="field__label">
+								Два рядки давали шапці вагу, якої вона не варта: назва папки й
+								лічильник — це одна відповідь на одне питання «що це за список».
+								Назва стоїть першою, бо саме її шукають очима; лічильник —
+								уточнення, тому й менший.
+							-->
+							<div class="folder__text">
+								<span class="folder__name">{controller.folderName}</span>
+								<span class="folder__count">
 									{#if controller.scanning}
 										{t('player.scanning')}
 									{:else}
-										{t('player.found', { count: controller.entries.length })}
+										{plural(
+											{
+												one: 'player.tracksOne',
+												few: 'player.tracksFew',
+												other: 'player.tracksMany'
+											},
+											controller.entries.length
+										)}
 										{#if controller.hiddenCount > 0}
 											· {t('player.hiddenCount', { count: controller.hiddenCount })}
 										{/if}
 									{/if}
 								</span>
-								<span class="folder__name">{controller.folderName}</span>
 							</div>
 							<div class="folder__tools">
 								<button
@@ -678,8 +685,16 @@
 	.folder__text {
 		display: flex;
 		flex: 1;
-		flex-direction: column;
+		align-items: baseline;
+		gap: var(--gap-xs);
 		min-width: 0;
+	}
+
+	/* Лічильник не стискається: різати треба довгу назву, а не число. */
+	.folder__count {
+		flex: none;
+		color: var(--text-secondary);
+		font-size: 0.8rem;
 	}
 
 	.folder__tools {
@@ -688,9 +703,11 @@
 	}
 
 	.folder__name {
+		overflow: hidden;
 		color: var(--text-primary);
 		font-weight: 600;
-		word-break: break-all;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	.note {

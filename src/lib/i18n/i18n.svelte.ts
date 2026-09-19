@@ -76,4 +76,25 @@ export function t(key: TranslationKey, values?: Record<string, string | number>)
 	);
 }
 
+/**
+ * ЧИСЛО ЗІ СЛОВОМ: «1 трек», «3 треки», «8 треків».
+ *
+ * Доти всі лічильники були написані так, щоб множини уникнути: «Знайдено
+ * треків: 8» тримає одну форму за будь-якого числа. Це законний спосіб —
+ * рівно доти, доки число стоїть ПІСЛЯ слова. У рядку «AudioRemote-folder 8
+ * треків» воно стоїть перед ним, і обійти множину нема куди.
+ *
+ * Форми обирає `Intl.PluralRules`, а не власна перевірка останньої цифри:
+ * саме така перевірка й дає «11 треки» замість «11 треків». Українська має
+ * три форми, англійська дві — тому форма, якої в наборі немає, падає на
+ * `other`.
+ */
+export function plural(
+	forms: Partial<Record<Intl.LDMLPluralRule, TranslationKey>> & { other: TranslationKey },
+	count: number
+): string {
+	const form = new Intl.PluralRules(i18n.locale).select(count);
+	return t(forms[form] ?? forms.other, { count });
+}
+
 export type { TranslationKey };

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { en } from './en';
+import { i18n, plural } from './i18n.svelte';
 import { uk } from './uk';
 
 /**
@@ -38,5 +39,51 @@ describe('словники', () => {
 			(key) => placeholders(uk[key]).join() !== placeholders(en[key]).join()
 		);
 		expect(mismatched).toEqual([]);
+	});
+});
+
+describe('множина', () => {
+	const tracks = {
+		one: 'player.tracksOne',
+		few: 'player.tracksFew',
+		other: 'player.tracksMany'
+	} as const;
+
+	const inLocale = (locale: 'uk' | 'en', count: number) => {
+		const was = i18n.locale;
+		i18n.locale = locale;
+		try {
+			return plural(tracks, count);
+		} finally {
+			i18n.locale = was;
+		}
+	};
+
+	it.each([
+		[1, '1 трек'],
+		[2, '2 треки'],
+		[4, '4 треки'],
+		[5, '5 треків'],
+		[8, '8 треків'],
+		[0, '0 треків']
+	])('українською %i — «%s»', (count, expected) => {
+		expect(inLocale('uk', count)).toBe(expected);
+	});
+
+	it.each([11, 12, 13, 14])('%i — «треків», а не «треки»', (count) => {
+		/*
+		 * ГОЛОВНИЙ ВИПАДОК. Саме на цих числах ламається наївна перевірка за
+		 * останньою цифрою: 11 закінчується на 1, але «11 трек» — не українська.
+		 * Заради них тут і стоїть `Intl.PluralRules`.
+		 */
+		expect(inLocale('uk', count)).toBe(`${count} треків`);
+	});
+
+	it.each([
+		[1, '1 track'],
+		[2, '2 tracks'],
+		[8, '8 tracks']
+	])('англійською %i — «%s»', (count, expected) => {
+		expect(inLocale('en', count)).toBe(expected);
 	});
 });
