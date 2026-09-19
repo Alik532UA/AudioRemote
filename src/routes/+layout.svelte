@@ -9,16 +9,31 @@
 	import AppMark from '$lib/components/ui/AppMark.svelte';
 	import ReloadPrompt from '$lib/components/ui/ReloadPrompt.svelte';
 	import { IconSettings } from '$lib/config/icons';
+	import { mark, rotate } from '$lib/services/breadcrumbs';
+	import { purgeLegacyHandles } from '$lib/audio/localSource';
 
 	let { children } = $props();
 
 	let ready = $state(false);
 
 	onMount(() => {
+		// Журнал першим: усе, що станеться далі, мусить у нього потрапити.
+		rotate();
+		mark('app:start');
+
+		/*
+		 * Прибрати базу, у якій доти лежав дескриптор теки. Читання того запису
+		 * вбиває рендерер (див. `localSource.ts`), тож у того, хто вже
+		 * користувався застосунком, вона лежить зарядженою. Видалення читанням не
+		 * є й проходить безпечно.
+		 */
+		purgeLegacyHandles();
+
 		// Обидва читають сховище й `window`, тож лише після монтування.
 		themeState.init();
 		i18n.init();
 		ready = true;
+		mark('app:ready');
 	});
 </script>
 

@@ -27,14 +27,19 @@ export interface SourceTrack {
 }
 
 export type SourceStatus =
-	/** Тека обрана, дозвіл є, можна читати. */
+	/** Тека обрана, можна читати. */
 	| 'ready'
-	/** Тека пам'ятається, але браузер просить підтвердити дозвіл жестом. */
-	| 'need-permission'
-	/** Теки ще не обирали. */
+	/** Теки ще не обирали в ЦЬОМУ завантаженні сторінки. */
 	| 'none'
 	/** Цей браузер так не вміє. */
 	| 'unsupported';
+
+/*
+ * Стану «тека памʼятається, підтвердіть дозвіл» тут більше немає, і це не
+ * спрощення інтерфейсу, а наслідок аварії: дескриптор не зберігається взагалі
+ * (`localSource.ts`). Отже після перезавантаження сторінки теки просто немає —
+ * один стан замість двох, і жодного натяку на відновлення, якого не буде.
+ */
 
 export class TrackMissingError extends Error {
 	constructor(readonly path: string) {
@@ -55,9 +60,6 @@ export interface AudioSource {
 	 * відповідь на дію людини, інакше обіцянка відхиляється.
 	 */
 	pick(): Promise<boolean>;
-
-	/** Підтвердити дозвіл на запам'ятовану теку. Теж лише з жесту. */
-	restore(): Promise<boolean>;
 
 	/** Перечитати теку. Повертає треки, впорядковані за назвою. */
 	scan(): Promise<SourceTrack[]>;
@@ -153,10 +155,6 @@ export class MemorySource implements AudioSource {
 
 	async pick(): Promise<boolean> {
 		this.label = 'пам’ять';
-		return true;
-	}
-
-	async restore(): Promise<boolean> {
 		return true;
 	}
 

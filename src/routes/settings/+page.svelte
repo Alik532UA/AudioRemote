@@ -13,14 +13,42 @@
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import ThemeSwitcher from '$lib/components/ui/ThemeSwitcher.svelte';
 	import { isEmulator } from '$lib/net/firebase';
+	import { currentTrail, previousTrail, trailAsText } from '$lib/services/breadcrumbs';
 
 	const LOCALE_NAMES: Record<Locale, string> = { uk: 'Українська', en: 'English' };
 
 	let boardId = $state('');
 	let password = $state('');
 	let saved = $state(false);
+	let trailCopied = $state(false);
+	let trail = $state<{ at: number; step: string }[]>([]);
+	let trailIsPrevious = $state(false);
+
+	/** Журнал готовим текстом: у розмітці перенос рядка не записати. */
+	const trailText = $derived(
+		trail.map((crumb) => `+${crumb.at}ms  ${crumb.step}`).join(String.fromCharCode(10))
+	);
+
+	async function copyTrail() {
+		try {
+			await navigator.clipboard.writeText(trailAsText());
+			trailCopied = true;
+			setTimeout(() => (trailCopied = false), 2000);
+		} catch {
+			/* буфер заборонений — журнал видно на екрані */
+		}
+	}
 
 	onMount(() => {
+		/*
+		 * Показуємо ПОПЕРЕДНІЙ сеанс, якщо він є: саме він обривається на кроці,
+		 * після якого вкладка не вижила. Поточний цікавий лише коли попереднього
+		 * немає — тобто нічого не падало.
+		 */
+		const previous = previousTrail();
+		trailIsPrevious = previous.length > 0;
+		trail = trailIsPrevious ? previous : currentTrail();
+
 		settings.load();
 		boardId = settings.fixedBoardId;
 		password = settings.fixedPassword;
@@ -194,6 +222,31 @@
 			Поруч — ознака емулятора: інакше «дошка не створюється» на бойовій
 			адресі й на локальній виглядають однаково.
 		-->
+		<details class="trail" data-testid="trail">
+			<summary class="trail__toggle">
+				{t('settings.trail')}
+				{#if trailIsPrevious}· {t('settings.trailHint')}{/if}
+			</summary>
+
+			<div class="trail__body">
+				{#if trail.length === 0}
+					<p class="muted">{t('settings.trailEmpty')}</p>
+				{:else}
+					<pre class="trail__text mono">{trailText}</pre>
+					<button class="btn" type="button" onclick={copyTrail} data-testid="copy-trail">
+						{#if trailCopied}
+							<IconCheck size={18} aria-hidden="true" />
+							{t('common.copied')}
+						{:else}
+							{t('common.copy')}
+						{/if}
+					</button>
+				{/if}
+			</div>
+		</details>
+
+		<hr class="rule" />
+
 		<p class="about muted" data-testid="about">
 			<span>{t('app.name')}</span>
 			<span class="mono">{t('settings.version')} {__APP_VERSION__}</span>
@@ -277,6 +330,37 @@
 		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--gap-sm);
+	}
+
+	.trail {
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+	}
+
+	.trail__toggle {
+		min-height: var(--tap);
+		padding: var(--gap-sm) var(--gap);
+		color: var(--text-secondary);
+		cursor: pointer;
+		font-size: 0.85rem;
+		list-style-position: inside;
+	}
+
+	.trail__body {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap-sm);
+		padding: 0 var(--gap) var(--gap);
+	}
+
+	.trail__text {
+		max-height: 40vh;
+		margin: 0;
+		overflow: auto;
+		color: var(--text-secondary);
+		font-size: 0.75rem;
+		white-space: pre-wrap;
+		word-break: break-word;
 	}
 
 	.about__badge {

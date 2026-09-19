@@ -250,19 +250,11 @@ ${t('create.passwordLabel')}: ${board.password}`
 						<IconFolder size={18} aria-hidden="true" />
 						{t('player.pickFolder')}
 					</button>
-				{:else if controller.sourceStatus === 'need-permission'}
-					<p class="note note--warn">
-						<IconWarning size={18} aria-hidden="true" />
-						<span>{t('player.folderLost')}</span>
-					</p>
-					<button
-						class="btn btn--primary"
-						type="button"
-						onclick={() => controller?.restoreFolder()}
-						data-testid="restore-folder"
-					>
-						{t('player.restore')}
-					</button>
+					<!--
+						Чому теку треба обирати знову — сказано прямо. Мовчазна вимога
+						повторити те, що вже робив учора, читається як поломка.
+					-->
+					<p class="muted">{t('player.pickAgain')}</p>
 				{:else}
 					<div class="folder">
 						<span class="folder__name">{controller.folderName}</span>

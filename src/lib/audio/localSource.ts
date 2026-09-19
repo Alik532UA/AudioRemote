@@ -7,6 +7,7 @@ import {
 	type SourceStatus,
 	type SourceTrack
 } from './source';
+import { mark } from '$lib/services/breadcrumbs';
 
 /**
  * ТЕКА НА ЦЬОМУ КОМП'ЮТЕРІ — через дескриптор, а не через шлях.
@@ -16,32 +17,47 @@ import {
  * Сторінка не може відкрити `D:\Музика\вихід.mp3`. Ні з дозволом, ні у
  * встановленій PWA, ні за схемою `file://` — це межа браузера, а не брак
  * налаштування. Єдине, що сторінка може отримати, — ДЕСКРИПТОР, який людина
- * видала їй сама через діалог. Дескриптор не є шляхом: із нього не дізнатися,
- * де тека лежить, і його не можна ні набрати руками, ні передати на інший
- * пристрій.
+ * видала їй сама через діалог.
  *
- * Тому в базі немає ні шляхів, ні файлів — лише назви й шляхи ВСЕРЕДИНІ теки,
- * які без дескриптора не означають нічого.
+ * ## ЧОМУ ДЕСКРИПТОР НЕ ЗБЕРІГАЄТЬСЯ МІЖ ЗАВАНТАЖЕННЯМИ СТОРІНКИ
+ *
+ * Документований спосіб це зробити один: покласти дескриптор в IndexedDB. Саме
+ * так тут і було. **І саме це вбивало браузер.**
+ *
+ * Заміряно 2026-09-19 на трьох рушіях — Chromium від Playwright, справжній
+ * Chrome і Edge, усі на цій машині. Послідовність однакова й відтворюється
+ * щоразу:
+ *
+ * | Крок | Результат |
+ * |---|---|
+ * | `navigator.storage.getDirectory()` | ок |
+ * | `getDirectoryHandle()` | ок |
+ * | `indexedDB.open()` | ок |
+ * | `put(дескриптор)` | ок |
+ * | **`get(дескриптор)`** | **рендерер гине** |
+ *
+ * Це чистий API браузера: у пробі (`.private/probe-idb3.mjs`) немає жодного
+ * рядка нашого коду. Запис проходить, читання вбиває вкладку — тобто база
+ * ОТРУЮЄТЬСЯ, і кожне наступне відкриття дошки падає знову. Автор описав це
+ * точно: гине лише та кімната, де тека була підключена, і досить просто
+ * оновити сторінку.
+ *
+ * Перехопити це неможливо: смерть рендерера — не виняток, `try/catch` її не
+ * бачить. Єдиний спосіб не впасти — не робити цієї операції.
+ *
+ * **Ціна названа прямо:** теку доведеться обирати щоразу після перезавантаження
+ * сторінки. Один діалог на сеанс проти вкладки, яка не відкривається взагалі, —
+ * обмін не рівний, але й вибору тут немає.
+ *
+ * **Коли це можна буде повернути.** Коли та сама проба перестане валити
+ * браузер. Вона лежить у `.private/` саме для того, щоб це можна було
+ * перевірити одним запуском, а не здогадуватися.
  *
  * ## Чому тека, а не окремі файли
  *
- * Один дозвіл замість сотні. Людина обирає теку раз, і всі треки в ній —
- * включно з тими, які вона додасть завтра, — стають доступні без жодного
- * додаткового кроку.
- *
- * ## Дозвіл переживає перезапуск браузера НЕ ЗАВЖДИ
- *
- * Дескриптор зберігається в IndexedDB і справді переживає перезапуск. А от
- * ДОЗВІЛ читати — рішення браузера: Chrome може попросити підтвердити його
- * знову, і підтвердження вимагає жесту людини. Тому `status()` окремо розрізняє
- * «тека є, потрібне підтвердження» й «теки немає»: перше лікується одним
- * натисканням, друге — вибором теки заново, і плутати їх в інтерфейсі означало
- * б відправляти людину шукати теку там, де досить кліку.
+ * Один дозвіл замість сотні. Людина обирає теку раз за сеанс, і всі треки в
+ * ній — включно з доданими вчора — доступні без жодного додаткового кроку.
  */
-
-const DB_NAME = 'audioremote';
-const DB_VERSION = 1;
-const STORE = 'folders';
 
 /** Глибина обходу підтек. Захист від теки, у яку хтось поклав увесь диск. */
 const MAX_DEPTH = 6;
@@ -49,34 +65,26 @@ const MAX_DEPTH = 6;
 /** Стеля кількості треків. Більше — і бібліотека не влізе в один запис RTDB. */
 export const MAX_TRACKS = 2000;
 
-function openDb(): Promise<IDBDatabase> {
-	return new Promise((resolve, reject) => {
-		const request = indexedDB.open(DB_NAME, DB_VERSION);
-		request.onupgradeneeded = () => {
-			if (!request.result.objectStoreNames.contains(STORE)) request.result.createObjectStore(STORE);
-		};
-		request.onsuccess = () => resolve(request.result);
-		request.onerror = () => reject(request.error ?? new Error('IndexedDB недоступна'));
-	});
-}
+/** Назва бази, у якій дескриптори лежали доти. Тепер вона лише видаляється. */
+const LEGACY_DB = 'audioremote';
 
-async function idbGet(key: string): Promise<FileSystemDirectoryHandle | null> {
-	const db = await openDb();
-	return new Promise((resolve) => {
-		const request = db.transaction(STORE, 'readonly').objectStore(STORE).get(key);
-		request.onsuccess = () => resolve((request.result as FileSystemDirectoryHandle) ?? null);
-		request.onerror = () => resolve(null);
-	});
-}
-
-async function idbSet(key: string, handle: FileSystemDirectoryHandle): Promise<void> {
-	const db = await openDb();
-	await new Promise<void>((resolve, reject) => {
-		const tx = db.transaction(STORE, 'readwrite');
-		tx.objectStore(STORE).put(handle, key);
-		tx.oncomplete = () => resolve();
-		tx.onerror = () => reject(tx.error ?? new Error('не вдалося зберегти дескриптор'));
-	});
+/**
+ * Прибрати отруєну базу.
+ *
+ * У того, хто вже користувався застосунком, у ній лежить дескриптор — і будь-яке
+ * ЧИТАННЯ цього запису валить вкладку. Видалення бази читанням не є: воно
+ * перевірене тією ж пробою й проходить без наслідків.
+ *
+ * Кличеться раз на завантаження застосунку. Якщо бази немає, виклик нічого не
+ * робить і нічого не коштує.
+ */
+export function purgeLegacyHandles(): void {
+	if (typeof indexedDB === 'undefined') return;
+	mark('purge:start');
+	const request = indexedDB.deleteDatabase(LEGACY_DB);
+	request.onsuccess = () => mark('purge:done');
+	request.onerror = () => mark('purge:error');
+	request.onblocked = () => mark('purge:blocked');
 }
 
 export class LocalFolderSource implements AudioSource {
@@ -87,61 +95,48 @@ export class LocalFolderSource implements AudioSource {
 	readonly supported =
 		typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
 
+	/** Живе лише в памʼяті сторінки. Перезавантаження — і теку обирають заново. */
 	private handle: FileSystemDirectoryHandle | null = null;
-
-	/** Ключ дошки: у кожної дошки своя тека на цьому комп'ютері. */
-	constructor(private readonly boardKey: string) {}
 
 	get label(): string | null {
 		return this.handle?.name ?? null;
 	}
 
-	private async permission(request: boolean): Promise<PermissionState> {
-		if (!this.handle) return 'denied';
-		const descriptor = { mode: 'read' } as const;
-		const current = (await this.handle.queryPermission?.(descriptor)) ?? 'granted';
-		if (current === 'granted' || !request) return current;
-		return (await this.handle.requestPermission?.(descriptor)) ?? 'denied';
-	}
-
 	async status(): Promise<SourceStatus> {
 		if (!this.supported) return 'unsupported';
-		this.handle ??= await idbGet(this.boardKey);
-		if (!this.handle) return 'none';
-		return (await this.permission(false)) === 'granted' ? 'ready' : 'need-permission';
+		return this.handle ? 'ready' : 'none';
 	}
 
 	async pick(): Promise<boolean> {
 		if (!window.showDirectoryPicker) return false;
+		mark('pick:open');
 		try {
 			/*
 			 * `id` дає браузеру змогу відкрити діалог там, де його закрили минулого
-			 * разу. `startIn: 'music'` — перше відкриття: людина майже напевно шукає
-			 * теку з музикою, і починати з «Цей комп'ютер» означає зайві три кліки.
+			 * разу, — це єдине, що лишилося від «памʼяті» після відмови від
+			 * збереження дескриптора. `startIn: 'music'` — для першого відкриття.
 			 */
-			const handle = await window.showDirectoryPicker({
+			this.handle = await window.showDirectoryPicker({
 				id: 'audioremote-library',
 				mode: 'read',
 				startIn: 'music'
 			});
-			this.handle = handle;
-			await idbSet(this.boardKey, handle);
+			mark(`pick:ok ${this.handle.name}`);
 			return true;
 		} catch (error) {
 			// Людина закрила діалог — це відповідь «ні», а не помилка.
-			if (error instanceof DOMException && error.name === 'AbortError') return false;
+			if (error instanceof DOMException && error.name === 'AbortError') {
+				mark('pick:cancelled');
+				return false;
+			}
+			mark(`pick:error ${String(error).slice(0, 60)}`);
 			throw error;
 		}
 	}
 
-	async restore(): Promise<boolean> {
-		this.handle ??= await idbGet(this.boardKey);
-		if (!this.handle) return false;
-		return (await this.permission(true)) === 'granted';
-	}
-
 	async scan(): Promise<SourceTrack[]> {
 		if (!this.handle) throw new Error('теку не обрано');
+		mark('scan:start');
 
 		const found: { title: string; path: string }[] = [];
 
@@ -163,6 +158,7 @@ export class LocalFolderSource implements AudioSource {
 		};
 
 		await walk(this.handle, '', 0);
+		mark(`scan:found ${found.length}`);
 
 		const tracks = await Promise.all(
 			found.map(async (entry) => ({ ...entry, id: await trackIdFromPath(entry.path) }))

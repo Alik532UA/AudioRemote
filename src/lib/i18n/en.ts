@@ -50,6 +50,10 @@ export const en: Record<TranslationKey, string> = {
 	'settings.language': 'Language',
 	'settings.version': 'Version',
 	'settings.emulator': 'Local emulator',
+	'settings.trail': 'Recent actions log',
+	'settings.trailHint':
+		'Written to browser storage, so it survives a crash. Copy and send it if something went wrong.',
+	'settings.trailEmpty': 'Empty.',
 	'settings.fixedTitle': 'Fixed board',
 	'settings.fixedLead':
 		'Put a board ID and password here that will not change. “Create” will then open THE SAME board every time, so there is nothing new to read out to colleagues.',
@@ -97,8 +101,8 @@ export const en: Record<TranslationKey, string> = {
 	'player.pickFolder': 'Choose a music folder',
 	'player.changeFolder': 'Another folder',
 	'player.rescan': 'Re-read the folder',
-	'player.folderLost': 'Access to the folder was lost. Press to restore it.',
-	'player.restore': 'Restore access',
+	'player.pickAgain':
+		'The folder has to be chosen after every page reload: the browser crashes if the app tries to remember it.',
 	'player.scanning': 'Reading the folder…',
 	'player.found': 'Tracks found: {count}',
 	'player.empty': 'There are no audio files in this folder.',

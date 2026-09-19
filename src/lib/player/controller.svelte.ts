@@ -97,7 +97,9 @@ export class PlayerController {
 	private stopped = false;
 
 	constructor(private readonly board: ActiveBoard) {
-		this.source = new LocalFolderSource(board.key);
+		// Тека живе лише в памʼяті цього завантаження сторінки — ключ дошки їй
+		// більше не потрібен (див. `localSource.ts`).
+		this.source = new LocalFolderSource();
 		this.engine = new AudioEngine(this.source);
 	}
 
@@ -166,14 +168,6 @@ export class PlayerController {
 	/** Обрати теку. Лише з жесту — інакше браузер не відкриє діалог. */
 	async pickFolder(): Promise<void> {
 		if (!(await this.source.pick())) return;
-		this.folderName = this.source.label;
-		this.sourceStatus = await this.source.status();
-		await this.rescan();
-	}
-
-	/** Підтвердити дозвіл на запам'ятовану теку. Теж лише з жесту. */
-	async restoreFolder(): Promise<void> {
-		if (!(await this.source.restore())) return;
 		this.folderName = this.source.label;
 		this.sourceStatus = await this.source.status();
 		await this.rescan();
