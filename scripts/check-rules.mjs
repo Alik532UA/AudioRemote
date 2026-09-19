@@ -141,6 +141,14 @@ await must('пульт просить перемотку', () =>
 	)
 );
 
+await must('пульт просить попередній трек', () =>
+	write(
+		`boards/${KEY}/cmd/p1`,
+		{ by: stranger.uid, type: 'prev', at: SERVER_TIME },
+		stranger.token
+	)
+);
+
 await must('пульт дописує команду, підписану собою', () =>
 	write(
 		`boards/${KEY}/cmd/c1`,

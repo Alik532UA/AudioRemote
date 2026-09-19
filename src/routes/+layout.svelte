@@ -84,7 +84,7 @@
 	<header class="shell__top">
 		<div class="shell__left">
 			<a class="shell__mark" href={resolve('/')} title={t('app.name')} data-testid="brand">
-				<AppMark size={34} />
+				<AppMark size={26} />
 				<span class="visually-hidden">{t('app.name')}</span>
 			</a>
 
@@ -141,14 +141,13 @@
 		min-width: 0;
 	}
 
+	/* Не коло, а капсула: усередині ще й напис. Висота та сама. */
 	.shell__back {
 		display: inline-flex;
 		align-items: center;
 		gap: var(--gap-xs);
 		min-height: var(--tap);
-		padding: 0;
-		border: 0;
-		background: none;
+		padding-inline: var(--gap);
 		color: var(--text-secondary);
 		font: inherit;
 		font-size: 0.875rem;
@@ -160,10 +159,30 @@
 		color: var(--accent);
 	}
 
+	/*
+	 * ТРИ ОРГАНИ ШАПКИ — ОДНА ФОРМА: знак, «Назад», налаштування.
+	 *
+	 * Знак і «Назад» стояли голими написами поруч із кнопкою налаштувань у
+	 * власному колі: три сусіди в одному ряду, з яких один виглядає кнопкою, а
+	 * двоє — ні, читаються як недороблені, а не як різні за призначенням.
+	 *
+	 * Рамки немає в жодного: тло вже відділяє їх від сторінки, а лінія поверх
+	 * нього лише додає шуму в смугу, де й так три предмети.
+	 */
+	.shell__mark,
+	.shell__back,
+	.shell__settings {
+		transition: color var(--transition-fast);
+		border: 0;
+		border-radius: var(--radius-full);
+		background: var(--bg-surface-raised);
+	}
+
 	.shell__mark {
-		display: flex;
-		align-items: center;
-		min-height: var(--tap);
+		display: grid;
+		place-items: center;
+		width: var(--tap);
+		height: var(--tap);
 		color: var(--text-primary);
 		text-decoration: none;
 	}
@@ -174,31 +193,27 @@
 		gap: var(--gap-sm);
 	}
 
-	/*
-	 * Кругла й рівно така сама заввишки, як тугал поруч: два органи керування в
-	 * одному ряду з різною висотою читаються як недороблені, а не як різні.
-	 */
+	/* Рівно така сама заввишки, як тугал поруч. */
 	.shell__settings {
 		display: grid;
 		place-items: center;
 		width: var(--tap);
 		height: var(--tap);
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-full);
-		background: var(--bg-surface-raised);
 		color: var(--text-secondary);
-		transition:
-			border-color var(--transition-fast),
-			color var(--transition-fast);
 	}
 
+	.shell__mark:hover,
+	.shell__mark:focus-visible,
+	.shell__back:hover,
+	.shell__back:focus-visible,
 	.shell__settings:hover,
 	.shell__settings:focus-visible {
-		border-color: var(--accent);
 		color: var(--accent);
 	}
 
 	@media (prefers-reduced-motion: reduce) {
+		.shell__mark,
+		.shell__back,
 		.shell__settings {
 			transition: none;
 		}

@@ -314,6 +314,130 @@ svg {
 	}
 }
 
+/* --- Дошка ---------------------------------------------------------------- */
+
+/*
+ * ТРИ КОЛОНКИ — і в приймача, і в пульта.
+ *
+ * Обидві сторінки показують ту саму дошку, і людина ходить між ними в межах
+ * одного вечора. Дві різні розкладки на один предмет означають, що на кожному
+ * екрані треба наново шукати, де тут що, — тому розкладка лежить тут, а не в
+ * кожній сторінці окремо.
+ *
+ * Колонки згортаються самі: на телефоні один стовпець, на планшеті два.
+ */
+.board {
+	display: grid;
+	gap: var(--gap);
+	grid-template-columns: 1fr;
+	align-items: start;
+}
+
+@media (min-width: 900px) {
+	.board {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+@media (min-width: 1280px) {
+	/*
+	 * Ліва колонка вузька: там лише дошка та її стан. Список отримує найбільше —
+	 * саме в нього дивляться найдовше.
+	 */
+	.board {
+		grid-template-columns: 280px minmax(340px, 1fr) minmax(400px, 1.4fr);
+	}
+}
+
+.board__col {
+	display: flex;
+	flex-direction: column;
+	gap: var(--gap);
+	min-width: 0;
+}
+
+/* --- Шапка дошки ---------------------------------------------------------- */
+
+.head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--gap-sm);
+}
+
+.head__title {
+	font-size: 1.2rem;
+}
+
+.head__who {
+	min-width: 0;
+}
+
+/* Лічильник пультів і кнопка — один стовпчик праворуч від назви дошки. */
+.head__side {
+	display: flex;
+	flex-direction: column;
+	align-items: end;
+	gap: var(--gap-xs);
+}
+
+/* --- Шапка картки зі списком ---------------------------------------------- */
+
+/*
+ * Відʼємні відступи рівно на падінг картки — смуга доходить до її країв. Без
+ * цього лінія обривалася б, не діставши краю, і шапка читалася б як ще один
+ * вміст усередині, а не як заголовок того, що під нею.
+ */
+.folder {
+	display: flex;
+	align-items: center;
+	gap: var(--gap-sm);
+	margin: calc(var(--gap-lg) * -1) calc(var(--gap-lg) * -1) 0;
+	padding: var(--gap-sm) var(--gap-lg);
+	border-bottom: 1px solid var(--border);
+	border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+	background: var(--bg-sunken);
+	color: var(--text-secondary);
+}
+
+@media (max-width: 480px) {
+	/* На вузькому екрані картка бере менший падінг — смуга йде за ним. */
+	.folder {
+		margin: calc(var(--gap) * -1) calc(var(--gap) * -1) 0;
+		padding: var(--gap-sm) var(--gap);
+		border-radius: var(--radius) var(--radius) 0 0;
+	}
+}
+
+.folder__text {
+	display: flex;
+	flex: 1;
+	align-items: baseline;
+	gap: var(--gap-xs);
+	min-width: 0;
+}
+
+.folder__name {
+	overflow: hidden;
+	color: var(--text-primary);
+	font-weight: 600;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Лічильник не стискається: різати треба довгу назву, а не число. */
+.folder__count {
+	flex: none;
+	color: var(--text-secondary);
+	font-size: 0.8rem;
+}
+
+.folder__tools {
+	display: flex;
+	gap: var(--gap-xs);
+}
+
 /* --- Поля вводу ---------------------------------------------------------- */
 
 .input {

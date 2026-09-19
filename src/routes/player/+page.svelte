@@ -5,8 +5,6 @@
 	import {
 		IconDown,
 		IconFolder,
-		IconInfo,
-		IconKeyboard,
 		IconMute,
 		IconNext,
 		IconPause,
@@ -28,6 +26,7 @@
 	import { colorOf } from '$lib/config/trackColors';
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
+	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 
 	let controller = $state<PlayerController | null>(null);
 	let fatal = $state<string | null>(null);
@@ -35,8 +34,6 @@
 	let openFor = $state<string | null>(null);
 	/** Чи відкрите вікно «як підключити пульт». */
 	let remoteOpen = $state(false);
-	/** Чи розгорнуті підказки під керуванням. Згорнуті — типово. */
-	let tipsOpen = $state(false);
 	/** Палець на повзунку перемотки: доти позиція з плеєра його не смикає. */
 	let seeking = $state(false);
 	let seekValue = $state(0);
@@ -168,74 +165,7 @@
 			<!-- ─── Керування ─────────────────────────────────────────────── -->
 			<div class="board__col">
 				<section class="deck card">
-					<!--
-						ПІДКАЗКА — ТУЛТІП, А НЕ БЛОК У КАРТЦІ.
-
-						Перелік клавіш читають один раз, а місце під кнопками він займав
-						завжди. Коли підказка розкривалася всередині картки, вона ще й
-						зсувала все нижче — тобто рухала те, на що людина щойно дивилася.
-						Тултіп лежить НАД вмістом і не рухає нічого.
-
-						Показ і на наведення, і на натискання: на дотиковому екрані наведення
-						не буває, і сама лише `:hover` лишила б підказку недосяжною з
-						телефона. Клавіатуру додає `:focus-visible` — див. стилі нижче.
-					-->
-					<div class="tip" class:tip--open={tipsOpen}>
-						<button
-							class="tip__btn"
-							type="button"
-							aria-expanded={tipsOpen}
-							aria-describedby="deck-tips"
-							aria-label={t('player.tips')}
-							onclick={() => (tipsOpen = !tipsOpen)}
-							data-testid="toggle-tips"
-						>
-							<IconInfo size={18} aria-hidden="true" />
-						</button>
-
-						<div class="tip__panel" id="deck-tips" role="tooltip" data-testid="tips">
-							<p class="tip__title">
-								<IconKeyboard size={16} aria-hidden="true" />
-								{t('hotkeys.tipTitle')}
-							</p>
-
-							<!--
-								РЯДОК НА ДІЮ, а не суцільне речення.
-
-								Перелік клавіш читають не так, як текст: шукають очима свою
-								клавішу й зупиняються. У рядок через кому шукати нема за що —
-								доводиться прочитати все, щоб знайти одне.
-							-->
-							<dl class="keys">
-								<dt><kbd>Space</kbd></dt>
-								<dd>{t('hotkeys.actPlayPause')}</dd>
-
-								<dt><kbd>0</kbd></dt>
-								<dd>{t('hotkeys.actStop')}</dd>
-
-								<dt><kbd>1</kbd>–<kbd>9</kbd></dt>
-								<dd>{t('hotkeys.actTrack')}</dd>
-
-								<dt><kbd>←</kbd><kbd>→</kbd></dt>
-								<dd>{t('hotkeys.actSeek')}</dd>
-
-								<dt><kbd>↑</kbd><kbd>↓</kbd></dt>
-								<dd>{t('hotkeys.actVolume')}</dd>
-
-								<dt><kbd>M</kbd></dt>
-								<dd>{t('hotkeys.actMute')}</dd>
-							</dl>
-
-							<p class="tip__foot">{t('hotkeys.tipFoot')}</p>
-
-							{#if engine.armed}
-								<p class="armed" data-testid="armed">
-									<IconPower size={16} aria-hidden="true" />
-									{t('player.keepOpen')}
-								</p>
-							{/if}
-						</div>
-					</div>
+					<HotkeyTips keepOpen={engine.armed} id="deck-tips" />
 
 					<p class="deck__now" data-testid="now-playing">
 						{current?.title ?? t('remote.nothing')}
@@ -576,60 +506,6 @@
 </div>
 
 <style>
-	.board {
-		display: grid;
-		gap: var(--gap);
-		grid-template-columns: 1fr;
-		align-items: start;
-	}
-
-	@media (min-width: 900px) {
-		.board {
-			grid-template-columns: 1fr 1fr;
-		}
-	}
-
-	@media (min-width: 1280px) {
-		.board {
-			/*
-			 * Ліва колонка вузька: там лишилися тільки дошка й озброєння. Папка
-			 * переїхала до свого списку, і саме йому тепер потрібна ширина.
-			 */
-			grid-template-columns: 280px minmax(340px, 1fr) minmax(400px, 1.4fr);
-		}
-	}
-
-	.board__col {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap);
-		min-width: 0;
-	}
-
-	.head {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--gap-sm);
-	}
-
-	.head__title {
-		font-size: 1.2rem;
-	}
-
-	.head__who {
-		min-width: 0;
-	}
-
-	/* Лічильник пультів і кнопка — один стовпчик праворуч від назви дошки. */
-	.head__side {
-		display: flex;
-		flex-direction: column;
-		align-items: end;
-		gap: var(--gap-xs);
-	}
-
 	.arm {
 		display: flex;
 		flex-direction: column;
@@ -647,68 +523,7 @@
 		white-space: normal;
 	}
 
-	.armed {
-		display: flex;
-		align-items: center;
-		gap: var(--gap-xs);
-		color: var(--ok);
-		font-size: 0.8rem;
-	}
-
 	/* Значок, підпис і назва теки — один рядок картки, а не три сусіди. */
-	/*
-	 * Відʼємні відступи рівно на падінг картки — смуга доходить до її країв.
-	 * Без цього будь-яке тло чи лінія обривалися б, не діставши краю, і шапка
-	 * читалася б як ще один вміст усередині.
-	 */
-	.folder {
-		display: flex;
-		align-items: center;
-		gap: var(--gap-sm);
-		margin: calc(var(--gap-lg) * -1) calc(var(--gap-lg) * -1) 0;
-		padding: var(--gap-sm) var(--gap-lg);
-		border-bottom: 1px solid var(--border);
-		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-		background: var(--bg-sunken);
-		color: var(--text-secondary);
-	}
-
-	@media (max-width: 480px) {
-		/* На вузькому екрані картка бере менший падінг — смуга йде за ним. */
-		.folder {
-			margin: calc(var(--gap) * -1) calc(var(--gap) * -1) 0;
-			padding: var(--gap-sm) var(--gap);
-			border-radius: var(--radius) var(--radius) 0 0;
-		}
-	}
-
-	.folder__text {
-		display: flex;
-		flex: 1;
-		align-items: baseline;
-		gap: var(--gap-xs);
-		min-width: 0;
-	}
-
-	/* Лічильник не стискається: різати треба довгу назву, а не число. */
-	.folder__count {
-		flex: none;
-		color: var(--text-secondary);
-		font-size: 0.8rem;
-	}
-
-	.folder__tools {
-		display: flex;
-		gap: var(--gap-xs);
-	}
-
-	.folder__name {
-		overflow: hidden;
-		color: var(--text-primary);
-		font-weight: 600;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
 
 	.note {
 		display: flex;
@@ -729,135 +544,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
-	}
-
-	.tip {
-		position: absolute;
-		top: var(--gap-sm);
-		right: var(--gap-sm);
-	}
-
-	/*
-	 * Значок без кнопки навколо: рамка тут читалася б як ще один орган
-	 * керування поруч із транспортом, хоч це підпис, а не дія над звуком.
-	 * Сенсорна зона все одно повні 44px — вона просто не намальована.
-	 */
-	.tip__btn {
-		display: grid;
-		place-items: center;
-		width: var(--tap);
-		height: var(--tap);
-		padding: 0;
-		border: 0;
-		background: none;
-		color: var(--text-secondary);
-		cursor: pointer;
-		transition: color var(--transition-fast);
-	}
-
-	.tip__btn:hover,
-	.tip__btn:focus-visible {
-		color: var(--accent);
-	}
-
-	.tip__panel {
-		position: absolute;
-		top: calc(100% + var(--gap-xs));
-		right: 0;
-		z-index: 2;
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap-xs);
-		width: max-content;
-		max-width: min(300px, calc(100vw - 48px));
-		padding: var(--gap) var(--gap);
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--bg-surface-raised);
-		box-shadow: 0 8px 20px var(--shadow-strong);
-		opacity: 0;
-		visibility: hidden;
-		transition:
-			opacity var(--transition-fast),
-			visibility var(--transition-fast);
-	}
-
-	/*
-	 * `:focus-visible`, а не `:focus-within`.
-	 *
-	 * Натискання лишає фокус на кнопці, тож із `:focus-within` підказка вже не
-	 * закривалася повторним натисканням: стан перемикався, а фокус тримав її
-	 * відкритою. Клавіатурі це не шкодить — Tab дає саме `:focus-visible`.
-	 */
-	.tip:hover .tip__panel,
-	.tip:has(.tip__btn:focus-visible) .tip__panel,
-	.tip--open .tip__panel {
-		opacity: 1;
-		visibility: visible;
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.tip__btn,
-		.tip__panel {
-			transition: none;
-		}
-	}
-
-	.tip__title {
-		display: flex;
-		align-items: center;
-		gap: var(--gap-xs);
-		color: var(--text-secondary);
-		font-size: 0.75rem;
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.06em;
-	}
-
-	/*
-	 * Клавіші рівним стовпчиком праворуч, дії — лівим краєм ліворуч. Око
-	 * проходить по одній вертикалі, а не шукає початок кожного рядка заново.
-	 */
-	.keys {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		align-items: center;
-		gap: var(--gap-xs) var(--gap-sm);
-		margin: 0;
-	}
-
-	.keys dt {
-		display: flex;
-		gap: 2px;
-		justify-content: end;
-		white-space: nowrap;
-	}
-
-	.keys dd {
-		margin: 0;
-		color: var(--text-secondary);
-		font-size: 0.8rem;
-	}
-
-	.keys kbd {
-		display: inline-grid;
-		place-items: center;
-		min-width: 1.65rem;
-		padding: 0.1rem 0.3rem;
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-sm);
-		background: var(--bg-sunken);
-		color: var(--text-primary);
-		font-family: var(--font-mono);
-		font-size: 0.75rem;
-		line-height: 1.4;
-	}
-
-	.tip__foot {
-		padding-top: var(--gap-xs);
-		border-top: 1px solid var(--border);
-		color: var(--text-secondary);
-		font-size: 0.75rem;
 	}
 
 	.deck__now {

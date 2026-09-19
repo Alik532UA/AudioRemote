@@ -3,19 +3,21 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
+		IconFolder,
+		IconMute,
 		IconNext,
 		IconPause,
 		IconPlay,
-		IconKeyboard,
-		IconMute,
+		IconPrev,
 		IconStop,
 		IconVolume,
 		IconWarning
 	} from '$lib/config/icons';
-	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
+	import { plural, t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { RemoteController } from '$lib/remote/controller.svelte';
 	import { colorOf } from '$lib/config/trackColors';
+	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 
 	let controller = $state<RemoteController | null>(null);
 	let volume = $state(80);
@@ -80,220 +82,256 @@
 	const playing = $derived(controller?.state?.playing === true);
 </script>
 
-<div class="stack">
+<div class="stack stack--wide">
 	{#if controller && boardSession.current}
 		{@const board = boardSession.current}
 
-		<header class="head card">
-			<div>
-				<h1 class="head__title">{controller.info?.name || t('remote.title')}</h1>
-				<p class="muted mono">{board.id}</p>
-			</div>
-			<p class="link" class:link--on={controller.playerOnline} data-testid="link-state">
-				<span class="link__dot" aria-hidden="true"></span>
-				{controller.playerOnline ? t('remote.online') : t('remote.offline')}
-			</p>
-		</header>
+		<!--
+			ТРИ КОЛОНКИ — ТІ САМІ, ЩО В ПЛЕЄРА.
 
-		{#if !controller.playerOnline}
-			<p class="note note--warn" data-testid="offline-hint">
-				<IconWarning size={18} aria-hidden="true" />
-				<span>{t('remote.offlineHint')}</span>
-			</p>
-		{:else if !armed}
-			<!--
-				ІНШИЙ ТЕКСТ, А НЕ ТОЙ САМИЙ. «Вкладку закрито» й «звук не ввімкнено»
-				виглядають однаково — обидва означають «не працює», — але дії різні:
-				у першому випадку треба відкрити сторінку, у другому вона вже
-				відкрита й досить одного натискання. Один текст на два випадки
-				відправляв би людину робити зайве.
-			-->
-			<p class="note note--warn" data-testid="not-armed-hint">
-				<IconWarning size={18} aria-hidden="true" />
-				<span>{t('remote.notArmedHint')}</span>
-			</p>
-		{/if}
+			Пульт і приймач показують одну дошку, і людина ходить між ними в межах
+			одного вечора. Дві різні розкладки на один предмет означають, що на
+			кожному екрані треба наново шукати, де тут що.
 
-		<!-- Що зараз грає — найбільший напис на екрані: з нього починається погляд. -->
-		<section class="now card">
-			<p class="now__title" data-testid="now-playing">
-				{controller.currentTitle ?? t('remote.nothing')}
-			</p>
+			На телефоні — де пульт і живе — колонки однаково згортаються в один
+			стовпець, тож ширший екран нічого не коштує вузькому.
+		-->
+		<div class="board">
+			<div class="board__col">
+				<header class="head card">
+					<div class="head__who">
+						<h1 class="head__title">{controller.info?.name || t('remote.title')}</h1>
+						<p class="muted mono">{board.id}</p>
+					</div>
+					<p class="link" class:link--on={controller.playerOnline} data-testid="link-state">
+						<span class="link__dot" aria-hidden="true"></span>
+						{controller.playerOnline ? t('remote.online') : t('remote.offline')}
+					</p>
+				</header>
 
-			<!--
-				Перемотка з пульта. Позиція рахується як оголошена плюс час, що минув
-				відтоді, — приймач не шле її щосекунди, і саме тому смужка рухається
-				плавно, а мережею йде одне повідомлення на зміну стану.
-			-->
-			<div class="bar">
-				<span class="bar__time mono">
-					{clock(seeking ? seekValue : controller.positionMs)}
-				</span>
-				<input
-					class="bar__range"
-					type="range"
-					min="0"
-					max={Math.max(1000, controller.durationMs)}
-					step="250"
-					disabled={!controller.state?.trackId || controller.durationMs === 0}
-					value={seeking ? seekValue : controller.positionMs}
-					data-testid="remote-seek"
-					onpointerdown={() => (seeking = true)}
-					onpointerup={() => {
-						seeking = false;
-						void controller?.seek(seekValue);
-					}}
-					oninput={(event) => (seekValue = Number(event.currentTarget.value))}
-				/>
-				<span class="bar__time mono">{clock(controller.durationMs)}</span>
-			</div>
-
-			<div class="now__buttons">
-				{#if playing}
-					<button
-						class="btn btn--primary now__btn"
-						type="button"
-						disabled={controller.sending}
-						onclick={() => controller?.send('pause')}
-						data-testid="cmd-pause"
-					>
-						<IconPause size={22} aria-hidden="true" />
-						{t('remote.pause')}
-					</button>
-				{:else}
-					<button
-						class="btn btn--primary now__btn"
-						type="button"
-						disabled={controller.sending || !controller.state?.trackId}
-						onclick={() => controller?.send('resume')}
-						data-testid="cmd-resume"
-					>
-						<IconPlay size={22} aria-hidden="true" />
-						{t('remote.resume')}
-					</button>
+				{#if !controller.playerOnline}
+					<p class="note note--warn card" data-testid="offline-hint">
+						<IconWarning size={18} aria-hidden="true" />
+						<span>{t('remote.offlineHint')}</span>
+					</p>
+				{:else if !armed}
+					<!--
+						ІНШИЙ ТЕКСТ, А НЕ ТОЙ САМИЙ. «Вкладку закрито» й «звук не ввімкнено»
+						виглядають однаково — обидва означають «не працює», — але дії різні:
+						у першому випадку треба відкрити сторінку, у другому вона вже
+						відкрита й досить одного натискання. Один текст на два випадки
+						відправляв би людину робити зайве.
+					-->
+					<p class="note note--warn card" data-testid="not-armed-hint">
+						<IconWarning size={18} aria-hidden="true" />
+						<span>{t('remote.notArmedHint')}</span>
+					</p>
 				{/if}
 
-				<button
-					class="btn now__btn"
-					type="button"
-					disabled={controller.sending || !controller.state?.trackId}
-					onclick={() => controller?.send('stop')}
-					data-testid="cmd-stop"
-				>
-					<IconStop size={22} aria-hidden="true" />
-					{t('remote.stop')}
-				</button>
-
-				<button
-					class="btn now__btn"
-					type="button"
-					disabled={controller.sending || controller.tracks.length === 0}
-					onclick={() => controller?.send('next')}
-					data-testid="cmd-next"
-				>
-					<IconNext size={22} aria-hidden="true" />
-					{t('remote.next')}
-				</button>
+				{#if controller.trouble}
+					<p class="error" role="alert" data-testid="remote-trouble">
+						{t(controller.trouble as TranslationKey, { name: controller.currentTitle ?? '' })}
+					</p>
+				{/if}
 			</div>
 
-			<div class="volume">
-				<!-- Значок був підписом, тепер це кнопка: тиша потрібна найчастіше. -->
-				<button
-					class="volume__mute"
-					class:volume__mute--on={controller.muted}
-					type="button"
-					aria-pressed={controller.muted}
-					title={controller.muted ? t('sound.unmute') : t('sound.mute')}
-					aria-label={controller.muted ? t('sound.unmute') : t('sound.mute')}
-					onclick={() => controller?.toggleMute()}
-					data-testid="remote-mute"
-				>
-					{#if controller.muted}
-						<IconMute size={20} aria-hidden="true" />
-					{:else}
-						<IconVolume size={20} aria-hidden="true" />
-					{/if}
-				</button>
-				<label class="visually-hidden" for="remote-volume">{t('remote.volume')}</label>
-				<input
-					id="remote-volume"
-					class="volume__slider"
-					type="range"
-					min="0"
-					max="100"
-					step="1"
-					bind:value={volume}
-					data-testid="cmd-volume"
-					onpointerdown={() => (draggingVolume = true)}
-					onpointerup={() => (draggingVolume = false)}
-					oninput={() => controller?.setVolume(volume)}
-				/>
-				<output class="volume__value mono">{volume}</output>
-			</div>
-		</section>
+			<!-- ─── Керування ─────────────────────────────────────────────── -->
+			<div class="board__col">
+				<section class="now card">
+					<HotkeyTips id="remote-tips" />
 
-		{#if controller.trouble}
-			<p class="error" role="alert" data-testid="remote-trouble">
-				{t(controller.trouble as TranslationKey, { name: controller.currentTitle ?? '' })}
-			</p>
-		{/if}
+					<p class="now__title" data-testid="now-playing">
+						{controller.currentTitle ?? t('remote.nothing')}
+					</p>
 
-		<section class="card stack">
-			{#if controller.tracks.length === 0}
-				<p class="muted">{t('remote.emptyLibrary')}</p>
-			{:else}
-				<p class="hint">
-					<IconKeyboard size={16} aria-hidden="true" />
-					<span>{t('hotkeys.hint')}</span>
-				</p>
+					<!--
+						Перемотка з пульта. Позиція рахується як оголошена плюс час, що минув
+						відтоді, — приймач не шле її щосекунди, і саме тому смужка рухається
+						плавно, а мережею йде одне повідомлення на зміну стану.
+					-->
+					<div class="bar">
+						<span class="bar__time mono">
+							{clock(seeking ? seekValue : controller.positionMs)}
+						</span>
+						<input
+							class="bar__range"
+							type="range"
+							min="0"
+							max={Math.max(1000, controller.durationMs)}
+							step="250"
+							disabled={!controller.state?.trackId || controller.durationMs === 0}
+							value={seeking ? seekValue : controller.positionMs}
+							data-testid="remote-seek"
+							onpointerdown={() => (seeking = true)}
+							onpointerup={() => {
+								seeking = false;
+								void controller?.seek(seekValue);
+							}}
+							oninput={(event) => (seekValue = Number(event.currentTarget.value))}
+						/>
+						<span class="bar__time mono">{clock(controller.durationMs)}</span>
+					</div>
 
-				<ul class="tracks">
-					{#each controller.tracks as track (track.id)}
-						{@const hex = colorOf(track.color)}
-						{@const key = controller.keyLabels[track.id]}
-						<li>
+					<!-- Ті самі чотири значки, що й у плеєра, і в тому самому порядку. -->
+					<div class="now__buttons">
+						<button
+							class="btn now__btn"
+							type="button"
+							disabled={controller.sending || controller.tracks.length === 0}
+							title={t('remote.prev')}
+							aria-label={t('remote.prev')}
+							onclick={() => controller?.send('prev')}
+							data-testid="cmd-prev"
+						>
+							<IconPrev size={22} aria-hidden="true" />
+						</button>
+
+						{#if playing}
 							<button
-								class="tracks__btn"
-								class:tracks__btn--tinted={hex !== null}
-								class:tracks__btn--playing={controller.state?.trackId === track.id}
-								style={hex ? `--track-color: ${hex}` : undefined}
+								class="btn btn--primary now__btn"
 								type="button"
 								disabled={controller.sending}
-								onclick={() => controller?.send('play', track.id)}
-								data-testid="play-{track.id}"
+								title={t('remote.pause')}
+								aria-label={t('remote.pause')}
+								onclick={() => controller?.send('pause')}
+								data-testid="cmd-pause"
 							>
-								{#if key}
-									<kbd class="tracks__key" aria-label={t('hotkeys.slot', { key })}>
-										{key}
-									</kbd>
-								{:else}
-									<IconPlay size={18} aria-hidden="true" />
-								{/if}
-								<span class="tracks__title">{track.title}</span>
+								<IconPause size={22} aria-hidden="true" />
 							</button>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</section>
+						{:else}
+							<button
+								class="btn btn--primary now__btn"
+								type="button"
+								disabled={controller.sending || !controller.state?.trackId}
+								title={t('remote.resume')}
+								aria-label={t('remote.resume')}
+								onclick={() => controller?.send('resume')}
+								data-testid="cmd-resume"
+							>
+								<IconPlay size={22} aria-hidden="true" />
+							</button>
+						{/if}
+
+						<button
+							class="btn now__btn"
+							type="button"
+							disabled={controller.sending || !controller.state?.trackId}
+							title={t('remote.stop')}
+							aria-label={t('remote.stop')}
+							onclick={() => controller?.send('stop')}
+							data-testid="cmd-stop"
+						>
+							<IconStop size={22} aria-hidden="true" />
+						</button>
+
+						<button
+							class="btn now__btn"
+							type="button"
+							disabled={controller.sending || controller.tracks.length === 0}
+							title={t('remote.next')}
+							aria-label={t('remote.next')}
+							onclick={() => controller?.send('next')}
+							data-testid="cmd-next"
+						>
+							<IconNext size={22} aria-hidden="true" />
+						</button>
+					</div>
+
+					<div class="volume">
+						<!-- Значок був підписом, тепер це кнопка: тиша потрібна найчастіше. -->
+						<button
+							class="volume__mute"
+							class:volume__mute--on={controller.muted}
+							type="button"
+							aria-pressed={controller.muted}
+							title={controller.muted ? t('sound.unmute') : t('sound.mute')}
+							aria-label={controller.muted ? t('sound.unmute') : t('sound.mute')}
+							onclick={() => controller?.toggleMute()}
+							data-testid="remote-mute"
+						>
+							{#if controller.muted}
+								<IconMute size={20} aria-hidden="true" />
+							{:else}
+								<IconVolume size={20} aria-hidden="true" />
+							{/if}
+						</button>
+						<label class="visually-hidden" for="remote-volume">{t('remote.volume')}</label>
+						<input
+							id="remote-volume"
+							class="volume__slider"
+							type="range"
+							min="0"
+							max="100"
+							step="1"
+							bind:value={volume}
+							data-testid="cmd-volume"
+							onpointerdown={() => (draggingVolume = true)}
+							onpointerup={() => (draggingVolume = false)}
+							oninput={() => controller?.setVolume(volume)}
+						/>
+						<output class="volume__value mono">{volume}</output>
+					</div>
+				</section>
+			</div>
+
+			<!-- ─── Список ────────────────────────────────────────────────── -->
+			<div class="board__col">
+				<section class="card stack">
+					{#if controller.tracks.length === 0}
+						<p class="muted">{t('remote.emptyLibrary')}</p>
+					{:else}
+						<!--
+							Шапка та сама, що в плеєра, але без назви папки: пульт її не знає
+							і знати не мусить — приймач оголошує самі треки. Лишається те, що
+							пульту справді потрібно: скільки їх.
+						-->
+						<div class="folder">
+							<IconFolder size={18} aria-hidden="true" />
+							<span class="folder__count">
+								{plural(
+									{ one: 'player.tracksOne', few: 'player.tracksFew', other: 'player.tracksMany' },
+									controller.tracks.length
+								)}
+							</span>
+						</div>
+
+						<ul class="tracks">
+							{#each controller.tracks as track (track.id)}
+								{@const hex = colorOf(track.color)}
+								{@const key = controller.keyLabels[track.id]}
+								<li>
+									<button
+										class="tracks__btn"
+										class:tracks__btn--tinted={hex !== null}
+										class:tracks__btn--playing={controller.state?.trackId === track.id}
+										style={hex ? `--track-color: ${hex}` : undefined}
+										type="button"
+										disabled={controller.sending}
+										onclick={() => controller?.send('play', track.id)}
+										data-testid="play-{track.id}"
+									>
+										{#if key}
+											<kbd class="tracks__key" aria-label={t('hotkeys.slot', { key })}>
+												{key}
+											</kbd>
+										{:else}
+											<IconPlay size={18} aria-hidden="true" />
+										{/if}
+										<span class="tracks__title">{track.title}</span>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</section>
+			</div>
+		</div>
 	{:else}
 		<p class="muted">{t('common.loading')}</p>
 	{/if}
 </div>
 
 <style>
-	.head {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: var(--gap-sm);
-	}
-
-	.head__title {
-		font-size: 1.2rem;
-	}
-
 	.link {
 		display: flex;
 		align-items: center;
@@ -321,26 +359,32 @@
 		font-size: 0.85rem;
 	}
 
+	/* `relative` — прив'язка для тултіпа підказок у правому верхньому куті. */
 	.now {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
 	}
 
 	.now__title {
+		padding-right: var(--tap);
 		font-size: clamp(1.2rem, 5vw, 1.6rem);
 		font-weight: 700;
 		text-wrap: balance;
 	}
 
+	/* Чотири рівні значки в один ряд — так само, як у приймача. */
 	.now__buttons {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+		display: flex;
 		gap: var(--gap-sm);
 	}
 
 	.now__btn {
+		flex: 1 1 0;
+		min-width: 0;
 		min-height: 56px;
+		padding-inline: var(--gap-xs);
 	}
 
 	.volume {
@@ -410,14 +454,6 @@
 		font-family: var(--font-mono);
 		font-size: 0.8rem;
 		line-height: 1;
-	}
-
-	.hint {
-		display: flex;
-		align-items: center;
-		gap: var(--gap-sm);
-		color: var(--text-muted);
-		font-size: 0.8rem;
 	}
 
 	.volume__value {

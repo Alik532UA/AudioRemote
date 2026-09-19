@@ -503,6 +503,11 @@ export class PlayerController {
 				case 'stop':
 					this.engine.stop();
 					break;
+				case 'prev': {
+					const prev = this.engine.prevTrackId();
+					if (prev) await this.engine.play(prev);
+					break;
+				}
 				case 'next': {
 					const next = this.engine.nextTrackId();
 					if (next) await this.engine.play(next);

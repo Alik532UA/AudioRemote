@@ -94,7 +94,8 @@ export interface PlayerState {
 	armed: boolean;
 }
 
-export type CommandType = 'play' | 'pause' | 'resume' | 'stop' | 'next' | 'volume' | 'seek';
+export type CommandType =
+	'play' | 'pause' | 'resume' | 'stop' | 'prev' | 'next' | 'volume' | 'seek';
 
 export interface Command {
 	/** `uid` того, хто натиснув. Правило звіряє його з автором запису. */

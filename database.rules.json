@@ -127,7 +127,7 @@
 						".validate": "newData.hasChildren(['by', 'type', 'at'])",
 						"by": { ".validate": "newData.isString() && newData.val().length <= 128" },
 						"type": {
-							".validate": "newData.isString() && newData.val().matches(/^(play|pause|resume|stop|next|volume|seek)$/)"
+							".validate": "newData.isString() && newData.val().matches(/^(play|pause|resume|stop|prev|next|volume|seek)$/)"
 						},
 						// Рядок або число, і межа числа ЗАЛЕЖИТЬ ВІД ТИПУ: `volume` несе
 						// відсотки, `seek` — позицію в мілісекундах. Одна спільна межа
