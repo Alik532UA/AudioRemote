@@ -23,6 +23,7 @@
 	import { describeError } from '$lib/net/describeError';
 	import { PlayerController } from '$lib/player/controller.svelte';
 	import { colorOf } from '$lib/config/trackColors';
+	import { titleLines } from '$lib/audio/source';
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import ArmDialog from '$lib/components/player/ArmDialog.svelte';
@@ -501,10 +502,15 @@
 											Клавіша тут ПІДПИС, а не кнопка: натискають її на клавіатурі, а
 											мінять у вікні налаштувань. Кнопка, що відкриває вікно, стоїть
 											окремо — там, де раніше було «приховати».
+										
+											На телефоні її немає зовсім: клавіатури там нема, а місце в рядку
+											потрібне назві.
 										-->
-										<kbd class="tracks__key" data-testid="key-{entry.id}">
-											{controller.keyLabels[entry.id] ?? '·'}
-										</kbd>
+										{#if !narrow.matches}
+											<kbd class="tracks__key" data-testid="key-{entry.id}">
+												{controller.keyLabels[entry.id] ?? '·'}
+											</kbd>
+										{/if}
 
 										<button
 											class="tracks__title"
@@ -514,7 +520,13 @@
 											onclick={() => controller?.playLocal(entry.id)}
 											data-testid="play-here-{entry.id}"
 										>
-											{entry.title}
+											{#if narrow.matches}
+												{#each titleLines(entry.title) as line (line)}
+													<span class="tracks__line">{line}</span>
+												{/each}
+											{:else}
+												{entry.title}
+											{/if}
 										</button>
 
 										<div class="tracks__tools">
@@ -751,6 +763,19 @@
 	@media (max-width: 899px) {
 		.tracks__main {
 			min-height: calc(var(--tap) * 2);
+		}
+
+		/* Два рядки замість одного обірваного — див. `titleLines`. */
+		.tracks__title {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+		}
+
+		.tracks__line {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
 		}
 	}
 

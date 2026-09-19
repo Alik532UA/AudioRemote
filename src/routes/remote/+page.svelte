@@ -19,6 +19,7 @@
 	import { boardSession } from '$lib/board/session.svelte';
 	import { RemoteController } from '$lib/remote/controller.svelte';
 	import { colorOf } from '$lib/config/trackColors';
+	import { titleLines } from '$lib/audio/source';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
@@ -383,14 +384,23 @@
 										onclick={() => controller?.send('play', track.id)}
 										data-testid="play-{track.id}"
 									>
-										{#if key}
+										<!-- На телефоні клавіш немає: клавіатури там нема, а місце потрібне назві. -->
+										{#if key && !narrow.matches}
 											<kbd class="tracks__key" aria-label={t('hotkeys.slot', { key })}>
 												{key}
 											</kbd>
 										{:else}
 											<IconPlay size={18} aria-hidden="true" />
 										{/if}
-										<span class="tracks__title">{track.title}</span>
+										<span class="tracks__title">
+											{#if narrow.matches}
+												{#each titleLines(track.title) as line (line)}
+													<span class="tracks__line">{line}</span>
+												{/each}
+											{:else}
+												{track.title}
+											{/if}
+										</span>
 									</button>
 								</li>
 							{/each}
@@ -588,6 +598,27 @@
 	@media (max-width: 899px) {
 		.tracks__btn {
 			min-height: calc(var(--tap) * 2);
+		}
+
+		/*
+		 * Смуга «N треків» на телефоні зайва: у пульта в ній лише число, а
+		 * назви папки він не знає. Приймач її лишає — там є що сказати.
+		 */
+		.folder {
+			display: none;
+		}
+
+		/* Два рядки замість одного обірваного — див. `titleLines`. */
+		.tracks__title {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+		}
+
+		.tracks__line {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
 		}
 	}
 

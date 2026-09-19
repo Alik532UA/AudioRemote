@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { MemorySource } from '$lib/audio/source';
+import { MemorySource, titleLines } from '$lib/audio/source';
 import { PlayerController } from './controller.svelte';
 import type { ActiveBoard } from '$lib/board/session.svelte';
 
@@ -30,6 +30,34 @@ const build = (source: MemorySource) => {
 };
 
 const titles = (controller: PlayerController) => controller.entries.map((entry) => entry.title);
+
+describe('назва в рядки', () => {
+	it('ділить «Виконавець - Пісня» надвоє', () => {
+		expect(titleLines('Бумбокс - Безодня')).toEqual(['Бумбокс', 'Безодня']);
+	});
+
+	it('дефіс УСЕРЕДИНІ слова не роздільник', () => {
+		/*
+		 * Головний випадок. Ділити за кожним дефісом означало б різати «Non-Stop»
+		 * і «Happy End» навпіл — тобто ламати саме ті назви, заради читабельності
+		 * яких усе й робиться.
+		 */
+		expect(titleLines('Happy End - Non-Stop')).toEqual(['Happy End', 'Non-Stop']);
+	});
+
+	it('ділить лише перший роздільник', () => {
+		expect(titleLines('А - Б - В')).toEqual(['А', 'Б - В']);
+	});
+
+	it('назва без роздільника лишається одним рядком', () => {
+		expect(titleLines('Калина')).toEqual(['Калина']);
+	});
+
+	it('довге тире й коротке — обидва роздільники', () => {
+		expect(titleLines('Гурт – Пісня')).toEqual(['Гурт', 'Пісня']);
+		expect(titleLines('Гурт — Пісня')).toEqual(['Гурт', 'Пісня']);
+	});
+});
 
 describe('порядок треків', () => {
 	it('без налаштувань — за абеткою', async () => {
