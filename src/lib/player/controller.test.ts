@@ -321,6 +321,42 @@ describe('керування відтворенням', () => {
 		}
 	});
 
+	it('натискання на той САМИЙ трек ставить на паузу, а не починає спочатку', async () => {
+		/*
+		 * Людина тикає в трек, що вже грає, щоб його спинити. Доти він стрибав на
+		 * нуль і грав далі — у залі це чути.
+		 */
+		const restore = stubMedia();
+		try {
+			const controller = await started();
+			const playingId = controller.entries[1].id;
+			expect(controller.engine.playing).toBe(true);
+
+			await controller.toggleLocal(playingId);
+			expect(controller.engine.playing).toBe(false);
+			expect(controller.engine.trackId).toBe(playingId);
+
+			await controller.toggleLocal(playingId);
+			expect(controller.engine.playing).toBe(true);
+		} finally {
+			restore();
+		}
+	});
+
+	it('натискання на ІНШИЙ трек запускає його', async () => {
+		const restore = stubMedia();
+		try {
+			const controller = await started();
+			const other = controller.entries[2].id;
+
+			await controller.toggleLocal(other);
+			expect(controller.engine.trackId).toBe(other);
+			expect(controller.engine.playing).toBe(true);
+		} finally {
+			restore();
+		}
+	});
+
 	it('«попередній» і «наступний» ходять по колу', async () => {
 		const restore = stubMedia();
 		try {

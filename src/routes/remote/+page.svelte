@@ -172,13 +172,15 @@
 			</div>
 
 			<!-- ─── Керування ─────────────────────────────────────────────── -->
-			<div class="board__col board__col--deck">
-				<!--
-					На телефоні керування зʼявляється разом із бібліотекою: доки приймач
-					нічого не оголосив, керувати нема чим.
-				-->
-				{#if !narrow.matches || controller.tracks.length > 0}
-					{@const full = !narrow.matches || (deckOpen ?? controller.state?.trackId != null)}
+			<!--
+				На телефоні керування зʼявляється разом із бібліотекою: доки приймач
+				нічого не оголосив, керувати нема чим. Умова стоїть НАД колонкою, а не
+				всередині: порожня колонка лишала по собі проміжок і заважала короткій
+				дошці стати посеред екрана.
+			-->
+			{#if !narrow.matches || controller.tracks.length > 0}
+				{@const full = !narrow.matches || (deckOpen ?? controller.state?.trackId != null)}
+				<div class="board__col board__col--deck">
 					<section class="now card" class:now--short={!full} data-testid="deck">
 						{#if !narrow.matches}
 							<HotkeyTips id="remote-tips" />
@@ -210,6 +212,18 @@
 								<span class="bar__time mono">
 									{clock(seeking ? seekValue : controller.positionMs)}
 								</span>
+								<!--
+									Перемотка комітиться на `pointerup`, і значення береться з САМОГО
+									поля, а не з `seekValue`.
+
+									Клік по смузі (а не тягання) міг не дати жодного `input` — тоді
+									`seekValue` лишався нулем, і одне натискання кидало трек на
+									початок. А `change` тут не годиться: він приходить ПІСЛЯ того, як
+									знято `seeking`, і реактивне значення вже встигло повернути
+									повзунок на оголошену позицію — перемотка виходила «сама в себе».
+
+									Клавіатура йде окремою парою: у неї `pointerup` не буває.
+								-->
 								<input
 									class="bar__range"
 									type="range"
@@ -219,12 +233,21 @@
 									disabled={!controller.state?.trackId || controller.durationMs === 0}
 									value={seeking ? seekValue : controller.positionMs}
 									data-testid="remote-seek"
-									onpointerdown={() => (seeking = true)}
-									onpointerup={() => {
-										seeking = false;
-										void controller?.seek(seekValue);
+									onpointerdown={(event) => {
+										seeking = true;
+										seekValue = Number(event.currentTarget.value);
 									}}
 									oninput={(event) => (seekValue = Number(event.currentTarget.value))}
+									onpointerup={(event) => {
+										seeking = false;
+										void controller?.seek(Number(event.currentTarget.value));
+									}}
+									onpointercancel={() => (seeking = false)}
+									onkeydown={() => (seeking = true)}
+									onkeyup={(event) => {
+										seeking = false;
+										void controller?.seek(Number(event.currentTarget.value));
+									}}
 								/>
 								<span class="bar__time mono">{clock(controller.durationMs)}</span>
 							</div>
@@ -345,8 +368,8 @@
 							{/if}
 						</div>
 					</section>
-				{/if}
-			</div>
+				</div>
+			{/if}
 
 			<!-- ─── Список ────────────────────────────────────────────────── -->
 			<div class="board__col board__col--list">
@@ -373,6 +396,8 @@
 							{#each controller.tracks as track (track.id)}
 								{@const hex = colorOf(track.color)}
 								{@const key = controller.keyLabels[track.id]}
+								{@const current = controller.state?.trackId === track.id}
+								{@const sounding = current && playing}
 								<li>
 									<button
 										class="tracks__btn"
@@ -381,17 +406,30 @@
 										style={hex ? `--track-color: ${hex}` : undefined}
 										type="button"
 										disabled={controller.sending}
-										onclick={() => controller?.send('play', track.id)}
+										onclick={() =>
+											current
+												? controller?.send(sounding ? 'pause' : 'resume')
+												: controller?.send('play', track.id)}
 										data-testid="play-{track.id}"
 									>
-										<!-- На телефоні клавіш немає: клавіатури там нема, а місце потрібне назві. -->
-										{#if key && !narrow.matches}
-											<kbd class="tracks__key" aria-label={t('hotkeys.slot', { key })}>
-												{key}
-											</kbd>
-										{:else}
-											<IconPlay size={18} aria-hidden="true" />
-										{/if}
+										<!--
+											На телефоні клавіш немає: клавіатури там нема, а місце потрібне назві.
+										
+											Значок каже, що станеться від натискання: у того, що звучить, — пауза.
+											Доти скрізь стояв трикутник «грати», і рядок обіцяв запустити те, що
+											вже грає.
+										-->
+										<span class="tracks__mark">
+											{#if key && !narrow.matches}
+												<kbd class="tracks__key" aria-label={t('hotkeys.slot', { key })}>
+													{key}
+												</kbd>
+											{:else if sounding}
+												<IconPause size={18} aria-hidden="true" />
+											{:else}
+												<IconPlay size={18} aria-hidden="true" />
+											{/if}
+										</span>
 										<span class="tracks__title">
 											{#if narrow.matches}
 												{#each titleLines(track.title) as line (line)}
@@ -608,6 +646,23 @@
 			display: none;
 		}
 
+		/*
+		 * Значок переїжджає ПРАВОРУЧ і стає колом.
+		 *
+		 * Ліворуч він читався як маркер списку — те, на що не тиснуть. У колі
+		 * праворуч він читається як кнопка, і стоїть там, куди на телефоні
+		 * дотягується великий палець.
+		 */
+		.tracks__mark {
+			order: 2;
+			width: var(--tap);
+			height: var(--tap);
+			border: 1px solid var(--border-strong);
+			border-radius: var(--radius-full);
+			background: var(--bg-surface);
+			color: var(--accent);
+		}
+
 		/* Два рядки замість одного обірваного — див. `titleLines`. */
 		.tracks__title {
 			display: flex;
@@ -645,6 +700,12 @@
 		border-color: var(--accent);
 		color: var(--accent);
 		font-weight: 700;
+	}
+
+	.tracks__mark {
+		display: grid;
+		place-items: center;
+		flex: none;
 	}
 
 	.tracks__title {

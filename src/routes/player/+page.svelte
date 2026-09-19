@@ -180,13 +180,15 @@
 			</div>
 
 			<!-- ─── Керування ─────────────────────────────────────────────── -->
-			<div class="board__col board__col--deck">
-				<!--
-					На телефоні керування зʼявляється разом із папкою: доки її не обрано,
-					керувати нема чим, а екран потрібен кнопці «обрати папку».
-				-->
-				{#if !narrow.matches || controller.folderName !== null}
-					{@const full = !narrow.matches || (deckOpen ?? engine.trackId !== null)}
+			<!--
+				На телефоні керування зʼявляється разом із папкою: доки її не обрано,
+				керувати нема чим, а екран потрібен кнопці «обрати папку». Умова стоїть
+				НАД колонкою, а не всередині: порожня колонка лишала по собі проміжок і
+				заважала короткій дошці стати посеред екрана.
+			-->
+			{#if !narrow.matches || controller.folderName !== null}
+				{@const full = !narrow.matches || (deckOpen ?? engine.trackId !== null)}
+				<div class="board__col board__col--deck">
 					<section class="deck card" class:deck--short={!full} data-testid="deck">
 						{#if !narrow.matches}
 							<HotkeyTips keepOpen={engine.armed} id="deck-tips" />
@@ -220,6 +222,18 @@
 							-->
 							<div class="bar">
 								<span class="bar__time mono">{clock(seeking ? seekValue : engine.positionMs)}</span>
+								<!--
+									Перемотка комітиться на `pointerup`, і значення береться з САМОГО
+									поля, а не з `seekValue`.
+
+									Клік по смузі (а не тягання) міг не дати жодного `input` — тоді
+									`seekValue` лишався нулем, і одне натискання кидало трек на
+									початок. А `change` тут не годиться: він приходить ПІСЛЯ того, як
+									знято `seeking`, і реактивне значення вже встигло повернути
+									повзунок на оголошену позицію — перемотка виходила «сама в себе».
+
+									Клавіатура йде окремою парою: у неї `pointerup` не буває.
+								-->
 								<input
 									class="bar__range"
 									type="range"
@@ -229,12 +243,21 @@
 									disabled={!engine.trackId}
 									value={seeking ? seekValue : engine.positionMs}
 									data-testid="player-seek"
-									onpointerdown={() => (seeking = true)}
-									onpointerup={() => {
-										seeking = false;
-										engine.seek(seekValue);
+									onpointerdown={(event) => {
+										seeking = true;
+										seekValue = Number(event.currentTarget.value);
 									}}
 									oninput={(event) => (seekValue = Number(event.currentTarget.value))}
+									onpointerup={(event) => {
+										seeking = false;
+										void controller?.seekLocal(Number(event.currentTarget.value));
+									}}
+									onpointercancel={() => (seeking = false)}
+									onkeydown={() => (seeking = true)}
+									onkeyup={(event) => {
+										seeking = false;
+										void controller?.seekLocal(Number(event.currentTarget.value));
+									}}
 								/>
 								<span class="bar__time mono">{clock(engine.durationMs)}</span>
 							</div>
@@ -369,14 +392,14 @@
 							{/if}
 						</div>
 					</section>
-				{/if}
 
-				{#if controller.trouble}
-					<p class="error" role="alert" data-testid="player-trouble">
-						{t(controller.trouble.key as 'error.playback', { name: controller.trouble.name })}
-					</p>
-				{/if}
-			</div>
+					{#if controller.trouble}
+						<p class="error" role="alert" data-testid="player-trouble">
+							{t(controller.trouble.key as 'error.playback', { name: controller.trouble.name })}
+						</p>
+					{/if}
+				</div>
+			{/if}
 
 			<!-- ─── Список ────────────────────────────────────────────────── -->
 			<div class="board__col board__col--list">
@@ -517,7 +540,7 @@
 											type="button"
 											disabled={entry.hidden}
 											title={t('player.playHere')}
-											onclick={() => controller?.playLocal(entry.id)}
+											onclick={() => controller?.toggleLocal(entry.id)}
 											data-testid="play-here-{entry.id}"
 										>
 											{#if narrow.matches}

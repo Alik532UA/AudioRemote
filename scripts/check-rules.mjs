@@ -204,6 +204,30 @@ await must('господар зносить свою дошку цілком', (
 	})();
 });
 
+await must('господар оголошує стан із тривалістю треку', () =>
+	write(
+		`boards/${KEY}/state`,
+		{
+			trackId: 't1',
+			playing: true,
+			armed: true,
+			positionMs: 1500,
+			durationMs: 186000,
+			volume: 0.8,
+			atServer: SERVER_TIME
+		},
+		owner.token
+	)
+);
+
+await mustNot('тривалість більша за добу', () =>
+	write(
+		`boards/${KEY}/state`,
+		{ playing: true, armed: true, durationMs: 86_400_001 },
+		owner.token
+	)
+);
+
 // ─── НАБІР 2: сторонній не мусить цього могти ───────────────────────────────
 
 await mustNot('читати дошку без входу', () => read(`boards/${KEY}/info`, null));

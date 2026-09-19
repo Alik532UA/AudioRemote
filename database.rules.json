@@ -105,6 +105,10 @@
 					"playing": { ".validate": "newData.isBoolean()" },
 					"armed": { ".validate": "newData.isBoolean()" },
 					"positionMs": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+					// Доба в мілісекундах — та сама межа, що й у перемотки.
+					"durationMs": {
+						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 86400000"
+					},
 					"atServer": { ".validate": "newData.isNumber() && newData.val() <= now + 5000" },
 					"volume": {
 						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1"

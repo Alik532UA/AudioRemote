@@ -97,6 +97,16 @@ export class RemoteController {
 			await watchPresence(this.board.key, (present) => (this.playerOnline = hasPlayer(present)))
 		);
 
+		/*
+		 * Раз на чверть секунди — рівно щоб смужка йшла плавно на око. Це
+		 * ЛОКАЛЬНИЙ такт, мережею нічого не йде; будити його, коли нічого не
+		 * грає, теж нема сенсу.
+		 */
+		const clock = setInterval(() => {
+			if (this.state?.playing) this.tick += 1;
+		}, 250);
+		this.track(() => clearInterval(clock));
+
 		return () => this.stop();
 	}
 
@@ -187,15 +197,37 @@ export class RemoteController {
 		this.setVolume(0);
 	}
 
+	/**
+	 * ЛОКАЛЬНИЙ ГОДИННИК — щоб смужка йшла між оголошеннями.
+	 *
+	 * Приймач шле стан лише на ЗМІНУ: почав, спинив, перемотав. Між ними
+	 * позиція обчислювалася правильно — «оголошена плюс час відтоді», — але
+	 * ніхто не просив її перерахувати, і смужка просто стояла. Тікати
+	 * мережею чотири рази на секунду заради цього не треба: годинник на
+	 * телефоні йде той самий.
+	 */
+	private tick = $state(0);
+
 	/** Позиція, яку зараз показувати: оголошена плюс час, що минув відтоді. */
 	get positionMs(): number {
 		const state = this.state;
 		if (!state) return 0;
 		if (!state.playing) return state.positionMs;
+		// Читання — і є підписка: без нього перерахунку ніхто не замовить.
+		void this.tick;
 		return state.positionMs + Math.max(0, serverNow() - state.atServer);
 	}
 
+	/**
+	 * Тривалість поточного треку. Зі СТАНУ, а не з бібліотеки.
+	 *
+	 * У бібліотеці вона нульова й такою лишиться: щоб її туди покласти,
+	 * приймач мусив би розкодувати кожен файл у теці. Смужка без тривалості —
+	 * це смужка, по якій нема куди тягти.
+	 */
 	get durationMs(): number {
+		const announced = this.state?.durationMs ?? 0;
+		if (announced > 0) return announced;
 		const id = this.state?.trackId;
 		return id ? (this.library?.tracks?.[id]?.durationMs ?? 0) : 0;
 	}

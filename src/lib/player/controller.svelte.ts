@@ -78,6 +78,8 @@ export class PlayerController {
 	private readonly source: AudioSource;
 	private readonly cleanups: (() => void)[] = [];
 	private publishing = false;
+	/** Стан змінився, поки йшов запис. Оголосимо, щойно звільниться. */
+	private pendingAnnounce = false;
 	private saveTimer: ReturnType<typeof setTimeout> | null = null;
 
 	/**
@@ -402,6 +404,39 @@ export class PlayerController {
 	}
 
 	/**
+	 * Перемотати тут — і одразу сказати пульту.
+	 *
+	 * Через контролер, а не прямо в рушій: позиція не входить у стежені поля,
+	 * тож без цього виклику оголошення не буде взагалі, і смужка на телефоні
+	 * рахувала б від позначки, якої вже немає.
+	 */
+	async seekLocal(positionMs: number): Promise<void> {
+		this.engine.seek(positionMs);
+		await this.announce();
+	}
+
+	/**
+	 * Натискання на трек у списку.
+	 *
+	 * Той самий трек — пауза або продовження, інший — запуск. Доти повторне
+	 * натискання починало трек СПОЧАТКУ: людина тикала в той, що вже грає,
+	 * щоб його спинити, а він стрибав на нуль — і в залі це чути.
+	 *
+	 * `playLocal` лишається окремо: «наступний» і «попередній» мусять саме
+	 * запускати, навіть якщо впіймали той самий трек на списку з одного.
+	 */
+	async toggleLocal(trackId: string): Promise<void> {
+		if (this.engine.trackId !== trackId) {
+			await this.playLocal(trackId);
+			return;
+		}
+
+		if (this.engine.playing) this.engine.pause();
+		else await this.engine.resume();
+		await this.announce();
+	}
+
+	/**
 	 * Що робити на це натискання. `null` — нічого, подію чіпати не треба.
 	 *
 	 * Синхронна навмисно: `preventDefault()` мусить статися ДО будь-якого
@@ -549,16 +584,26 @@ export class PlayerController {
 	 * його оновлює `timeupdate` — чотири рази на секунду. Кожен такт ефекту
 	 * перебудовував список; на теці в кілька сотень треків вкладка їла памʼять.
 	 *
-	 * Записи не накладаються: поки один іде, наступний пропускається.
+	 * Записи не накладаються, але й НЕ ГУБЛЯТЬСЯ: поки один іде, наступний
+	 * чекає в черзі з одного місця. Спершу він просто пропускався — і на цьому
+	 * ламалася перемотка з пульта: команда приходила посеред іншого запису,
+	 * оголошення нової позиції зникало, а пульт далі рахував від СТАРОЇ
+	 * позначки. Позиція не входить у стежені поля (див. вище), тож виправити
+	 * себе пізніше йому було нічим.
 	 */
 	private async announce(): Promise<void> {
-		if (this.stopped || !this.owned || this.publishing) return;
+		if (this.stopped || !this.owned) return;
+		if (this.publishing) {
+			this.pendingAnnounce = true;
+			return;
+		}
 		this.publishing = true;
 		try {
 			const snapshot = untrack(() => ({
 				trackId: this.engine.trackId,
 				playing: this.engine.playing,
 				positionMs: this.engine.positionMs,
+				durationMs: this.engine.durationMs,
 				volume: this.engine.volume,
 				armed: this.engine.armed
 			}));
@@ -568,6 +613,10 @@ export class PlayerController {
 			// через невдалий запис довідки було б гірше за застарілу довідку.
 		} finally {
 			this.publishing = false;
+			if (this.pendingAnnounce) {
+				this.pendingAnnounce = false;
+				await this.announce();
+			}
 		}
 	}
 }
