@@ -78,7 +78,7 @@
 			<label class="field__label" for="connect-id">{t('connect.idLabel')}</label>
 			<input
 				id="connect-id"
-				class="field__input mono"
+				class="input mono"
 				type="text"
 				bind:value={boardId}
 				maxlength="16"
@@ -129,32 +129,6 @@
 
 	.title {
 		font-size: 1.3rem;
-	}
-
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap-xs);
-	}
-
-	.field__label {
-		color: var(--text-secondary);
-		font-size: 0.85rem;
-	}
-
-	.field__input {
-		min-height: var(--tap);
-		padding: 0 var(--gap-sm);
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius);
-		background: var(--bg-input);
-		font-size: 1.1rem;
-	}
-
-	.field__input:focus-visible {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 1px var(--accent);
-		outline: none;
 	}
 
 	.check {

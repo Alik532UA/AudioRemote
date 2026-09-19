@@ -1,4 +1,9 @@
-/* Скидання й спільні примітиви. Кольори — лише токенами з `tokens.css`. */
+/*
+ * Скидання й спільні примітиви. Кольори — лише токенами з `tokens.css`.
+ *
+ * Пропорції перенесені з `BGLog/brr-log`: тісні радіуси, кнопка вагою 600 на
+ * 0.875rem, фокус — рамка акценту плюс кільце свічення на 3px.
+ */
 
 *,
 *::before,
@@ -37,8 +42,9 @@ select {
 }
 
 /*
- * Видимий фокус — на всіх інтерактивних, і саме `:focus-visible`.
- * Прибирати обведення без заміни означає віддати клавіатурну навігацію.
+ * Видимий фокус — кільцем свічення, як у джерелі палітри, і саме
+ * `:focus-visible`. Прибрати обведення без заміни означає віддати клавіатурну
+ * навігацію.
  */
 :where(a, button, input, select, [tabindex]):focus-visible {
 	outline: 2px solid var(--accent);
@@ -51,8 +57,11 @@ select {
 .page {
 	/*
 	 * 16px обабіч — вимога до 320px без горизонтальної прокрутки
-	 * (WCAG 1.4.10 Reflow, ACCESSIBILITY-v9 § 10.8).
+	 * (WCAG 1.4.10 Reflow).
 	 */
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 	width: 100%;
 	max-width: 760px;
 	margin-inline: auto;
@@ -63,6 +72,19 @@ select {
 	display: flex;
 	flex-direction: column;
 	gap: var(--gap);
+
+	/*
+	 * ПО ЦЕНТРУ ПО ВЕРТИКАЛІ — через `margin-block: auto`, а не
+	 * `justify-content: center` у батька.
+	 *
+	 * Різниця видна лише тоді, коли вміст ВИЩИЙ за екран: `justify-content`
+	 * у такому разі зрізає початок — верх виїжджає за межу прокрутки й
+	 * дістатися до нього неможливо. Автоматичні відступи у flex цього не
+	 * роблять: коли місця вистачає, вони ділять залишок; коли ні —
+	 * стискаються до нуля. Сторінка плеєра зі списком на двісті треків саме
+	 * такий випадок.
+	 */
+	margin-block: auto;
 }
 
 .row {
@@ -78,7 +100,7 @@ select {
 	border: 1px solid var(--border);
 	border-radius: var(--radius-lg);
 	padding: var(--gap-lg);
-	box-shadow: 0 1px 2px var(--shadow-weak);
+	box-shadow: 0 1px 3px var(--shadow-weak);
 }
 
 /*
@@ -106,20 +128,26 @@ select {
 	justify-content: center;
 	gap: var(--gap-sm);
 	min-height: var(--tap);
-	padding: 0 var(--gap);
+	padding: 0.6rem 1.15rem;
 	border: 1px solid var(--border-strong);
-	border-radius: var(--radius);
+	border-radius: var(--radius-sm);
 	background: var(--bg-surface-raised);
 	color: var(--text-primary);
+	font-size: 0.875rem;
+	font-weight: 600;
+	white-space: nowrap;
 	cursor: pointer;
 	text-decoration: none;
 	transition:
-		border-color 120ms ease,
-		background-color 120ms ease;
+		background-color var(--transition-fast),
+		border-color var(--transition-fast),
+		color var(--transition-fast),
+		box-shadow var(--transition-fast),
+		transform var(--transition-fast);
 }
 
 .btn:hover:not(:disabled) {
-	border-color: var(--accent);
+	border-color: var(--border-hover);
 }
 
 .btn:disabled {
@@ -128,15 +156,24 @@ select {
 }
 
 .btn--primary {
-	background: var(--accent);
-	border-color: var(--accent);
+	/*
+	 * Залита кнопка бере ТЕМНІШИЙ зелений, а не `--accent`: на ній лежить білий
+	 * текст, і на яскравому #10b981 він дає 2,6:1.
+	 */
+	background: var(--accent-button);
+	border-color: transparent;
 	color: var(--text-on-accent);
-	font-weight: 600;
+	box-shadow: 0 2px 8px var(--accent-glow);
 }
 
 .btn--primary:hover:not(:disabled) {
-	background: var(--accent-hover);
-	border-color: var(--accent-hover);
+	background: var(--accent-button-hover);
+	transform: translateY(-1px);
+	box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.btn--primary:active:not(:disabled) {
+	transform: translateY(0);
 }
 
 .btn--danger {
@@ -147,6 +184,51 @@ select {
 
 .btn--block {
 	width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.btn {
+		transition: none;
+	}
+
+	.btn--primary:hover:not(:disabled) {
+		transform: none;
+	}
+}
+
+/* --- Поля вводу ---------------------------------------------------------- */
+
+.input {
+	width: 100%;
+	min-height: var(--tap);
+	padding: 9px 10px;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius-sm);
+	background: var(--bg-input);
+	color: var(--text-primary);
+	font-size: 1rem;
+	outline: none;
+	transition:
+		border-color var(--transition-fast),
+		box-shadow var(--transition-fast),
+		background-color var(--transition-fast);
+}
+
+.input:focus {
+	border-color: var(--accent);
+	background: var(--bg-input-focus);
+	box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--gap-xs);
+}
+
+.field__label {
+	color: var(--text-secondary);
+	font-size: 0.85rem;
 }
 
 /* --- Текстові дрібниці --------------------------------------------------- */

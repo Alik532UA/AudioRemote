@@ -6,7 +6,7 @@
 	import { themeState } from '$lib/services/theme.svelte';
 	import { i18n, t } from '$lib/i18n/i18n.svelte';
 	import ThemeSwitcher from '$lib/components/ui/ThemeSwitcher.svelte';
-	import LangSwitcher from '$lib/components/ui/LangSwitcher.svelte';
+	import { IconSettings } from '$lib/config/icons';
 	import ReloadPrompt from '$lib/components/ui/ReloadPrompt.svelte';
 
 	let { children } = $props();
@@ -28,9 +28,22 @@
 			<span class="shell__tagline">{t('app.tagline')}</span>
 		</a>
 		{#if ready}
+			<!--
+				Мова переїхала в налаштування: у шапці лишається те, що
+				перемикають часто (тема — одним кліком, із показом на наведенні),
+				а те, що ставлять раз, живе там, де його шукатимуть.
+			-->
 			<div class="shell__controls">
-				<LangSwitcher />
 				<ThemeSwitcher />
+				<a
+					class="shell__settings"
+					href={resolve('/settings')}
+					title={t('settings.open')}
+					aria-label={t('settings.open')}
+					data-testid="go-settings"
+				>
+					<IconSettings size={20} aria-hidden="true" />
+				</a>
 			</div>
 		{/if}
 	</header>
@@ -85,6 +98,23 @@
 		display: flex;
 		align-items: center;
 		gap: var(--gap-sm);
+	}
+
+	.shell__settings {
+		display: grid;
+		place-items: center;
+		width: var(--tap);
+		min-height: var(--tap);
+		border: 2px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--bg-surface-raised);
+		color: var(--text-secondary);
+	}
+
+	.shell__settings:hover,
+	.shell__settings:focus-visible {
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 
 	.shell__foot {

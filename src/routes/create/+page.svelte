@@ -13,6 +13,7 @@
 	} from '$lib/board/secret';
 	import { rememberBoard } from '$lib/board/myBoards';
 	import { boardSession } from '$lib/board/session.svelte';
+	import { settings } from '$lib/settings/settings.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 
 	let name = $state('');
@@ -21,11 +22,24 @@
 	let copied = $state(false);
 	let busy = $state(false);
 	let failure = $state<string | null>(null);
+	/** Пара прийшла з налаштувань, а не згенерована. */
+	let fixed = $state(false);
 
 	onMount(() => {
+		settings.load();
+
+		/*
+		 * СТАЛА ПАРА З НАЛАШТУВАНЬ ПЕРЕМАГАЄ ГЕНЕРАЦІЮ.
+		 *
+		 * Наслідок треба назвати вголос, і сторінка це робить нижче: адреса
+		 * дошки виводиться з пари, тож зі сталою парою ця кнопка нічого не
+		 * створює — вона щоразу відкриває ту саму дошку. Саме цього й просили;
+		 * але людина, яка цього не знає, вирішила б, що застосунок зламався.
+		 */
+		fixed = settings.hasFixedPair;
 		// Генерація потребує `crypto.getRandomValues` — тобто браузера.
-		boardId = makeBoardId();
-		password = makePassword();
+		boardId = fixed ? settings.fixedBoardId : makeBoardId();
+		password = fixed ? settings.fixedPassword : makePassword();
 	});
 
 	/*
@@ -84,7 +98,7 @@
 			<label class="field__label" for="board-name">{t('create.nameLabel')}</label>
 			<input
 				id="board-name"
-				class="field__input"
+				class="input"
 				type="text"
 				bind:value={name}
 				maxlength="60"
@@ -139,6 +153,13 @@
 			<span>{t('create.warnChange')}</span>
 		</p>
 
+		{#if fixed}
+			<p class="note" data-testid="fixed-pair">
+				<IconWarning size={18} aria-hidden="true" />
+				<span>{t('create.fromSettings')}</span>
+			</p>
+		{/if}
+
 		<p class="muted">{t('create.hint')}</p>
 
 		{#if failure}
@@ -174,32 +195,6 @@
 
 	.title {
 		font-size: 1.3rem;
-	}
-
-	.field {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap-xs);
-	}
-
-	.field__label {
-		color: var(--text-secondary);
-		font-size: 0.85rem;
-	}
-
-	.field__input {
-		min-height: var(--tap);
-		padding: 0 var(--gap-sm);
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius);
-		background: var(--bg-input);
-		font-size: 1rem;
-	}
-
-	.field__input:focus-visible {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 1px var(--accent);
-		outline: none;
 	}
 
 	.secret {

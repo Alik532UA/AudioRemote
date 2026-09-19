@@ -9,7 +9,7 @@ import type { TranslationKey } from './uk';
  */
 export const en: Record<TranslationKey, string> = {
 	'app.name': 'AudioRemote',
-	'app.tagline': 'The computer plays, the phone controls',
+	'app.tagline': 'A shared music board',
 
 	'theme.group': 'Colour theme',
 	'theme.light': 'Light',
@@ -35,14 +35,31 @@ export const en: Record<TranslationKey, string> = {
 	'field.capsLock': 'Caps Lock is on',
 	'field.layout': 'Looks like a Latin keyboard layout',
 
-	'entry.lead':
-		'Create a board on the computer that will play the sound. Connect to it from your phone.',
-	'entry.create': 'Create a board',
-	'entry.createHint': 'On the computer that will play',
+	'entry.lead': 'Music board',
+	'entry.create': 'Create',
+	'entry.createHint': 'On the device that will play the tracks',
 	'entry.connect': 'Connect',
-	'entry.connectHint': 'From a phone or another device',
+	'entry.connectHint': 'To play tracks on someone else’s board',
 	'entry.mine': 'My boards',
 	'entry.forget': 'Remove from list',
+
+	'settings.title': 'Settings',
+	'settings.open': 'Settings',
+	'settings.language': 'Language',
+	'settings.fixedTitle': 'Fixed board',
+	'settings.fixedLead':
+		'Put a board ID and password here that will not change. “Create” will then open THE SAME board every time, so there is nothing new to read out to colleagues.',
+	'settings.fixedId': 'Fixed board ID',
+	'settings.fixedPassword': 'Fixed password',
+	'settings.generate': 'Generate',
+	'settings.save': 'Save',
+	'settings.saved': 'Saved',
+	'settings.clear': 'Remove the fixed pair',
+	'settings.emptyMeans': 'Empty fields mean “generate every time” — the default behaviour.',
+	'settings.halfPair':
+		'Both values are needed: the board address comes from the pair, so half of it does nothing.',
+	'settings.reuseWarning':
+		'One password for every board means a single leak opens them all. Fine for one room; separate groups deserve separate passwords.',
 
 	'create.title': 'New board',
 	'create.nameLabel': 'Name — so you can tell it apart',
@@ -51,6 +68,8 @@ export const en: Record<TranslationKey, string> = {
 	'create.passwordLabel': 'Password',
 	'create.regenerate': 'Another password',
 	'create.hint': 'Read these two lines out to whoever will control it from a phone.',
+	'create.fromSettings':
+		'This pair comes from settings, so it is THE SAME board as last time. Remove the fixed pair in settings to get a new one.',
 	'create.weak':
 		'Your password is shorter than {min} characters. A board lives for months — short passwords get guessed.',
 	'create.warnChange':
