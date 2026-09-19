@@ -135,6 +135,8 @@ export const uk = {
 	'player.connectStep2': 'Натисніть «Підключитися».',
 	'player.connectStep3': 'Введіть ідентифікатор і пароль звідси.',
 	'player.tips': 'Підказки',
+	'player.deckExpand': 'Розгорнути керування',
+	'player.deckCollapse': 'Згорнути керування',
 	'color.pick': 'Колір треку',
 	'color.label': 'Колір {n}',
 	'color.none': 'Без кольору',

@@ -132,6 +132,8 @@ export const en: Record<TranslationKey, string> = {
 	'player.connectStep2': 'Tap “Connect”.',
 	'player.connectStep3': 'Enter the board id and password from here.',
 	'player.tips': 'Tips',
+	'player.deckExpand': 'Expand the controls',
+	'player.deckCollapse': 'Collapse the controls',
 	'color.pick': 'Track colour',
 	'color.label': 'Colour {n}',
 	'color.none': 'No colour',

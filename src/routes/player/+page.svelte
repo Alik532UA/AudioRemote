@@ -38,6 +38,17 @@
 	let remoteOpen = $state(false);
 	/** Вікно «увімкнути звук» закрили, не вмикаючи. Більше не питаємо. */
 	let armDismissed = $state(false);
+	/**
+	 * Чи розгорнута дека на телефоні. `null` — «як само вийде».
+	 *
+	 * Саме по собі керування там потрібне лише тоді, коли є що ним керувати:
+	 * доки трек не обрано, від смуги перемотки й чотирьох кнопок користі нема, а
+	 * висоту вони забирають у списку — тобто в того, чим у цю мить і зайняті.
+	 * Гучність лишається завжди: її крутять і в тиші.
+	 *
+	 * Натискання на стрілку перебиває це рішення в обидва боки.
+	 */
+	let deckOpen = $state<boolean | null>(null);
 	/** Палець на повзунку перемотки: доти позиція з плеєра його не смикає. */
 	let seeking = $state(false);
 	let seekValue = $state(0);
@@ -169,149 +180,195 @@
 
 			<!-- ─── Керування ─────────────────────────────────────────────── -->
 			<div class="board__col board__col--deck">
-				<section class="deck card">
-					<HotkeyTips keepOpen={engine.armed} id="deck-tips" />
-
-					<p class="deck__now" data-testid="now-playing">
-						{current?.title ?? t('remote.nothing')}
-					</p>
-
-					<!--
-						Смуга перемотки. Поки палець на ній, позиція з плеєра її не смикає:
-						інакше кожне оновлення відкидало б повзунок назад під пальцем.
-					-->
-					<div class="bar">
-						<span class="bar__time mono">{clock(seeking ? seekValue : engine.positionMs)}</span>
-						<input
-							class="bar__range"
-							type="range"
-							min="0"
-							max={Math.max(1000, engine.durationMs)}
-							step="250"
-							disabled={!engine.trackId}
-							value={seeking ? seekValue : engine.positionMs}
-							data-testid="player-seek"
-							onpointerdown={() => (seeking = true)}
-							onpointerup={() => {
-								seeking = false;
-								engine.seek(seekValue);
-							}}
-							oninput={(event) => (seekValue = Number(event.currentTarget.value))}
-						/>
-						<span class="bar__time mono">{clock(engine.durationMs)}</span>
-					</div>
-
-					<!--
-						САМІ ЗНАЧКИ, БЕЗ ПІДПИСІВ. Чотири кнопки з підписами в колонку не
-						вміщалися й переносилися, а самі підписи нічого не додавали: значки
-						плеєра людина читає швидше за слово й однаково в будь-якій мові.
-						Назва лишається в `title` та `aria-label` — для миші, що зависла, і
-						для читача екрана.
-					-->
-					<div class="deck__buttons">
-						<button
-							class="btn deck__btn"
-							type="button"
-							disabled={controller.visible.length === 0}
-							title={t('remote.prev')}
-							aria-label={t('remote.prev')}
-							onclick={() => {
-								const prev = engine.prevTrackId();
-								if (prev) void controller?.playLocal(prev);
-							}}
-							data-testid="player-prev"
-						>
-							<IconPrev size={22} aria-hidden="true" />
-						</button>
-
-						{#if engine.playing}
+				<!--
+					На телефоні керування зʼявляється разом із папкою: доки її не обрано,
+					керувати нема чим, а екран потрібен кнопці «обрати папку».
+				-->
+				{#if !narrow.matches || controller.folderName !== null}
+					{@const full = !narrow.matches || (deckOpen ?? engine.trackId !== null)}
+					<section class="deck card" class:deck--short={!full} data-testid="deck">
+						{#if !narrow.matches}
+							<HotkeyTips keepOpen={engine.armed} id="deck-tips" />
+						{:else if full}
+							<!--
+								На місці значка підказки — «згорнути». Підказка там про гарячі
+								клавіші, а в телефона клавіатури немає; місце ж у правому
+								верхньому куті потрібне саме тут.
+							-->
 							<button
-								class="btn btn--primary deck__btn"
+								class="deck__fold"
 								type="button"
-								title={t('remote.pause')}
-								aria-label={t('remote.pause')}
-								onclick={() => engine.pause()}
-								data-testid="player-pause"
+								title={t('player.deckCollapse')}
+								aria-label={t('player.deckCollapse')}
+								aria-expanded={true}
+								onclick={() => (deckOpen = false)}
+								data-testid="deck-collapse"
 							>
-								<IconPause size={22} aria-hidden="true" />
-							</button>
-						{:else}
-							<button
-								class="btn btn--primary deck__btn"
-								type="button"
-								disabled={!engine.trackId}
-								title={t('remote.resume')}
-								aria-label={t('remote.resume')}
-								onclick={() => engine.resume()}
-								data-testid="player-resume"
-							>
-								<IconPlay size={22} aria-hidden="true" />
+								<IconDown size={20} aria-hidden="true" />
 							</button>
 						{/if}
 
-						<button
-							class="btn deck__btn"
-							type="button"
-							disabled={!engine.trackId}
-							title={t('remote.stop')}
-							aria-label={t('remote.stop')}
-							onclick={() => engine.stop()}
-							data-testid="player-stop"
-						>
-							<IconStop size={22} aria-hidden="true" />
-						</button>
+						{#if full}
+							<p class="deck__now" data-testid="now-playing">
+								{current?.title ?? t('remote.nothing')}
+							</p>
 
-						<button
-							class="btn deck__btn"
-							type="button"
-							disabled={controller.visible.length === 0}
-							title={t('remote.next')}
-							aria-label={t('remote.next')}
-							onclick={() => {
-								const next = engine.nextTrackId();
-								if (next) void controller?.playLocal(next);
-							}}
-							data-testid="player-next"
-						>
-							<IconNext size={22} aria-hidden="true" />
-						</button>
-					</div>
+							<!--
+								Смуга перемотки. Поки палець на ній, позиція з плеєра її не смикає:
+								інакше кожне оновлення відкидало б повзунок назад під пальцем.
+							-->
+							<div class="bar">
+								<span class="bar__time mono">{clock(seeking ? seekValue : engine.positionMs)}</span>
+								<input
+									class="bar__range"
+									type="range"
+									min="0"
+									max={Math.max(1000, engine.durationMs)}
+									step="250"
+									disabled={!engine.trackId}
+									value={seeking ? seekValue : engine.positionMs}
+									data-testid="player-seek"
+									onpointerdown={() => (seeking = true)}
+									onpointerup={() => {
+										seeking = false;
+										engine.seek(seekValue);
+									}}
+									oninput={(event) => (seekValue = Number(event.currentTarget.value))}
+								/>
+								<span class="bar__time mono">{clock(engine.durationMs)}</span>
+							</div>
 
-					<div class="bar">
-						<button
-							class="mute"
-							class:mute--on={engine.muted}
-							type="button"
-							aria-pressed={engine.muted}
-							title={engine.muted ? t('sound.unmute') : t('sound.mute')}
-							aria-label={engine.muted ? t('sound.unmute') : t('sound.mute')}
-							onclick={() => engine.toggleMute()}
-							data-testid="player-mute"
-						>
-							{#if engine.muted}
-								<IconMute size={20} aria-hidden="true" />
-							{:else}
-								<IconVolume size={20} aria-hidden="true" />
+							<!--
+								САМІ ЗНАЧКИ, БЕЗ ПІДПИСІВ. Чотири кнопки з підписами в колонку не
+								вміщалися й переносилися, а самі підписи нічого не додавали: значки
+								плеєра людина читає швидше за слово й однаково в будь-якій мові.
+								Назва лишається в `title` та `aria-label` — для миші, що зависла, і
+								для читача екрана.
+							-->
+							<div class="deck__buttons">
+								<button
+									class="btn deck__btn"
+									type="button"
+									disabled={controller.visible.length === 0}
+									title={t('remote.prev')}
+									aria-label={t('remote.prev')}
+									onclick={() => {
+										const prev = engine.prevTrackId();
+										if (prev) void controller?.playLocal(prev);
+									}}
+									data-testid="player-prev"
+								>
+									<IconPrev size={22} aria-hidden="true" />
+								</button>
+
+								{#if engine.playing}
+									<button
+										class="btn btn--primary deck__btn"
+										type="button"
+										title={t('remote.pause')}
+										aria-label={t('remote.pause')}
+										onclick={() => engine.pause()}
+										data-testid="player-pause"
+									>
+										<IconPause size={22} aria-hidden="true" />
+									</button>
+								{:else}
+									<button
+										class="btn btn--primary deck__btn"
+										type="button"
+										disabled={!engine.trackId}
+										title={t('remote.resume')}
+										aria-label={t('remote.resume')}
+										onclick={() => engine.resume()}
+										data-testid="player-resume"
+									>
+										<IconPlay size={22} aria-hidden="true" />
+									</button>
+								{/if}
+
+								<button
+									class="btn deck__btn"
+									type="button"
+									disabled={!engine.trackId}
+									title={t('remote.stop')}
+									aria-label={t('remote.stop')}
+									onclick={() => engine.stop()}
+									data-testid="player-stop"
+								>
+									<IconStop size={22} aria-hidden="true" />
+								</button>
+
+								<button
+									class="btn deck__btn"
+									type="button"
+									disabled={controller.visible.length === 0}
+									title={t('remote.next')}
+									aria-label={t('remote.next')}
+									onclick={() => {
+										const next = engine.nextTrackId();
+										if (next) void controller?.playLocal(next);
+									}}
+									data-testid="player-next"
+								>
+									<IconNext size={22} aria-hidden="true" />
+								</button>
+							</div>
+						{/if}
+
+						<div class="bar">
+							<button
+								class="mute"
+								class:mute--on={engine.muted}
+								type="button"
+								aria-pressed={engine.muted}
+								title={engine.muted ? t('sound.unmute') : t('sound.mute')}
+								aria-label={engine.muted ? t('sound.unmute') : t('sound.mute')}
+								onclick={() => engine.toggleMute()}
+								data-testid="player-mute"
+							>
+								{#if engine.muted}
+									<IconMute size={20} aria-hidden="true" />
+								{:else}
+									<IconVolume size={20} aria-hidden="true" />
+								{/if}
+							</button>
+
+							<label class="bar__wrap">
+								<span class="visually-hidden">{t('player.volume')}</span>
+								<input
+									class="bar__range"
+									type="range"
+									min="0"
+									max="100"
+									step="1"
+									value={Math.round(engine.volume * 100)}
+									data-testid="player-volume"
+									oninput={(event) => engine.setVolume(Number(event.currentTarget.value) / 100)}
+								/>
+							</label>
+
+							<output class="bar__time mono">{Math.round(engine.volume * 100)}</output>
+
+							{#if !full}
+								<!--
+									У згорнутому вигляді стрілка стоїть у самому рядку гучності:
+									верхнього кута тут просто немає — картка заввишки в один рядок.
+								-->
+								<button
+									class="mute"
+									type="button"
+									title={t('player.deckExpand')}
+									aria-label={t('player.deckExpand')}
+									aria-expanded={false}
+									onclick={() => (deckOpen = true)}
+									data-testid="deck-expand"
+								>
+									<IconUp size={20} aria-hidden="true" />
+								</button>
 							{/if}
-						</button>
-
-						<label class="bar__wrap">
-							<span class="visually-hidden">{t('player.volume')}</span>
-							<input
-								class="bar__range"
-								type="range"
-								min="0"
-								max="100"
-								step="1"
-								value={Math.round(engine.volume * 100)}
-								data-testid="player-volume"
-								oninput={(event) => engine.setVolume(Number(event.currentTarget.value) / 100)}
-							/>
-						</label>
-
-						<output class="bar__time mono">{Math.round(engine.volume * 100)}</output>
-					</div>
-				</section>
+						</div>
+					</section>
+				{/if}
 
 				{#if controller.trouble}
 					<p class="error" role="alert" data-testid="player-trouble">
@@ -428,7 +485,18 @@
 									class:tracks__row--hidden={entry.hidden}
 									style={hex ? `--track-color: ${hex}` : undefined}
 								>
-									<div class="tracks__main" class:tracks__main--tinted={hex !== null}>
+									<!--
+										Стан треку показує ВЕСЬ РЯДОК, а не підпис усередині нього. Обвідка
+										навколо самих літер виглядала як поле вводу, у яке потрапив курсор, а
+										не як «оцей трек зараз грає». На пульті вона з самого початку була на
+										рядку — два екрани однієї дошки показували те саме по-різному.
+									-->
+									<div
+										class="tracks__main"
+										class:tracks__main--tinted={hex !== null}
+										class:tracks__main--current={engine.trackId === entry.id}
+										class:tracks__main--playing={engine.trackId === entry.id && engine.playing}
+									>
 										<!--
 											Клавіша тут ПІДПИС, а не кнопка: натискають її на клавіатурі, а
 											мінять у вікні налаштувань. Кнопка, що відкриває вікно, стоїть
@@ -440,8 +508,6 @@
 
 										<button
 											class="tracks__title"
-											class:tracks__title--current={engine.trackId === entry.id}
-											class:tracks__title--playing={engine.trackId === entry.id && engine.playing}
 											type="button"
 											disabled={entry.hidden}
 											title={t('player.playHere')}
@@ -539,6 +605,35 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
+	}
+
+	/* Згорнута — це один рядок: падінг картки на весь зріст тут зайвий. */
+	.deck--short {
+		padding-block: var(--gap-sm);
+	}
+
+	/*
+	 * Стоїть там само, де на широкому екрані значок підказки, і виглядає так
+	 * само: у правому верхньому куті картки живе рівно один дрібний орган.
+	 */
+	.deck__fold {
+		position: absolute;
+		top: var(--gap-sm);
+		right: var(--gap-sm);
+		display: grid;
+		place-items: center;
+		width: var(--tap);
+		height: var(--tap);
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+	}
+
+	.deck__fold:hover,
+	.deck__fold:focus-visible {
+		color: var(--accent);
 	}
 
 	.deck__now {
@@ -643,8 +738,20 @@
 		align-items: center;
 		gap: var(--gap-xs);
 		padding: 2px var(--gap-xs);
+		border: 1px solid transparent;
 		border-inline-start: 4px solid transparent;
 		border-radius: var(--radius-sm);
+	}
+
+	/*
+	 * На телефоні рядок удвічі вищий. Це єдина ціль у списку, у яку цілять
+	 * пальцем не дивлячись — під час заняття, збоку, однією рукою. Мінімальні
+	 * 44px тут замало: вони про «можна влучити», а не про «важко промазати».
+	 */
+	@media (max-width: 899px) {
+		.tracks__main {
+			min-height: calc(var(--tap) * 2);
+		}
 	}
 
 	/*
@@ -705,8 +812,9 @@
 		white-space: nowrap;
 	}
 
-	.tracks__title:hover:not(:disabled),
-	.tracks__title:focus-visible {
+	/* Наведення й фокус теж малюються на рядку — там, де тепер і стан. */
+	.tracks__main:has(.tracks__title:hover:not(:disabled)),
+	.tracks__main:has(.tracks__title:focus-visible) {
 		border-color: var(--accent);
 	}
 
@@ -732,11 +840,13 @@
 	 * його так само зеленим, як той, що грає, означало б показувати звук там,
 	 * де тиша.
 	 */
-	.tracks__title--current {
+	.tracks__main--current {
+		border-color: var(--border-strong);
 		font-weight: 700;
 	}
 
-	.tracks__title--playing {
+	.tracks__main--playing {
+		border-color: var(--accent);
 		color: var(--accent);
 	}
 

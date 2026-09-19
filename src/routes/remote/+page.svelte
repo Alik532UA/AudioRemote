@@ -3,12 +3,14 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
+		IconDown,
 		IconFolder,
 		IconMute,
 		IconNext,
 		IconPause,
 		IconPlay,
 		IconPrev,
+		IconUp,
 		IconStop,
 		IconVolume,
 		IconWarning
@@ -79,6 +81,15 @@
 		const fromPlayer = controller?.state?.volume;
 		if (fromPlayer !== undefined && !draggingVolume) volume = Math.round(fromPlayer * 100);
 	});
+
+	/**
+	 * Чи розгорнуте керування на телефоні. `null` — «як само вийде».
+	 *
+	 * Те саме правило, що й у приймача: доки трек не обрано, від смуги
+	 * перемотки й чотирьох кнопок користі нема, а висоту вони забирають у
+	 * списку. Гучність лишається завжди — її крутять і в тиші.
+	 */
+	let deckOpen = $state<boolean | null>(null);
 
 	const armed = $derived(controller?.state?.armed === true);
 	const playing = $derived(controller?.state?.playing === true);
@@ -161,141 +172,179 @@
 
 			<!-- ─── Керування ─────────────────────────────────────────────── -->
 			<div class="board__col board__col--deck">
-				<section class="now card">
-					<HotkeyTips id="remote-tips" />
-
-					<p class="now__title" data-testid="now-playing">
-						{controller.currentTitle ?? t('remote.nothing')}
-					</p>
-
-					<!--
-						Перемотка з пульта. Позиція рахується як оголошена плюс час, що минув
-						відтоді, — приймач не шле її щосекунди, і саме тому смужка рухається
-						плавно, а мережею йде одне повідомлення на зміну стану.
-					-->
-					<div class="bar">
-						<span class="bar__time mono">
-							{clock(seeking ? seekValue : controller.positionMs)}
-						</span>
-						<input
-							class="bar__range"
-							type="range"
-							min="0"
-							max={Math.max(1000, controller.durationMs)}
-							step="250"
-							disabled={!controller.state?.trackId || controller.durationMs === 0}
-							value={seeking ? seekValue : controller.positionMs}
-							data-testid="remote-seek"
-							onpointerdown={() => (seeking = true)}
-							onpointerup={() => {
-								seeking = false;
-								void controller?.seek(seekValue);
-							}}
-							oninput={(event) => (seekValue = Number(event.currentTarget.value))}
-						/>
-						<span class="bar__time mono">{clock(controller.durationMs)}</span>
-					</div>
-
-					<!-- Ті самі чотири значки, що й у плеєра, і в тому самому порядку. -->
-					<div class="now__buttons">
-						<button
-							class="btn now__btn"
-							type="button"
-							disabled={controller.sending || controller.tracks.length === 0}
-							title={t('remote.prev')}
-							aria-label={t('remote.prev')}
-							onclick={() => controller?.send('prev')}
-							data-testid="cmd-prev"
-						>
-							<IconPrev size={22} aria-hidden="true" />
-						</button>
-
-						{#if playing}
+				<!--
+					На телефоні керування зʼявляється разом із бібліотекою: доки приймач
+					нічого не оголосив, керувати нема чим.
+				-->
+				{#if !narrow.matches || controller.tracks.length > 0}
+					{@const full = !narrow.matches || (deckOpen ?? controller.state?.trackId != null)}
+					<section class="now card" class:now--short={!full} data-testid="deck">
+						{#if !narrow.matches}
+							<HotkeyTips id="remote-tips" />
+						{:else if full}
 							<button
-								class="btn btn--primary now__btn"
+								class="now__fold"
 								type="button"
-								disabled={controller.sending}
-								title={t('remote.pause')}
-								aria-label={t('remote.pause')}
-								onclick={() => controller?.send('pause')}
-								data-testid="cmd-pause"
+								title={t('player.deckCollapse')}
+								aria-label={t('player.deckCollapse')}
+								aria-expanded={true}
+								onclick={() => (deckOpen = false)}
+								data-testid="deck-collapse"
 							>
-								<IconPause size={22} aria-hidden="true" />
-							</button>
-						{:else}
-							<button
-								class="btn btn--primary now__btn"
-								type="button"
-								disabled={controller.sending || !controller.state?.trackId}
-								title={t('remote.resume')}
-								aria-label={t('remote.resume')}
-								onclick={() => controller?.send('resume')}
-								data-testid="cmd-resume"
-							>
-								<IconPlay size={22} aria-hidden="true" />
+								<IconDown size={20} aria-hidden="true" />
 							</button>
 						{/if}
 
-						<button
-							class="btn now__btn"
-							type="button"
-							disabled={controller.sending || !controller.state?.trackId}
-							title={t('remote.stop')}
-							aria-label={t('remote.stop')}
-							onclick={() => controller?.send('stop')}
-							data-testid="cmd-stop"
-						>
-							<IconStop size={22} aria-hidden="true" />
-						</button>
+						{#if full}
+							<p class="now__title" data-testid="now-playing">
+								{controller.currentTitle ?? t('remote.nothing')}
+							</p>
 
-						<button
-							class="btn now__btn"
-							type="button"
-							disabled={controller.sending || controller.tracks.length === 0}
-							title={t('remote.next')}
-							aria-label={t('remote.next')}
-							onclick={() => controller?.send('next')}
-							data-testid="cmd-next"
-						>
-							<IconNext size={22} aria-hidden="true" />
-						</button>
-					</div>
+							<!--
+								Перемотка з пульта. Позиція рахується як оголошена плюс час, що минув
+								відтоді, — приймач не шле її щосекунди, і саме тому смужка рухається
+								плавно, а мережею йде одне повідомлення на зміну стану.
+							-->
+							<div class="bar">
+								<span class="bar__time mono">
+									{clock(seeking ? seekValue : controller.positionMs)}
+								</span>
+								<input
+									class="bar__range"
+									type="range"
+									min="0"
+									max={Math.max(1000, controller.durationMs)}
+									step="250"
+									disabled={!controller.state?.trackId || controller.durationMs === 0}
+									value={seeking ? seekValue : controller.positionMs}
+									data-testid="remote-seek"
+									onpointerdown={() => (seeking = true)}
+									onpointerup={() => {
+										seeking = false;
+										void controller?.seek(seekValue);
+									}}
+									oninput={(event) => (seekValue = Number(event.currentTarget.value))}
+								/>
+								<span class="bar__time mono">{clock(controller.durationMs)}</span>
+							</div>
 
-					<div class="volume">
-						<!-- Значок був підписом, тепер це кнопка: тиша потрібна найчастіше. -->
-						<button
-							class="volume__mute"
-							class:volume__mute--on={controller.muted}
-							type="button"
-							aria-pressed={controller.muted}
-							title={controller.muted ? t('sound.unmute') : t('sound.mute')}
-							aria-label={controller.muted ? t('sound.unmute') : t('sound.mute')}
-							onclick={() => controller?.toggleMute()}
-							data-testid="remote-mute"
-						>
-							{#if controller.muted}
-								<IconMute size={20} aria-hidden="true" />
-							{:else}
-								<IconVolume size={20} aria-hidden="true" />
+							<!-- Ті самі чотири значки, що й у плеєра, і в тому самому порядку. -->
+							<div class="now__buttons">
+								<button
+									class="btn now__btn"
+									type="button"
+									disabled={controller.sending || controller.tracks.length === 0}
+									title={t('remote.prev')}
+									aria-label={t('remote.prev')}
+									onclick={() => controller?.send('prev')}
+									data-testid="cmd-prev"
+								>
+									<IconPrev size={22} aria-hidden="true" />
+								</button>
+
+								{#if playing}
+									<button
+										class="btn btn--primary now__btn"
+										type="button"
+										disabled={controller.sending}
+										title={t('remote.pause')}
+										aria-label={t('remote.pause')}
+										onclick={() => controller?.send('pause')}
+										data-testid="cmd-pause"
+									>
+										<IconPause size={22} aria-hidden="true" />
+									</button>
+								{:else}
+									<button
+										class="btn btn--primary now__btn"
+										type="button"
+										disabled={controller.sending || !controller.state?.trackId}
+										title={t('remote.resume')}
+										aria-label={t('remote.resume')}
+										onclick={() => controller?.send('resume')}
+										data-testid="cmd-resume"
+									>
+										<IconPlay size={22} aria-hidden="true" />
+									</button>
+								{/if}
+
+								<button
+									class="btn now__btn"
+									type="button"
+									disabled={controller.sending || !controller.state?.trackId}
+									title={t('remote.stop')}
+									aria-label={t('remote.stop')}
+									onclick={() => controller?.send('stop')}
+									data-testid="cmd-stop"
+								>
+									<IconStop size={22} aria-hidden="true" />
+								</button>
+
+								<button
+									class="btn now__btn"
+									type="button"
+									disabled={controller.sending || controller.tracks.length === 0}
+									title={t('remote.next')}
+									aria-label={t('remote.next')}
+									onclick={() => controller?.send('next')}
+									data-testid="cmd-next"
+								>
+									<IconNext size={22} aria-hidden="true" />
+								</button>
+							</div>
+						{/if}
+
+						<div class="volume">
+							<!-- Значок був підписом, тепер це кнопка: тиша потрібна найчастіше. -->
+							<button
+								class="volume__mute"
+								class:volume__mute--on={controller.muted}
+								type="button"
+								aria-pressed={controller.muted}
+								title={controller.muted ? t('sound.unmute') : t('sound.mute')}
+								aria-label={controller.muted ? t('sound.unmute') : t('sound.mute')}
+								onclick={() => controller?.toggleMute()}
+								data-testid="remote-mute"
+							>
+								{#if controller.muted}
+									<IconMute size={20} aria-hidden="true" />
+								{:else}
+									<IconVolume size={20} aria-hidden="true" />
+								{/if}
+							</button>
+							<label class="visually-hidden" for="remote-volume">{t('remote.volume')}</label>
+							<input
+								id="remote-volume"
+								class="volume__slider"
+								type="range"
+								min="0"
+								max="100"
+								step="1"
+								bind:value={volume}
+								data-testid="cmd-volume"
+								onpointerdown={() => (draggingVolume = true)}
+								onpointerup={() => (draggingVolume = false)}
+								oninput={() => controller?.setVolume(volume)}
+							/>
+							<output class="volume__value mono">{volume}</output>
+
+							{#if !full}
+								<!-- У згорнутому вигляді верхнього кута немає: картка в один рядок. -->
+								<button
+									class="volume__mute"
+									type="button"
+									title={t('player.deckExpand')}
+									aria-label={t('player.deckExpand')}
+									aria-expanded={false}
+									onclick={() => (deckOpen = true)}
+									data-testid="deck-expand"
+								>
+									<IconUp size={20} aria-hidden="true" />
+								</button>
 							{/if}
-						</button>
-						<label class="visually-hidden" for="remote-volume">{t('remote.volume')}</label>
-						<input
-							id="remote-volume"
-							class="volume__slider"
-							type="range"
-							min="0"
-							max="100"
-							step="1"
-							bind:value={volume}
-							data-testid="cmd-volume"
-							onpointerdown={() => (draggingVolume = true)}
-							onpointerup={() => (draggingVolume = false)}
-							oninput={() => controller?.setVolume(volume)}
-						/>
-						<output class="volume__value mono">{volume}</output>
-					</div>
-				</section>
+						</div>
+					</section>
+				{/if}
 			</div>
 
 			<!-- ─── Список ────────────────────────────────────────────────── -->
@@ -389,6 +438,32 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
+	}
+
+	/* Згорнута — це один рядок: падінг картки на весь зріст тут зайвий. */
+	.now--short {
+		padding-block: var(--gap-sm);
+	}
+
+	/* Там само, де на широкому екрані значок підказки. */
+	.now__fold {
+		position: absolute;
+		top: var(--gap-sm);
+		right: var(--gap-sm);
+		display: grid;
+		place-items: center;
+		width: var(--tap);
+		height: var(--tap);
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+	}
+
+	.now__fold:hover,
+	.now__fold:focus-visible {
+		color: var(--accent);
 	}
 
 	.now__title {
@@ -507,6 +582,13 @@
 		color: inherit;
 		cursor: pointer;
 		text-align: start;
+	}
+
+	/* Той самий подвійний зріст, що й у приймача: ціль для пальця наосліп. */
+	@media (max-width: 899px) {
+		.tracks__btn {
+			min-height: calc(var(--tap) * 2);
+		}
 	}
 
 	.tracks__btn:hover:not(:disabled),
