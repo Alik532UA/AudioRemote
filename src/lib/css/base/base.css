@@ -250,6 +250,60 @@ svg {
 	width: 100%;
 }
 
+/* Півтора рядка тексту в кнопці не потребують стільки повітря, скільки дія. */
+.btn--sm {
+	padding: 0.3rem 0.575rem;
+}
+
+/*
+ * КНОПКА ЗАКРИТТЯ — ОДНА НА ВЕСЬ ЗАСТОСУНОК, за локатором.
+ *
+ * Канон (UI-ELEMENTS-v9 § 1.3) вимагає саме локатор, а не спільний клас:
+ * перелік класів забуває наступну додану кнопку, а `-close-btn` підхоплює її
+ * сам. `:has(svg)` теж не прикраса — той самий локатор носить і ТЕКСТОВА
+ * кнопка закриття («Готово»), а обертати напис на 90° безглуздо.
+ */
+[data-testid$='-close-btn'] {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: var(--tap);
+	height: var(--tap);
+	padding: 0;
+	border: 0;
+	border-radius: var(--radius-full);
+	background: transparent;
+	color: var(--text-secondary);
+	cursor: pointer;
+	transition:
+		transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+		background-color 0.25s ease,
+		color 0.25s ease;
+}
+
+[data-testid$='-close-btn']:hover,
+[data-testid$='-close-btn']:focus-visible {
+	background: var(--bg-sunken);
+	color: var(--text-primary);
+}
+
+[data-testid$='-close-btn']:has(svg):hover {
+	transform: rotate(90deg) scale(1.08);
+}
+
+[data-testid$='-close-btn']:has(svg):active {
+	transform: rotate(90deg) scale(0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	[data-testid$='-close-btn'],
+	[data-testid$='-close-btn']:has(svg):hover,
+	[data-testid$='-close-btn']:has(svg):active {
+		transition: none;
+		transform: none;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.btn {
 		transition: none;

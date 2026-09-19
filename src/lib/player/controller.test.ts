@@ -143,7 +143,7 @@ describe('підпис клавіші в списку', () => {
 		await controller.rescan();
 	});
 
-	it('доки нікому нічого не призначено — стоять запасні цифри', () => {
+	it('без призначень — стоять цифри за порядком', () => {
 		/*
 		 * Це не про красу підпису, а про правду: цифри в цьому стані СПРАЦЬОВУЮТЬ,
 		 * а в списку біля кожного треку стояла крапка. Екран заперечував клавішу,
@@ -157,13 +157,31 @@ describe('підпис клавіші в списку', () => {
 		});
 	});
 
-	it('призначена клавіша гасить запасні цифри в усьому списку', () => {
-		// Рівно так поводиться й `byHotkey`: інакше підпис обіцяв би не те.
-		const [first, second] = controller.entries;
+	it('призначена клавіша не чіпає цифр у решти', () => {
+		const [first, second, third] = controller.entries;
 		controller.setHotkey(second.id, 'KeyQ');
 
-		expect(controller.keyLabels).toEqual({ [second.id]: 'Q' });
-		expect(controller.keyLabels[first.id]).toBeUndefined();
+		expect(controller.keyLabels).toEqual({
+			[first.id]: '1',
+			[second.id]: 'Q',
+			[third.id]: '3'
+		});
+	});
+
+	it('цифра лишається робочою після того, як треку дали свою клавішу', () => {
+		/*
+		 * Перевіряється ПОВЕДІНКА, а не підпис: `2` мусить і далі означати другий
+		 * трек списку. Саме це зникало — призначив одну клавішу й лишився без
+		 * цифр.
+		 */
+		const [first, second] = controller.entries;
+		controller.setHotkey(first.id, 'KeyQ');
+
+		const pressed = controller.resolveKey(
+			new KeyboardEvent('keydown', { code: 'Digit2', bubbles: true })
+		);
+		expect(pressed).toEqual({ kind: 'play', index: 1 });
+		expect(controller.visible[1].id).toBe(second.id);
 	});
 
 	it('прихований трек підпису не має — і не зсуває чужі номери', () => {
@@ -206,6 +224,91 @@ describe('проба звуку', () => {
 		} finally {
 			media.play = play;
 			media.pause = pause;
+		}
+	});
+});
+
+describe('керування відтворенням', () => {
+	/**
+	 * Підставний звук: jsdom не вміє відтворювати, а нам потрібні лише прапорці.
+	 * `play` шле свою подію, як це робить браузер; `pause` мовчить — див.
+	 * пояснення в тесті проби звуку.
+	 */
+	const stubMedia = () => {
+		const media = window.HTMLMediaElement.prototype;
+		const play = media.play;
+		const pause = media.pause;
+		media.play = function (this: HTMLMediaElement) {
+			this.dispatchEvent(new Event('play'));
+			return Promise.resolve();
+		};
+		media.pause = function () {};
+		return () => {
+			media.play = play;
+			media.pause = pause;
+		};
+	};
+
+	const started = async () => {
+		const controller = build(withFiles('Автобус.mp3', 'Криниця.mp3', 'Ялина.mp3'));
+		await controller.rescan();
+		await controller.playLocal(controller.entries[1].id);
+		return controller;
+	};
+
+	it('пауза знімає «грає» ОДРАЗУ, не чекаючи кінця згасання', async () => {
+		/*
+		 * Звук гасне секунду, і весь цей час кнопка лишалася зеленою «Пауза»:
+		 * людина тиснула, нічого не мінялося — і тиснула вдруге.
+		 */
+		const restore = stubMedia();
+		try {
+			const controller = await started();
+			expect(controller.engine.playing).toBe(true);
+
+			controller.engine.pause();
+			expect(controller.engine.playing).toBe(false);
+		} finally {
+			restore();
+		}
+	});
+
+	it('стоп лишає трек обраним', async () => {
+		/*
+		 * Доти «стоп» скидав і сам трек: щоб заграти те саме ще раз, доводилося
+		 * знову шукати його в списку. У залі «стоп» тиснуть між номерами, а не
+		 * наприкінці.
+		 */
+		const restore = stubMedia();
+		try {
+			const controller = await started();
+			const chosen = controller.entries[1].id;
+
+			controller.engine.stop();
+
+			expect(controller.engine.playing).toBe(false);
+			expect(controller.engine.trackId).toBe(chosen);
+		} finally {
+			restore();
+		}
+	});
+
+	it('«попередній» і «наступний» ходять по колу', async () => {
+		const restore = stubMedia();
+		try {
+			const controller = await started();
+			const [first, second, third] = controller.entries.map((entry) => entry.id);
+
+			expect(controller.engine.trackId).toBe(second);
+			expect(controller.engine.prevTrackId()).toBe(first);
+			expect(controller.engine.nextTrackId()).toBe(third);
+
+			await controller.playLocal(first);
+			// З першого назад — на останній: саме там список закінчується, якщо йти
+			// проти течії.
+			expect(controller.engine.prevTrackId()).toBe(third);
+		} finally {
+			restore();
 		}
 	});
 });

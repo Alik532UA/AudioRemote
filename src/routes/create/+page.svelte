@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { IconBack, IconCheck, IconCopy, IconDice, IconWarning } from '$lib/config/icons';
+	import { IconCheck, IconCopy, IconDice, IconWarning } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { deriveBoardKey } from '$lib/board/boardPath';
 	import {
@@ -86,11 +86,6 @@
 </script>
 
 <div class="stack stack--auth">
-	<a class="back" href={resolve('/')}>
-		<IconBack size={18} aria-hidden="true" />
-		{t('common.back')}
-	</a>
-
 	<section class="card card--auth stack">
 		<h1 class="title">{t('create.title')}</h1>
 
@@ -179,20 +174,6 @@
 </div>
 
 <style>
-	.back {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--gap-xs);
-		align-self: start;
-		min-height: var(--tap);
-		color: var(--text-secondary);
-		text-decoration: none;
-	}
-
-	.back:hover {
-		color: var(--accent);
-	}
-
 	.title {
 		font-size: 1.3rem;
 	}

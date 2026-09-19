@@ -248,9 +248,18 @@ export class AudioEngine {
 		this.describeToSystem(track.title);
 	}
 
+	/**
+	 * Пауза: кнопка міняється ОДРАЗУ, звук іде секунду.
+	 *
+	 * Прапорець ставиться тут, не чекаючи події `pause` від елемента. Доти
+	 * кнопка лишалася зеленою «Пауза» всю секунду згасання: людина тиснула,
+	 * нічого не мінялося — і тиснула вдруге.
+	 *
+	 * Звук при цьому гасне плавно: пауза посеред звуку чується як клац.
+	 */
 	pause(): void {
 		if (!this.element) return;
-		// Спершу згасити, і лише тоді спинити: пауза посеред звуку — це клац.
+		this.playing = false;
 		this.fadeTo(0, () => this.element?.pause());
 	}
 
@@ -261,17 +270,26 @@ export class AudioEngine {
 		this.fadeTo(this.targetVolume());
 	}
 
+	/**
+	 * Стоп: на початок треку, але ТРЕК ЛИШАЄТЬСЯ ОБРАНИМ.
+	 *
+	 * Доти «стоп» скидав і сам трек: щоб заграти те саме ще раз, доводилося
+	 * знову шукати його в списку. У залі це помітно — «стоп» тиснуть між
+	 * номерами, а не наприкінці.
+	 *
+	 * Різниця з паузою лишається: пауза тримає місце, стоп повертає на
+	 * початок. Джерело не знімається, тож «Грати» починає одразу, без
+	 * повторного читання файлу.
+	 */
 	stop(): void {
 		if (!this.element) return;
+		// Так само, як у паузі: кнопка не чекає кінця згасання.
+		this.playing = false;
 		this.fadeTo(0, () => {
 			const element = this.element;
 			if (!element) return;
 			element.pause();
-			element.removeAttribute('src');
-			element.load();
-			this.releaseUrl();
-			this.trackId = null;
-			this.playing = false;
+			element.currentTime = 0;
 			this.positionMs = 0;
 		});
 	}
@@ -286,6 +304,19 @@ export class AudioEngine {
 		if (this.order.length === 0) return null;
 		const at = this.order.findIndex((entry) => entry.id === this.trackId);
 		return this.order[(at + 1) % this.order.length].id;
+	}
+
+	/**
+	 * Попередній за порядком списку. З першого — на кінець.
+	 *
+	 * Коли не грає нічого, `findIndex` віддає `-1`, і «попередній» має вести на
+	 * ОСТАННІЙ: саме там закінчується список, якщо йти назад від початку.
+	 */
+	prevTrackId(): string | null {
+		if (this.order.length === 0) return null;
+		const at = this.order.findIndex((entry) => entry.id === this.trackId);
+		const from = at === -1 ? 0 : at;
+		return this.order[(from - 1 + this.order.length) % this.order.length].id;
 	}
 
 	setVolume(value: number): void {

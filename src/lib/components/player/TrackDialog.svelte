@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { IconEye, IconEyeOff, IconKeyboard } from '$lib/config/icons';
+	import { IconClose, IconEye, IconEyeOff, IconKeyboard } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { colorNumber, TRACK_COLORS } from '$lib/config/trackColors';
 	import { isAssignable, labelForCode } from '$lib/hotkeys/hotkeys';
@@ -85,8 +85,13 @@
 	<div class="dialog__body">
 		<header class="dialog__head">
 			<h2 class="dialog__title">{t('track.settings')}</h2>
-			<button class="btn" type="button" onclick={() => node?.close()} data-testid="dialog-close">
-				{t('common.close')}
+			<button
+				type="button"
+				aria-label={t('common.close')}
+				onclick={() => node?.close()}
+				data-testid="track-dialog-close-btn"
+			>
+				<IconClose size={20} aria-hidden="true" />
 			</button>
 		</header>
 

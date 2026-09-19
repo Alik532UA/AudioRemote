@@ -230,10 +230,8 @@ export class RemoteController {
 	async handleHotkey(action: HotkeyAction): Promise<void> {
 		switch (action.kind) {
 			case 'play': {
-				// Цифри за порядком — лише доки клавіші нікому не призначені.
-				const track = this.tracks.some((entry) => entry.hotkey)
-					? undefined
-					: this.tracks[action.index];
+				// Цифри за порядком працюють завжди — див. `keyLabelsFor`.
+				const track = this.tracks[action.index];
 				if (track) await this.send('play', track.id);
 				break;
 			}

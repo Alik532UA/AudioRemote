@@ -3,17 +3,17 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
-		IconBack,
-		IconCheck,
-		IconCopy,
 		IconDown,
 		IconFolder,
+		IconInfo,
 		IconKeyboard,
 		IconMute,
 		IconNext,
 		IconPause,
+		IconPhone,
 		IconPlay,
 		IconPower,
+		IconPrev,
 		IconRefresh,
 		IconSliders,
 		IconStop,
@@ -26,14 +26,17 @@
 	import { describeError } from '$lib/net/describeError';
 	import { PlayerController } from '$lib/player/controller.svelte';
 	import { colorOf } from '$lib/config/trackColors';
-	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
+	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 
 	let controller = $state<PlayerController | null>(null);
 	let fatal = $state<string | null>(null);
 	/** Для якого треку відкрите вікно налаштувань. `null` — для жодного. */
 	let openFor = $state<string | null>(null);
-	let copied = $state(false);
+	/** Чи відкрите вікно «як підключити пульт». */
+	let remoteOpen = $state(false);
+	/** Чи розгорнуті підказки під керуванням. Згорнуті — типово. */
+	let tipsOpen = $state(false);
 	/** Палець на повзунку перемотки: доти позиція з плеєра його не смикає. */
 	let seeking = $state(false);
 	let seekValue = $state(0);
@@ -42,23 +45,6 @@
 		const total = Math.max(0, Math.round(ms / 1000));
 		return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 	};
-
-	async function copySecret() {
-		const board = boardSession.current;
-		if (!board?.password) return;
-		try {
-			await navigator.clipboard.writeText(
-				[
-					`${t('create.idLabel')}: ${board.id}`,
-					`${t('create.passwordLabel')}: ${board.password}`
-				].join(String.fromCharCode(10))
-			);
-			copied = true;
-			setTimeout(() => (copied = false), 2000);
-		} catch {
-			// Буфер заборонений політикою — обидва рядки й так на екрані.
-		}
-	}
 
 	onMount(() => {
 		boardSession.restore();
@@ -111,11 +97,6 @@
 </script>
 
 <div class="stack stack--wide">
-	<a class="back" href={resolve('/')}>
-		<IconBack size={18} aria-hidden="true" />
-		{t('common.back')}
-	</a>
-
 	{#if fatal}
 		<p class="error" role="alert">{fatal}</p>
 	{:else if controller && boardSession.current}
@@ -135,45 +116,52 @@
 		-->
 		<div class="board">
 			<div class="board__col">
+				<!--
+					УСЕ ПРО ДОШКУ В ОДНІЙ КАРТЦІ. Пароль доти лежав у згорнутому блоці під
+					нею — окрема картка заради рядка, який читають раз на день. Тепер там
+					кнопка, а за нею інструкція разом із паролем: одне місце на одне
+					питання «як підключити телефон».
+				-->
 				<header class="head card">
-					<div>
+					<div class="head__who">
 						<h1 class="head__title">{board.name || t('player.title')}</h1>
 						<p class="muted mono">{board.id}</p>
 					</div>
-					<p class="muted">{t('player.listeners', { count: controller.remotes })}</p>
+					<div class="head__side">
+						<p class="muted">{t('player.listeners', { count: controller.remotes })}</p>
+						{#if board.password}
+							<button
+								class="btn btn--sm"
+								type="button"
+								onclick={() => (remoteOpen = true)}
+								data-testid="open-remote"
+							>
+								<IconPhone size={18} aria-hidden="true" />
+								{t('player.connect')}
+							</button>
+						{/if}
+					</div>
 				</header>
 
-				{#if board.password}
-					<!--
-						Пароль видно й тут, а не лише в мить створення: відновити його з
-						адреси неможливо за побудовою. Блок згорнутий і поле замасковане —
-						пароль на екрані в залі бачить не лише той, хто його спитав.
-					-->
-					<details class="fold card" data-testid="board-secret">
-						<summary class="fold__toggle">{t('player.showSecret')}</summary>
-						<div class="fold__body">
-							<div class="field">
-								<span class="field__label">{t('create.idLabel')}</span>
-								<output class="secret__id mono">{board.id}</output>
-							</div>
-							<PasswordField
-								id="player-password"
-								label={t('create.passwordLabel')}
-								value={board.password}
-								autocomplete="off"
-								readonly
-							/>
-							<button class="btn" type="button" onclick={copySecret} data-testid="copy-secret">
-								{#if copied}
-									<IconCheck size={18} aria-hidden="true" />
-									{t('common.copied')}
-								{:else}
-									<IconCopy size={18} aria-hidden="true" />
-									{t('common.copy')}
-								{/if}
-							</button>
-						</div>
-					</details>
+				<!--
+					Прохання ввімкнути звук стоїть біля самої дошки, а не над керуванням:
+					це крок налаштування дошки, як і вибір теки, а не орган плеєра. У
+					середній колонці воно ще й зсувало все керування вниз рівно тоді, коли
+					до нього тягнуться вперше.
+				-->
+				{#if !engine.armed}
+					<section class="arm card" data-testid="arm-block">
+						<button
+							class="btn btn--primary arm__btn"
+							type="button"
+							onclick={() => controller?.arm()}
+							data-testid="arm"
+						>
+							<IconPower size={22} aria-hidden="true" />
+							{t('player.arm')}
+						</button>
+						<p class="muted">{t('player.armHint')}</p>
+					</section>
 				{/if}
 
 				<section class="card stack">
@@ -194,15 +182,42 @@
 						</button>
 						<p class="muted">{t('player.pickAgain')}</p>
 					{:else}
-						<span class="folder__name">{controller.folderName}</span>
-						<div class="row">
-							<button class="btn" type="button" onclick={() => controller?.rescan()}>
-								<IconRefresh size={18} aria-hidden="true" />
-								{t('player.rescan')}
-							</button>
-							<button class="btn" type="button" onclick={() => controller?.pickFolder()}>
-								{t('player.changeFolder')}
-							</button>
+						<!--
+							Тека — ОДИН рядок картки: назва й обидві дії поруч.
+
+							Доти назва висіла окремим написом над рядком кнопок, і картка
+							читалася як дві різні речі, складені разом. Кнопки стали значками з
+							підписом у `title`: слова «Перечитати теку» поруч із самою текою
+							нічого не додавали, а рядок від них ламався.
+						-->
+						<div class="folder">
+							<IconFolder size={18} aria-hidden="true" />
+							<div class="folder__text">
+								<span class="field__label">{t('player.folderLabel')}</span>
+								<span class="folder__name">{controller.folderName}</span>
+							</div>
+							<div class="folder__tools">
+								<button
+									class="icon-btn"
+									type="button"
+									title={t('player.rescan')}
+									aria-label={t('player.rescan')}
+									onclick={() => controller?.rescan()}
+									data-testid="rescan"
+								>
+									<IconRefresh size={16} aria-hidden="true" />
+								</button>
+								<button
+									class="icon-btn"
+									type="button"
+									title={t('player.changeFolder')}
+									aria-label={t('player.changeFolder')}
+									onclick={() => controller?.pickFolder()}
+									data-testid="change-folder"
+								>
+									<IconFolder size={16} aria-hidden="true" />
+								</button>
+							</div>
 						</div>
 						{#if !controller.configWritable}
 							<p class="note note--warn" data-testid="config-readonly">
@@ -216,21 +231,6 @@
 
 			<!-- ─── Керування ─────────────────────────────────────────────── -->
 			<div class="board__col">
-				{#if !engine.armed}
-					<section class="arm card" data-testid="arm-block">
-						<button
-							class="btn btn--primary arm__btn"
-							type="button"
-							onclick={() => controller?.arm()}
-							data-testid="arm"
-						>
-							<IconPower size={22} aria-hidden="true" />
-							{t('player.arm')}
-						</button>
-						<p class="muted">{t('player.armHint')}</p>
-					</section>
-				{/if}
-
 				<section class="deck card">
 					<p class="deck__now" data-testid="now-playing">
 						{current?.title ?? t('remote.nothing')}
@@ -261,27 +261,51 @@
 						<span class="bar__time mono">{clock(engine.durationMs)}</span>
 					</div>
 
+					<!--
+						САМІ ЗНАЧКИ, БЕЗ ПІДПИСІВ. Чотири кнопки з підписами в колонку не
+						вміщалися й переносилися, а самі підписи нічого не додавали: значки
+						плеєра людина читає швидше за слово й однаково в будь-якій мові.
+						Назва лишається в `title` та `aria-label` — для миші, що зависла, і
+						для читача екрана.
+					-->
 					<div class="deck__buttons">
+						<button
+							class="btn deck__btn"
+							type="button"
+							disabled={controller.visible.length === 0}
+							title={t('remote.prev')}
+							aria-label={t('remote.prev')}
+							onclick={() => {
+								const prev = engine.prevTrackId();
+								if (prev) void controller?.playLocal(prev);
+							}}
+							data-testid="player-prev"
+						>
+							<IconPrev size={22} aria-hidden="true" />
+						</button>
+
 						{#if engine.playing}
 							<button
 								class="btn btn--primary deck__btn"
 								type="button"
+								title={t('remote.pause')}
+								aria-label={t('remote.pause')}
 								onclick={() => engine.pause()}
 								data-testid="player-pause"
 							>
 								<IconPause size={22} aria-hidden="true" />
-								{t('remote.pause')}
 							</button>
 						{:else}
 							<button
 								class="btn btn--primary deck__btn"
 								type="button"
 								disabled={!engine.trackId}
+								title={t('remote.resume')}
+								aria-label={t('remote.resume')}
 								onclick={() => engine.resume()}
 								data-testid="player-resume"
 							>
 								<IconPlay size={22} aria-hidden="true" />
-								{t('remote.resume')}
 							</button>
 						{/if}
 
@@ -289,17 +313,20 @@
 							class="btn deck__btn"
 							type="button"
 							disabled={!engine.trackId}
+							title={t('remote.stop')}
+							aria-label={t('remote.stop')}
 							onclick={() => engine.stop()}
 							data-testid="player-stop"
 						>
 							<IconStop size={22} aria-hidden="true" />
-							{t('remote.stop')}
 						</button>
 
 						<button
 							class="btn deck__btn"
 							type="button"
 							disabled={controller.visible.length === 0}
+							title={t('remote.next')}
+							aria-label={t('remote.next')}
 							onclick={() => {
 								const next = engine.nextTrackId();
 								if (next) void controller?.playLocal(next);
@@ -307,7 +334,6 @@
 							data-testid="player-next"
 						>
 							<IconNext size={22} aria-hidden="true" />
-							{t('remote.next')}
 						</button>
 					</div>
 
@@ -344,18 +370,40 @@
 						</label>
 
 						<output class="bar__time mono">{Math.round(engine.volume * 100)}</output>
+
+						<!--
+							Підказки за кнопкою, а не під керуванням.
+
+							Перелік клавіш і «не закривайте вкладку» читають один раз, а місце
+							під кнопками вони займали завжди — і саме там, куди дивляться, коли
+							треба швидко щось натиснути.
+						-->
+						<button
+							class="mute"
+							class:mute--on={tipsOpen}
+							type="button"
+							aria-expanded={tipsOpen}
+							title={t('player.tips')}
+							aria-label={t('player.tips')}
+							onclick={() => (tipsOpen = !tipsOpen)}
+							data-testid="toggle-tips"
+						>
+							<IconInfo size={20} aria-hidden="true" />
+						</button>
 					</div>
 
-					<p class="hint">
-						<IconKeyboard size={16} aria-hidden="true" />
-						<span>{t('hotkeys.hint')}</span>
-					</p>
-
-					{#if engine.armed}
-						<p class="armed" data-testid="armed">
-							<IconPower size={16} aria-hidden="true" />
-							{t('player.keepOpen')}
+					{#if tipsOpen}
+						<p class="hint" data-testid="tips">
+							<IconKeyboard size={16} aria-hidden="true" />
+							<span>{t('hotkeys.hint')}</span>
 						</p>
+
+						{#if engine.armed}
+							<p class="armed" data-testid="armed">
+								<IconPower size={16} aria-hidden="true" />
+								{t('player.keepOpen')}
+							</p>
+						{/if}
 					{/if}
 				</section>
 
@@ -407,7 +455,8 @@
 
 										<button
 											class="tracks__title"
-											class:tracks__title--playing={engine.trackId === entry.id}
+											class:tracks__title--current={engine.trackId === entry.id}
+											class:tracks__title--playing={engine.trackId === entry.id && engine.playing}
 											type="button"
 											disabled={entry.hidden}
 											title={t('player.playHere')}
@@ -459,6 +508,10 @@
 				</section>
 			</div>
 		</div>
+		{#if remoteOpen && board.password}
+			<RemoteDialog id={board.id} password={board.password} onclose={() => (remoteOpen = false)} />
+		{/if}
+
 		{#if openFor}
 			{@const chosen = controller.entries.find((entry) => entry.id === openFor)}
 			{#if chosen}
@@ -471,16 +524,6 @@
 </div>
 
 <style>
-	.back {
-		display: inline-flex;
-		align-items: center;
-		gap: var(--gap-xs);
-		align-self: start;
-		min-height: var(--tap);
-		color: var(--text-secondary);
-		text-decoration: none;
-	}
-
 	.board {
 		display: grid;
 		gap: var(--gap);
@@ -519,33 +562,16 @@
 		font-size: 1.2rem;
 	}
 
-	.fold {
-		padding: 0;
+	.head__who {
+		min-width: 0;
 	}
 
-	.fold__toggle {
-		min-height: var(--tap);
-		padding: var(--gap-sm) var(--gap);
-		color: var(--text-secondary);
-		cursor: pointer;
-		font-size: 0.9rem;
-		list-style-position: inside;
-	}
-
-	.fold__toggle:hover {
-		color: var(--accent);
-	}
-
-	.fold__body {
+	/* Лічильник пультів і кнопка — один стовпчик праворуч від назви дошки. */
+	.head__side {
 		display: flex;
 		flex-direction: column;
-		gap: var(--gap-sm);
-		padding: 0 var(--gap) var(--gap);
-	}
-
-	.secret__id {
-		font-size: 1.4rem;
-		font-weight: 700;
+		align-items: end;
+		gap: var(--gap-xs);
 	}
 
 	.arm {
@@ -558,6 +584,11 @@
 	.arm__btn {
 		min-height: 64px;
 		font-size: 1.1rem;
+		/*
+		 * Підпис переноситься. `.btn` тримає `nowrap`, і в колонці 320px довгий
+		 * напис просто обрізало по краю кнопки — половини слова не було видно.
+		 */
+		white-space: normal;
 	}
 
 	.armed {
@@ -568,7 +599,28 @@
 		font-size: 0.8rem;
 	}
 
+	/* Значок, підпис і назва теки — один рядок картки, а не три сусіди. */
+	.folder {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-sm);
+		color: var(--text-secondary);
+	}
+
+	.folder__text {
+		display: flex;
+		flex: 1;
+		flex-direction: column;
+		min-width: 0;
+	}
+
+	.folder__tools {
+		display: flex;
+		gap: var(--gap-xs);
+	}
+
 	.folder__name {
+		color: var(--text-primary);
 		font-weight: 600;
 		word-break: break-all;
 	}
@@ -615,25 +667,21 @@
 	 * переносить їх у наступний ряд — замість того щоб чавити кожну.
 	 */
 	/*
-	 * Флекс, а не сітка.
+	 * Чотири рівні кнопки в один ряд.
 	 *
-	 * У сітці кнопка, яка не влізла в ряд, лишалася завширшки з колонку, і
-	 * поруч зяяла дірка. У флексі остання в ряду розтягується на весь рядок,
-	 * тож три кнопки на вузькому екрані читаються як 2 + 1, а не як 2 + огризок.
+	 * Без підписів вони вміщаються навіть у колонку 320px, тож переносити нема
+	 * чого: керування плеєром читається як один орган, а не як два ряди.
 	 */
 	.deck__buttons {
 		display: flex;
-		flex-wrap: wrap;
 		gap: var(--gap-sm);
 	}
 
-	/*
-	 * 10rem — це «Зупинити» з іконкою й повітрям. Менше — і кнопка стає вужчою
-	 * за власний вміст.
-	 */
 	.deck__btn {
-		flex: 1 1 10rem;
+		flex: 1 1 0;
+		min-width: 0;
 		min-height: 56px;
+		padding-inline: var(--gap-xs);
 	}
 
 	.bar {
@@ -701,6 +749,7 @@
 	}
 
 	.tracks__main {
+		position: relative;
 		display: flex;
 		align-items: center;
 		gap: var(--gap-xs);
@@ -772,9 +821,41 @@
 		border-color: var(--accent);
 	}
 
+	/*
+	 * УВЕСЬ РЯДОК ЗАПУСКАЄ ТРЕК, а не самі літери назви.
+	 *
+	 * Ціль у 24 пікселі заввишки посеред рядка на 44 — це промах пальцем, і
+	 * промах тут означає «нічого не сталося» на очах у залу. Кнопка лишається
+	 * одна (вкладати кнопки не можна), а її поле розтягується накладкою на весь
+	 * рядок. Клавіша й інструменти лежать вище за неї й ловлять свої натискання
+	 * самі.
+	 */
+	.tracks__title::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+	}
+
+	/*
+	 * «Обраний» і «звучить» — різні стани, відколи «стоп» не скидає трек.
+	 *
+	 * Зупинений трек лишається обраним: із нього почне «Грати». Але малювати
+	 * його так само зеленим, як той, що грає, означало б показувати звук там,
+	 * де тиша.
+	 */
+	.tracks__title--current {
+		font-weight: 700;
+	}
+
 	.tracks__title--playing {
 		color: var(--accent);
-		font-weight: 700;
+	}
+
+	/* Вище за накладку назви — інакше «вгору» теж запускало б трек. */
+	.tracks__key,
+	.tracks__tools {
+		position: relative;
+		z-index: 1;
 	}
 
 	.tracks__tools {

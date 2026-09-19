@@ -238,6 +238,7 @@ export class PlayerController {
 				};
 			});
 
+			this.engine.setOrder(this.visible);
 			await this.publish();
 		} finally {
 			this.scanning = false;
@@ -310,6 +311,14 @@ export class PlayerController {
 	 * диск людини. Оголошення пульту йде одразу: там затримку видно.
 	 */
 	private async persist(): Promise<void> {
+		/*
+		 * Порядок для рушія — ОКРЕМО від оголошення пульту.
+		 *
+		 * Спершу він виставлявся всередині `publish()`, а та мовчки виходить, коли
+		 * дошка не наша. Тобто локальне відтворення залежало від мережі: рушій не
+		 * знав жодного треку, і на кожне натискання приходило «немає такого файлу».
+		 */
+		this.engine.setOrder(this.visible);
 		await this.publish();
 		if (this.saveTimer) clearTimeout(this.saveTimer);
 		this.saveTimer = setTimeout(() => void this.save(), SAVE_DELAY_MS);
@@ -354,7 +363,6 @@ export class PlayerController {
 			};
 		});
 
-		this.engine.setOrder(this.visible);
 		await publishLibrary(this.board.key, forCloud);
 	}
 
@@ -455,21 +463,19 @@ export class PlayerController {
 	}
 
 	/**
-	 * Який трек за цією цифрою.
+	 * Який трек за цією цифрою — просто той, що стоїть на цьому місці.
 	 *
-	 * Спершу той, кому клавішу ПРИЗНАЧИЛИ: рішення людини важить більше за
-	 * позицію. Якщо не призначено нікому — працює порядок списку, щоб клавіатура
-	 * діяла одразу, без попереднього налаштування.
+	 * Цифри НЕ вимикаються призначеними клавішами. Спершу вимикалися, і одна
+	 * дія забирала те, чого не чіпала: людина давала одному треку `Q` і
+	 * лишалася без решти дев'яти.
 	 *
-	 * Те саме правило другою половиною лежить у `keyLabelsFor`, звідки беруться
-	 * підписи: міняти тут, не глянувши туди, означає знову показати людині не ту
-	 * клавішу, яка спрацює.
+	 * Зіткнення розводить `resolveKey`: призначену клавішу питають ПЕРШОЮ, тож
+	 * явний `Digit3` перемагає третю позицію. Друга половина цієї домовленості —
+	 * підписи в `keyLabelsFor`, і міняти тут, не глянувши туди, означає показати
+	 * людині не ту клавішу, яка спрацює.
 	 */
 	private byHotkey(index: number): BoardTrack | undefined {
-		// Цифри працюють за порядком ЛИШЕ доки клавіші нікому не призначені:
-		// інакше та сама цифра означала б і «трек, якому її дали», і «третій
-		// у списку».
-		return this.visible.some((entry) => entry.hotkey !== null) ? undefined : this.visible[index];
+		return this.visible[index];
 	}
 
 	/**

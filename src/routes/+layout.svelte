@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
+	import { base, resolve } from '$app/paths';
 	import '$lib/css/base/tokens.css';
 	import '$lib/css/base/base.css';
 	import { themeState } from '$lib/services/theme.svelte';
@@ -8,13 +10,40 @@
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 	import AppMark from '$lib/components/ui/AppMark.svelte';
 	import ReloadPrompt from '$lib/components/ui/ReloadPrompt.svelte';
-	import { IconSettings } from '$lib/config/icons';
+	import { IconBack, IconSettings } from '$lib/config/icons';
 	import { mark, rotate } from '$lib/services/breadcrumbs';
 	import { purgeLegacyHandles } from '$lib/audio/localSource';
 
 	let { children } = $props();
 
 	let ready = $state(false);
+
+	/*
+	 * «Назад» живе в шапці, а не на сторінці.
+	 *
+	 * На кожній сторінці стояв власний рядок із посиланням — окремий рядок
+	 * заввишки в дотик, який нічого не показував і з'їдав найдорожче місце
+	 * вгорі. У шапці вже є смуга того самого призначення, і там воно коштує
+	 * нуль.
+	 *
+	 * На головній його немає: повертатися нема куди.
+	 */
+	const atHome = $derived(page.url.pathname.replace(/\/$/, '') === base.replace(/\/$/, ''));
+
+	/**
+	 * «Назад» — це КРОК НАЗАД, а не стрибок на головну.
+	 *
+	 * Доти воно завжди вело в головне меню, і шлях «плеєр → налаштування →
+	 * назад» викидав з дошки замість повернення до неї. Стрілка з таким
+	 * написом обіцяє саме попереднє місце.
+	 *
+	 * Порожня історія буває, коли сторінку відкрили прямим посиланням: там
+	 * `history.back()` вивів би людину із застосунку зовсім.
+	 */
+	const goBack = () => {
+		if (window.history.length > 1) window.history.back();
+		else void goto(resolve('/'));
+	};
 
 	onMount(() => {
 		// Журнал першим: усе, що станеться далі, мусить у нього потрапити.
@@ -53,10 +82,19 @@
 -->
 <div class="shell">
 	<header class="shell__top">
-		<a class="shell__mark" href={resolve('/')} title={t('app.name')} data-testid="brand">
-			<AppMark size={34} />
-			<span class="visually-hidden">{t('app.name')}</span>
-		</a>
+		<div class="shell__left">
+			<a class="shell__mark" href={resolve('/')} title={t('app.name')} data-testid="brand">
+				<AppMark size={34} />
+				<span class="visually-hidden">{t('app.name')}</span>
+			</a>
+
+			{#if ready && !atHome}
+				<button class="shell__back" type="button" onclick={goBack} data-testid="back">
+					<IconBack size={18} aria-hidden="true" />
+					{t('common.back')}
+				</button>
+			{/if}
+		</div>
 
 		{#if ready}
 			<div class="shell__controls">
@@ -94,6 +132,32 @@
 		justify-content: space-between;
 		gap: var(--gap-sm);
 		padding: var(--gap-sm) 16px;
+	}
+
+	.shell__left {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-sm);
+		min-width: 0;
+	}
+
+	.shell__back {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--gap-xs);
+		min-height: var(--tap);
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--text-secondary);
+		font: inherit;
+		font-size: 0.875rem;
+		cursor: pointer;
+	}
+
+	.shell__back:hover,
+	.shell__back:focus-visible {
+		color: var(--accent);
 	}
 
 	.shell__mark {
