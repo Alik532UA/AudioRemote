@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { hotkeyFor, hotkeyLabel, HOTKEY_SLOTS, VOLUME_STEP } from './hotkeys';
+import { hotkeyFor, hotkeyLabel, HOTKEY_SLOTS, SEEK_STEP_MS, VOLUME_STEP } from './hotkeys';
 
 /**
  * Події збираються вручну: `code` тут головне поле, і саме його легко забути
@@ -57,6 +57,21 @@ describe('hotkeyFor: гучність і тиша', () => {
 			kind: 'volume',
 			delta: VOLUME_STEP
 		});
+	});
+
+	it.each([
+		['ArrowUp', VOLUME_STEP],
+		['ArrowDown', -VOLUME_STEP]
+	])('%s міняє гучність на %i', (code, delta) => {
+		// Як у плеєрі YouTube: людина вже знає, куди тиснути.
+		expect(hotkeyFor(press({ code }))).toEqual({ kind: 'volume', delta });
+	});
+
+	it.each([
+		['ArrowRight', SEEK_STEP_MS],
+		['ArrowLeft', -SEEK_STEP_MS]
+	])('%s перемотує на %i мс', (code, deltaMs) => {
+		expect(hotkeyFor(press({ code }))).toEqual({ kind: 'seek', deltaMs });
 	});
 
 	it('KeyM — тиша', () => {

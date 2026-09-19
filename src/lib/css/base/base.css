@@ -63,7 +63,7 @@ select {
 	flex: 1;
 	flex-direction: column;
 	width: 100%;
-	max-width: 760px;
+	max-width: 1280px;
 	margin-inline: auto;
 	padding: var(--gap) 16px calc(var(--gap-lg) + env(safe-area-inset-bottom));
 }
@@ -85,6 +85,19 @@ select {
 	 * такий випадок.
 	 */
 	margin-block: auto;
+
+	/*
+	 * Читабельна ширина за замовчуванням. Смуга тексту на весь монітор не
+	 * читається, тож широким стає лише те, що просить про це саме, — сторінка
+	 * плеєра з трьома колонками.
+	 */
+	width: 100%;
+	max-width: 760px;
+	margin-inline: auto;
+}
+
+.stack--wide {
+	max-width: none;
 }
 
 .row {

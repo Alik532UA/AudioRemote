@@ -118,6 +118,10 @@ export const uk = {
 	'player.keepOpen': 'Не закривайте цю вкладку — саме вона грає звук.',
 	'player.listeners': 'Підключено пультів: {count}',
 	'player.playHere': 'Запустити на цьому пристрої',
+	'player.moveUp': 'Вище в списку',
+	'player.moveDown': 'Нижче в списку',
+	'player.configReadonly':
+		'Теку видано лише на читання, тож порядок, кольори й клавіші не збережуться. Оберіть теку ще раз і дозвольте запис.',
 	'player.volume': 'Гучність',
 	'player.showSecret': 'Ідентифікатор і пароль дошки',
 	'color.pick': 'Колір треку',
@@ -126,6 +130,7 @@ export const uk = {
 
 	'hotkeys.hint': 'Клавіші: 1…9 — треки, 0 — зупинити, − та + — гучність, M — тиша',
 	'hotkeys.slot': 'Клавіша {key}',
+	'hotkeys.assign': 'Гаряча клавіша',
 
 	'sound.mute': 'Вимкнути звук',
 	'sound.unmute': 'Повернути звук',

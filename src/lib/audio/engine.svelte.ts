@@ -30,6 +30,15 @@ import { TrackMissingError, type AudioSource, type SourceTrack } from './source'
  * і на концертній добірці по 40 МБ вкладка з'їдає пам'ять, не роблячи нічого.
  */
 
+/**
+ * Скільки триває згасання й наростання.
+ *
+ * Секунда: достатньо, щоб перехід читався як рішення, і мало, щоб «стоп»
+ * лишався стопом. Число тут одне на всі переходи навмисно — різна тривалість
+ * для паузи й стопа звучала б як несправність.
+ */
+const FADE_MS = 1000;
+
 export type EngineErrorKind = 'missing' | 'playback' | 'not-armed';
 
 export class EngineError extends Error {
@@ -85,6 +94,8 @@ export class AudioEngine {
 	private order: SourceTrack[] = [];
 	/** Гучність до тиші. `null` — тиші немає. */
 	private mutedFrom = $state<number | null>(null);
+	/** Кадр поточного згасання. `null` — нічого не згасає. */
+	private fadeFrame: number | null = null;
 
 	constructor(private readonly source: AudioSource) {}
 
@@ -122,6 +133,68 @@ export class AudioEngine {
 		}
 	}
 
+	/**
+	 * ПЛАВНЕ ЗГАСАННЯ Й НАРОСТАННЯ — секунда.
+	 *
+	 * Різкий обрив звуку в залі чути як аварію: люди озираються на колонки. Те
+	 * саме з різким початком. Секунда — це достатньо, щоб перехід читався як
+	 * рішення, і мало, щоб «стоп» лишався стопом.
+	 *
+	 * Гучність міняється на САМОМУ елементі, а не в `this.volume`: остання —
+	 * те, що людина виставила, і згасання не має права її переписати. Інакше
+	 * після паузи повзунок опинявся б на нулі.
+	 */
+	private fadeTo(target: number, done?: () => void): void {
+		this.cancelFade();
+		const element = this.element;
+		if (!element) {
+			done?.();
+			return;
+		}
+
+		const from = element.volume;
+		const started = performance.now();
+
+		const tick = (now: number) => {
+			const share = Math.min(1, (now - started) / FADE_MS);
+			element.volume = Math.max(0, Math.min(1, from + (target - from) * share));
+			if (share < 1) {
+				this.fadeFrame = requestAnimationFrame(tick);
+			} else {
+				this.fadeFrame = null;
+				done?.();
+			}
+		};
+
+		this.fadeFrame = requestAnimationFrame(tick);
+	}
+
+	/**
+	 * Обірвати згасання, яке ще йде.
+	 *
+	 * Без цього два натискання поспіль («стоп», одразу «грати») лишали б два
+	 * кадрові цикли, які тягнуть гучність у різні боки — і перемагав би той, що
+	 * закінчився пізніше.
+	 */
+	private cancelFade(): void {
+		if (this.fadeFrame !== null) cancelAnimationFrame(this.fadeFrame);
+		this.fadeFrame = null;
+	}
+
+	/** Перемотати на позицію в мілісекундах. */
+	seek(positionMs: number): void {
+		if (!this.element || !this.trackId) return;
+		const limit = this.durationMs > 0 ? this.durationMs : Number.POSITIVE_INFINITY;
+		const clamped = Math.max(0, Math.min(limit, positionMs));
+		this.element.currentTime = clamped / 1000;
+		this.positionMs = Math.round(clamped);
+	}
+
+	/** Перемотати на стільки мілісекунд уперед або назад. */
+	seekBy(deltaMs: number): void {
+		this.seek(this.positionMs + deltaMs);
+	}
+
 	async play(trackId: string): Promise<void> {
 		const track = this.order.find((entry) => entry.id === trackId);
 		if (!track) throw new EngineError('missing', trackId);
@@ -140,7 +213,8 @@ export class AudioEngine {
 		this.releaseUrl();
 		this.objectUrl = URL.createObjectURL(file);
 		element.src = this.objectUrl;
-		element.volume = this.volume;
+		// З нуля — і далі наростання: початок теж мусить бути плавним.
+		element.volume = 0;
 
 		try {
 			await element.play();
@@ -148,28 +222,43 @@ export class AudioEngine {
 			throw new EngineError('playback', track.title);
 		}
 
+		this.fadeTo(this.targetVolume());
+
 		this.trackId = trackId;
 		this.describeToSystem(track.title);
 	}
 
 	pause(): void {
-		this.element?.pause();
+		if (!this.element) return;
+		// Спершу згасити, і лише тоді спинити: пауза посеред звуку — це клац.
+		this.fadeTo(0, () => this.element?.pause());
 	}
 
 	async resume(): Promise<void> {
 		if (!this.element || !this.trackId) return;
+		this.element.volume = 0;
 		await this.element.play().catch(() => undefined);
+		this.fadeTo(this.targetVolume());
 	}
 
 	stop(): void {
 		if (!this.element) return;
-		this.element.pause();
-		this.element.removeAttribute('src');
-		this.element.load();
-		this.releaseUrl();
-		this.trackId = null;
-		this.playing = false;
-		this.positionMs = 0;
+		this.fadeTo(0, () => {
+			const element = this.element;
+			if (!element) return;
+			element.pause();
+			element.removeAttribute('src');
+			element.load();
+			this.releaseUrl();
+			this.trackId = null;
+			this.playing = false;
+			this.positionMs = 0;
+		});
+	}
+
+	/** Куди наростати: нуль, якщо ввімкнена тиша, інакше виставлена гучність. */
+	private targetVolume(): number {
+		return this.mutedFrom !== null ? 0 : this.volume;
 	}
 
 	/** Наступний за порядком списку. З останнього — на початок. */
@@ -181,10 +270,12 @@ export class AudioEngine {
 
 	setVolume(value: number): void {
 		this.volume = Math.max(0, Math.min(1, value));
-		if (this.element) this.element.volume = this.volume;
 		// Рух повзунка знімає тишу: інакше кнопка «повернути звук» лишилася б
 		// натиснутою при гучності, яку щойно виставили руками.
 		if (this.volume > 0) this.mutedFrom = null;
+		// Повзунок — це негайно, без секундного згасання: людина тягне й слухає.
+		this.cancelFade();
+		if (this.element) this.element.volume = this.targetVolume();
 	}
 
 	/**
@@ -202,15 +293,15 @@ export class AudioEngine {
 		if (this.mutedFrom !== null) {
 			const restore = this.mutedFrom;
 			this.mutedFrom = null;
-			this.setVolume(restore);
+			this.volume = restore;
+			this.fadeTo(restore);
 			return;
 		}
 
 		// Тиша з уже нульової гучності нічого не означає й нічого не памʼятає.
 		if (this.volume === 0) return;
-		const previous = this.volume;
-		this.setVolume(0);
-		this.mutedFrom = previous;
+		this.mutedFrom = this.volume;
+		this.fadeTo(0);
 	}
 
 	/** Чи зараз тиша, увімкнена саме кнопкою. */
@@ -225,6 +316,7 @@ export class AudioEngine {
 
 	/** Прибрати за собою: адреса Blob, елемент, слухачі. */
 	destroy(): void {
+		this.cancelFade();
 		this.element?.pause();
 		this.releaseUrl();
 		this.element?.remove();

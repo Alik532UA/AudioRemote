@@ -77,7 +77,15 @@
 					"rev": { ".validate": "newData.isNumber()" },
 					"tracks": {
 						"$trackId": {
-							".validate": "newData.hasChildren(['title', 'path'])",
+							// Порядок, клавіша й колір їдуть У ЗАПИСІ ТРЕКУ, а не окремими
+							// вузлами: `tracks` — мапа, і порядку в ній немає, а два різні
+							// вузли про той самий трек розходилися б при кожному перечитуванні
+							// теки. Джерело всіх трьох — файл `audioremote.json` у самій теці.
+							".validate": "newData.hasChildren(['title', 'path', 'order'])",
+							"order": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+							"hotkey": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9" },
+							// Назва заготовки, а не код кольору: коротку назву можна перевірити.
+							"color": { ".validate": "newData.isString() && newData.val().matches(/^[a-z]{2,12}$/)" },
 							"title": { ".validate": "newData.isString() && newData.val().length <= 200" },
 							// Довжина шляху обмежена не з міркувань місця, а тому, що це
 							// рядок із чужої файлової системи: межа мусить бути хоч якась.
@@ -87,21 +95,6 @@
 						}
 					},
 					"$other": { ".validate": false }
-				},
-
-				"colors": {
-					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
-					"$trackId": {
-						// У базі лежить НАЗВА кольору з `src/lib/config/trackColors.ts`, а не
-						// його код. Коротка назва перевіряється правилом; довільний рядок
-						// кольору — ні, і саме тому вибір тут заготовками, а не піпеткою.
-						".validate": "newData.isString() && newData.val().matches(/^[a-z]{2,12}$/)"
-					}
-				},
-
-				"hidden": {
-					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
-					"$trackId": { ".validate": "newData.isBoolean()" }
 				},
 
 				"state": {
@@ -133,11 +126,14 @@
 						".validate": "newData.hasChildren(['by', 'type', 'at'])",
 						"by": { ".validate": "newData.isString() && newData.val().length <= 128" },
 						"type": {
-							".validate": "newData.isString() && newData.val().matches(/^(play|pause|resume|stop|next|volume)$/)"
+							".validate": "newData.isString() && newData.val().matches(/^(play|pause|resume|stop|next|volume|seek)$/)"
 						},
-						// Рядок або число: play несе trackId, volume — 0..100.
+						// Рядок або число, і межа числа ЗАЛЕЖИТЬ ВІД ТИПУ: `volume` несе
+						// відсотки, `seek` — позицію в мілісекундах. Одна спільна межа
+						// означала б або гучність 86 мільйонів, або перемотку на сто
+						// мілісекунд; правило бачить сусіднє поле, тож розділити їх можна.
 						"value": {
-							".validate": "(newData.isString() && newData.val().length <= 64) || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 100)"
+							".validate": "(newData.isString() && newData.val().length <= 64) || (newData.isNumber() && newData.val() >= 0 && (newData.parent().child('type').val() === 'volume' ? newData.val() <= 100 : newData.val() <= 86400000))"
 						},
 						// Час серверний. Без вікна навколо now пульт міг би написати команду
 						// «з майбутнього», і межа життя команди не спрацювала б ніколи.

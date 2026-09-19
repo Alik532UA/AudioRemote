@@ -1,16 +1,12 @@
 import type { ActiveBoard } from '$lib/board/session.svelte';
-import { watchColors, watchHidden, watchInfo, watchLibrary, watchState } from '$lib/net/board';
+import { watchInfo, watchLibrary, watchState } from '$lib/net/board';
 import type { BoardInfo, CommandType, Library, PlayerState, Track } from '$lib/net/boardTypes';
-import { sendCommand, waitForAck } from '$lib/net/commands';
+import { sendCommand, serverNow, waitForAck } from '$lib/net/commands';
 import { hasPlayer, trackPresence, watchPresence } from '$lib/net/presence';
-import { hotkeyLabel, type HotkeyAction } from '$lib/hotkeys/hotkeys';
+import type { HotkeyAction } from '$lib/hotkeys/hotkeys';
 
 export interface VisibleTrack extends Track {
 	id: string;
-	/** Підпис гарячої клавіші, або `null` — далі девʼятого треку їх немає. */
-	hotkey: string | null;
-	/** Назва заготовки кольору, або `null`. */
-	color: string | null;
 }
 
 /**
@@ -30,8 +26,6 @@ export interface VisibleTrack extends Track {
 export class RemoteController {
 	info = $state<BoardInfo | null>(null);
 	library = $state<Library | null>(null);
-	hidden = $state<Record<string, boolean>>({});
-	colors = $state<Record<string, string>>({});
 	state = $state<PlayerState | null>(null);
 	playerOnline = $state(false);
 
@@ -60,14 +54,17 @@ export class RemoteController {
 	 */
 	readonly tracks: VisibleTrack[] = $derived.by(() => {
 		if (!this.library?.tracks) return [];
+		/*
+		 * Сортування за `order`, а не порядок, у якому прийшла мапа.
+		 *
+		 * `tracks` у RTDB — мапа, а її діти приходять упорядкованими за КЛЮЧЕМ, і
+		 * ключ тут — хеш шляху. Тобто доти пульт малював треки в порядку, який не
+		 * означав нічого, і «двійка» на двох екранах вказувала на різні треки.
+		 * Приховані сюди не приходять узагалі: приймач їх не оголошує.
+		 */
 		return Object.entries(this.library.tracks)
-			.filter(([id]) => !this.hidden[id])
-			.map(([id, track], index) => ({
-				id,
-				...track,
-				hotkey: hotkeyLabel(index),
-				color: this.colors[id] ?? null
-			}));
+			.map(([id, track]) => ({ id, ...track }))
+			.sort((left, right) => left.order - right.order);
 	});
 
 	get currentTitle(): string | null {
@@ -86,8 +83,6 @@ export class RemoteController {
 		this.track(await trackPresence(this.board.key, 'remote'));
 		this.track(await watchInfo(this.board.key, (info) => (this.info = info)));
 		this.track(await watchLibrary(this.board.key, (library) => (this.library = library)));
-		this.track(await watchHidden(this.board.key, (hidden) => (this.hidden = hidden)));
-		this.track(await watchColors(this.board.key, (colors) => (this.colors = colors)));
 		this.track(await watchState(this.board.key, (state) => (this.state = state)));
 		this.track(
 			await watchPresence(this.board.key, (present) => (this.playerOnline = hasPlayer(present)))
@@ -183,11 +178,38 @@ export class RemoteController {
 		this.setVolume(0);
 	}
 
+	/** Позиція, яку зараз показувати: оголошена плюс час, що минув відтоді. */
+	get positionMs(): number {
+		const state = this.state;
+		if (!state) return 0;
+		if (!state.playing) return state.positionMs;
+		return state.positionMs + Math.max(0, serverNow() - state.atServer);
+	}
+
+	get durationMs(): number {
+		const id = this.state?.trackId;
+		return id ? (this.library?.tracks?.[id]?.durationMs ?? 0) : 0;
+	}
+
+	/** Перемотати на абсолютну позицію. */
+	async seek(positionMs: number): Promise<void> {
+		await this.send('seek', Math.max(0, Math.round(positionMs)));
+	}
+
+	/** Перемотати на стільки мілісекунд від поточної позиції. */
+	async seekBy(deltaMs: number): Promise<void> {
+		await this.seek(this.positionMs + deltaMs);
+	}
+
 	/** Гаряча клавіша на боці пульта — усе через ті самі команди. */
 	async handleHotkey(action: HotkeyAction): Promise<void> {
 		switch (action.kind) {
 			case 'play': {
-				const track = this.tracks[action.index];
+				// Спершу той, кому клавішу ПРИЗНАЧИЛИ; якщо нікому — за порядком.
+				const wanted = action.index + 1;
+				const track =
+					this.tracks.find((entry) => entry.hotkey === wanted) ??
+					(this.tracks.some((entry) => entry.hotkey) ? undefined : this.tracks[action.index]);
 				if (track) await this.send('play', track.id);
 				break;
 			}
@@ -196,6 +218,9 @@ export class RemoteController {
 				break;
 			case 'volume':
 				this.adjustVolume(action.delta);
+				break;
+			case 'seek':
+				await this.seekBy(action.deltaMs);
 				break;
 			case 'mute':
 				this.toggleMute();

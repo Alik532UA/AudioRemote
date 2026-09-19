@@ -18,6 +18,8 @@
  * збереження дозволу між перезапусками браузера й читання справжніх файлів.
  */
 
+import { emptyConfig, type BoardConfig } from './boardConfig';
+
 /** Трек, як його бачить джерело. `id` стабільний між перечитуваннями. */
 export interface SourceTrack {
 	id: string;
@@ -69,6 +71,12 @@ export interface AudioSource {
 
 	/** Назва обраної теки — щоб людина бачила, що саме вона дала. */
 	readonly label: string | null;
+
+	/** Налаштування дошки — вони живуть у самій теці (`boardConfig.ts`). */
+	readConfig(): Promise<BoardConfig>;
+
+	/** Записати налаштування. `false` — теку видали лише на читання. */
+	writeConfig(config: BoardConfig): Promise<boolean>;
 }
 
 /** Розширення, які браузери вміють програвати. Решта в бібліотеку не потрапляє. */
@@ -173,5 +181,17 @@ export class MemorySource implements AudioSource {
 		const file = this.files.get(path);
 		if (!file) throw new TrackMissingError(path);
 		return file;
+	}
+
+	/** Налаштування в памʼяті — щоб підставне джерело тримало той самий контракт. */
+	private config: BoardConfig = emptyConfig();
+
+	async readConfig(): Promise<BoardConfig> {
+		return this.config;
+	}
+
+	async writeConfig(config: BoardConfig): Promise<boolean> {
+		this.config = config;
+		return true;
 	}
 }

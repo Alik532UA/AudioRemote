@@ -44,6 +44,19 @@ export interface Track {
 	path: string;
 	/** Тривалість у мілісекундах. `0` — ще не виміряна. */
 	durationMs: number;
+	/**
+	 * ПОРЯДОК У СПИСКУ — і без нього пульт показував би інший.
+	 *
+	 * `tracks` у RTDB — це МАПА, а мапа порядку не має: діти приходять
+	 * упорядкованими за ключем, а ключ тут — хеш шляху. Тобто доти пульт
+	 * малював треки в порядку, який не означав нічого, і «двійка» на двох
+	 * екранах вказувала на різні треки.
+	 */
+	order: number;
+	/** Гаряча клавіша 1…9, задана людиною. Відсутня — клавіші немає. */
+	hotkey?: number;
+	/** Назва заготовки кольору з `config/trackColors.ts`. */
+	color?: string;
 }
 
 export interface Library {
@@ -78,13 +91,13 @@ export interface PlayerState {
 	armed: boolean;
 }
 
-export type CommandType = 'play' | 'pause' | 'resume' | 'stop' | 'next' | 'volume';
+export type CommandType = 'play' | 'pause' | 'resume' | 'stop' | 'next' | 'volume' | 'seek';
 
 export interface Command {
 	/** `uid` того, хто натиснув. Правило звіряє його з автором запису. */
 	by: string;
 	type: CommandType;
-	/** Для `play` — `trackId`; для `volume` — число 0..100. */
+	/** Для `play` — `trackId`; для `volume` — 0..100; для `seek` — позиція в мс. */
 	value?: string | number;
 	/** Серверний час. Від нього рахується TTL. */
 	at: number;

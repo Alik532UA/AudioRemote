@@ -1,5 +1,16 @@
 /**
- * ГАРЯЧІ КЛАВІШІ: 1…9 — треки, 0 — зупинити; `-` і `+` — гучність; `m` — тиша.
+ * ГАРЯЧІ КЛАВІШІ
+ *
+ * | Клавіші | Дія |
+ * |---|---|
+ * | `1`…`9` | запустити трек за номером |
+ * | `0` | зупинити |
+ * | `-` / `+`, стрілки вгору/вниз | гучність |
+ * | стрілки ліворуч/праворуч | перемотка на 5 секунд |
+ * | `m` | тиша |
+ *
+ * Стрілки такі самі, як у плеєрі YouTube: людина вже знає, куди тиснути, і
+ * вигадувати тут своє означало б вимагати вчити те, що вона вміє.
  *
  * ## Чому `event.code`, а не `event.key`
  *
@@ -29,6 +40,8 @@ export type HotkeyAction =
 	| { kind: 'play'; index: number }
 	/** Зупинити те, що грає. */
 	| { kind: 'stop' }
+	/** Перемотати на стільки мілісекунд. Відʼємне — назад. */
+	| { kind: 'seek'; deltaMs: number }
 	/** Змінити гучність на стільки відсотків. */
 	| { kind: 'volume'; delta: number }
 	/** Тиша / повернути звук. */
@@ -46,6 +59,9 @@ export const HOTKEY_SLOTS = 9;
 
 /** На скільки відсотків міняє гучність одне натискання. */
 export const VOLUME_STEP = 5;
+
+/** На скільки мілісекунд перемотує одне натискання стрілки. */
+export const SEEK_STEP_MS = 5000;
 
 /**
  * Підпис клавіші для порядкового номера. `null` — для решти треків клавіші
@@ -104,6 +120,14 @@ export function hotkeyFor(event: KeyboardEvent): HotkeyAction | null {
 		case 'Equal':
 		case 'NumpadAdd':
 			return { kind: 'volume', delta: VOLUME_STEP };
+		case 'ArrowUp':
+			return { kind: 'volume', delta: VOLUME_STEP };
+		case 'ArrowDown':
+			return { kind: 'volume', delta: -VOLUME_STEP };
+		case 'ArrowLeft':
+			return { kind: 'seek', deltaMs: -SEEK_STEP_MS };
+		case 'ArrowRight':
+			return { kind: 'seek', deltaMs: SEEK_STEP_MS };
 		case 'KeyM':
 			return { kind: 'mute' };
 		default:

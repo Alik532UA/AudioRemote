@@ -115,6 +115,10 @@ export const en: Record<TranslationKey, string> = {
 	'player.keepOpen': 'Keep this tab open — it is the one playing the sound.',
 	'player.listeners': 'Remotes connected: {count}',
 	'player.playHere': 'Play on this device',
+	'player.moveUp': 'Move up',
+	'player.moveDown': 'Move down',
+	'player.configReadonly':
+		'The folder was granted read-only, so order, colours and keys will not be saved. Choose the folder again and allow writing.',
 	'player.volume': 'Volume',
 	'player.showSecret': 'Board ID and password',
 	'color.pick': 'Track colour',
@@ -123,6 +127,7 @@ export const en: Record<TranslationKey, string> = {
 
 	'hotkeys.hint': 'Keys: 1…9 for tracks, 0 to stop, − and + for volume, M for mute',
 	'hotkeys.slot': 'Key {key}',
+	'hotkeys.assign': 'Hotkey',
 
 	'sound.mute': 'Mute',
 	'sound.unmute': 'Unmute',

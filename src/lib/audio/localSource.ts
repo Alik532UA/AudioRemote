@@ -8,6 +8,7 @@ import {
 	type SourceTrack
 } from './source';
 import { mark } from '$lib/services/breadcrumbs';
+import { emptyConfig, readConfig, writeConfig, type BoardConfig } from './boardConfig';
 
 /**
  * ТЕКА НА ЦЬОМУ КОМП'ЮТЕРІ — через дескриптор, а не через шлях.
@@ -115,10 +116,18 @@ export class LocalFolderSource implements AudioSource {
 			 * `id` дає браузеру змогу відкрити діалог там, де його закрили минулого
 			 * разу, — це єдине, що лишилося від «памʼяті» після відмови від
 			 * збереження дескриптора. `startIn: 'music'` — для першого відкриття.
+			 *
+			 * `readwrite`, а не `read`: у теці лежить `audioremote.json` із
+			 * порядком, кольорами й гарячими клавішами. Дескриптор зберігати не
+			 * можна, тож файл у самій теці — єдине місце, де ці рішення
+			 * переживають перезавантаження сторінки.
+			 *
+			 * Відмова дати запис не ламає нічого: тека читається далі, просто
+			 * підписи живуть до кінця сеансу, і сторінка каже про це один раз.
 			 */
 			this.handle = await window.showDirectoryPicker({
 				id: 'audioremote-library',
-				mode: 'read',
+				mode: 'readwrite',
 				startIn: 'music'
 			});
 			mark(`pick:ok ${this.handle.name}`);
@@ -166,6 +175,14 @@ export class LocalFolderSource implements AudioSource {
 
 		// Порядок — за назвою й українськими правилами: список читає людина.
 		return tracks.sort((left, right) => left.title.localeCompare(right.title, 'uk'));
+	}
+
+	async readConfig(): Promise<BoardConfig> {
+		return this.handle ? readConfig(this.handle) : emptyConfig();
+	}
+
+	async writeConfig(config: BoardConfig): Promise<boolean> {
+		return this.handle ? writeConfig(this.handle, config) : false;
 	}
 
 	async open(path: string): Promise<File> {

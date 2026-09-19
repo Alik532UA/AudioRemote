@@ -116,29 +116,28 @@ await must('будь-хто авторизований читає дошку з�
 await must('господар викладає бібліотеку', () =>
 	write(
 		`boards/${KEY}/library`,
-		{ rev: 1, tracks: { t1: { title: 'Вихід', path: 'act1/vyhid.mp3', durationMs: 1000 } } },
+		{
+			rev: 1,
+			tracks: {
+				t1: {
+					title: 'Вихід',
+					path: 'act1/vyhid.mp3',
+					durationMs: 1000,
+					order: 0,
+					hotkey: 1,
+					color: 'azure'
+				}
+			}
+		},
 		owner.token
 	)
 );
 
-await must('господар ховає трек', () => write(`boards/${KEY}/hidden/t1`, true, owner.token));
-
-await must('господар фарбує трек', () =>
-	write(`boards/${KEY}/colors/t1`, 'azure', owner.token)
-);
-
-await must('господар оголошує стан плеєра', () =>
+await must('пульт просить перемотку', () =>
 	write(
-		`boards/${KEY}/state`,
-		{
-			trackId: 't1',
-			playing: true,
-			armed: true,
-			positionMs: 0,
-			atServer: SERVER_TIME,
-			volume: 0.5
-		},
-		owner.token
+		`boards/${KEY}/cmd/s1`,
+		{ by: stranger.uid, type: 'seek', value: 125000, at: SERVER_TIME },
+		stranger.token
 	)
 );
 
@@ -224,19 +223,49 @@ await mustNot('чужий пише стан плеєра', () =>
 	write(`boards/${KEY}/state`, { playing: false, armed: false }, stranger.token)
 );
 
-await mustNot('чужий ховає трек', () => write(`boards/${KEY}/hidden/t1`, false, stranger.token));
+/*
+ * Порядок, клавіша й колір їдуть У ЗАПИСІ ТРЕКУ. Запис без порядку відкидається:
+ * мапа RTDB порядку не має, і трек без нього опинився б на екрані пульта де
+ * завгодно.
+ */
+await mustNot('трек у бібліотеці без порядку', () =>
+	write(
+		`boards/${KEY}/library`,
+		{ rev: 2, tracks: { t2: { title: 'Без порядку', path: 'a.mp3', durationMs: 0 } } },
+		owner.token
+	)
+);
 
-await mustNot('чужий фарбує трек', () =>
-	write(`boards/${KEY}/colors/t1`, 'ruby', stranger.token)
+await mustNot('колір довільним рядком', () =>
+	write(
+		`boards/${KEY}/library`,
+		{
+			rev: 3,
+			tracks: { t3: { title: 'Т', path: 'a.mp3', durationMs: 0, order: 0, color: '#ff0000; drop' } }
+		},
+		owner.token
+	)
+);
+
+await mustNot('клавіша поза межами 1..9', () =>
+	write(
+		`boards/${KEY}/library`,
+		{ rev: 4, tracks: { t4: { title: 'Т', path: 'a.mp3', durationMs: 0, order: 0, hotkey: 42 } } },
+		owner.token
+	)
 );
 
 /*
- * У базі лежить НАЗВА заготовки, а не код кольору. Довільний рядок сюди не
- * пройде — інакше вузол став би місцем, куди можна класти що завгодно, а
- * палітра застосунку перестала б бути єдиним джерелом кольорів.
+ * Межа числа залежить від ТИПУ команди: `volume` несе відсотки, `seek` —
+ * мілісекунди. Спільна межа означала б або гучність 86 мільйонів, або
+ * перемотку на сто мілісекунд.
  */
-await mustNot('колір довільним рядком', () =>
-	write(`boards/${KEY}/colors/t1`, '#ff0000; drop', owner.token)
+await mustNot('гучність понад 100', () =>
+	write(
+		`boards/${KEY}/cmd/v9`,
+		{ by: stranger.uid, type: 'volume', value: 5000, at: SERVER_TIME },
+		stranger.token
+	)
 );
 
 await mustNot('чужий пише квитанцію', () =>

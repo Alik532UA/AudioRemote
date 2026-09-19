@@ -23,6 +23,14 @@
 	let volume = $state(80);
 	/** Чи тягне людина повзунок зараз: доки тягне, значення з бази не перебиває. */
 	let draggingVolume = $state(false);
+	/** Палець на смузі перемотки: доти позиція з приймача її не смикає. */
+	let seeking = $state(false);
+	let seekValue = $state(0);
+
+	const clock = (ms: number) => {
+		const total = Math.max(0, Math.round(ms / 1000));
+		return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+	};
 
 	onMount(() => {
 		boardSession.restore();
@@ -117,6 +125,34 @@
 			<p class="now__title" data-testid="now-playing">
 				{controller.currentTitle ?? t('remote.nothing')}
 			</p>
+
+			<!--
+				Перемотка з пульта. Позиція рахується як оголошена плюс час, що минув
+				відтоді, — приймач не шле її щосекунди, і саме тому смужка рухається
+				плавно, а мережею йде одне повідомлення на зміну стану.
+			-->
+			<div class="bar">
+				<span class="bar__time mono">
+					{clock(seeking ? seekValue : controller.positionMs)}
+				</span>
+				<input
+					class="bar__range"
+					type="range"
+					min="0"
+					max={Math.max(1000, controller.durationMs)}
+					step="250"
+					disabled={!controller.state?.trackId || controller.durationMs === 0}
+					value={seeking ? seekValue : controller.positionMs}
+					data-testid="remote-seek"
+					onpointerdown={() => (seeking = true)}
+					onpointerup={() => {
+						seeking = false;
+						void controller?.seek(seekValue);
+					}}
+					oninput={(event) => (seekValue = Number(event.currentTarget.value))}
+				/>
+				<span class="bar__time mono">{clock(controller.durationMs)}</span>
+			</div>
 
 			<div class="now__buttons">
 				{#if playing}
@@ -354,11 +390,25 @@
 		color: var(--warn);
 	}
 
-	.volume__slider {
+	.volume__slider,
+	.bar__range {
 		flex: 1;
 		min-width: 0;
 		height: var(--tap);
 		accent-color: var(--accent);
+	}
+
+	.bar {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-sm);
+	}
+
+	.bar__time {
+		min-width: 4ch;
+		color: var(--text-secondary);
+		font-size: 0.8rem;
+		text-align: center;
 	}
 
 	/* Номер клавіші — у вигляді клавіші, а не порядкового номера. */
