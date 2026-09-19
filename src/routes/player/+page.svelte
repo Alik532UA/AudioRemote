@@ -145,7 +145,7 @@
 
 				<!--
 					Прохання ввімкнути звук стоїть біля самої дошки, а не над керуванням:
-					це крок налаштування дошки, як і вибір теки, а не орган плеєра. У
+					це крок налаштування дошки, як і вибір папки, а не орган плеєра. У
 					середній колонці воно ще й зсувало все керування вниз рівно тоді, коли
 					до нього тягнуться вперше.
 				-->
@@ -163,75 +163,80 @@
 						<p class="muted">{t('player.armHint')}</p>
 					</section>
 				{/if}
-
-				<section class="card stack">
-					{#if !controller.supported}
-						<p class="note note--warn" data-testid="no-support">
-							<IconWarning size={18} aria-hidden="true" />
-							<span>{t('player.noSupport')}</span>
-						</p>
-					{:else if controller.sourceStatus === 'none'}
-						<button
-							class="btn btn--primary"
-							type="button"
-							onclick={() => controller?.pickFolder()}
-							data-testid="pick-folder"
-						>
-							<IconFolder size={18} aria-hidden="true" />
-							{t('player.pickFolder')}
-						</button>
-						<p class="muted">{t('player.pickAgain')}</p>
-					{:else}
-						<!--
-							Тека — ОДИН рядок картки: назва й обидві дії поруч.
-
-							Доти назва висіла окремим написом над рядком кнопок, і картка
-							читалася як дві різні речі, складені разом. Кнопки стали значками з
-							підписом у `title`: слова «Перечитати теку» поруч із самою текою
-							нічого не додавали, а рядок від них ламався.
-						-->
-						<div class="folder">
-							<IconFolder size={18} aria-hidden="true" />
-							<div class="folder__text">
-								<span class="field__label">{t('player.folderLabel')}</span>
-								<span class="folder__name">{controller.folderName}</span>
-							</div>
-							<div class="folder__tools">
-								<button
-									class="icon-btn"
-									type="button"
-									title={t('player.rescan')}
-									aria-label={t('player.rescan')}
-									onclick={() => controller?.rescan()}
-									data-testid="rescan"
-								>
-									<IconRefresh size={16} aria-hidden="true" />
-								</button>
-								<button
-									class="icon-btn"
-									type="button"
-									title={t('player.changeFolder')}
-									aria-label={t('player.changeFolder')}
-									onclick={() => controller?.pickFolder()}
-									data-testid="change-folder"
-								>
-									<IconFolder size={16} aria-hidden="true" />
-								</button>
-							</div>
-						</div>
-						{#if !controller.configWritable}
-							<p class="note note--warn" data-testid="config-readonly">
-								<IconWarning size={18} aria-hidden="true" />
-								<span>{t('player.configReadonly')}</span>
-							</p>
-						{/if}
-					{/if}
-				</section>
 			</div>
 
 			<!-- ─── Керування ─────────────────────────────────────────────── -->
 			<div class="board__col">
 				<section class="deck card">
+					<!--
+						ПІДКАЗКА — ТУЛТІП, А НЕ БЛОК У КАРТЦІ.
+
+						Перелік клавіш читають один раз, а місце під кнопками він займав
+						завжди. Коли підказка розкривалася всередині картки, вона ще й
+						зсувала все нижче — тобто рухала те, на що людина щойно дивилася.
+						Тултіп лежить НАД вмістом і не рухає нічого.
+
+						Показ і на наведення, і на натискання: на дотиковому екрані наведення
+						не буває, і сама лише `:hover` лишила б підказку недосяжною з
+						телефона. Клавіатуру додає `:focus-visible` — див. стилі нижче.
+					-->
+					<div class="tip" class:tip--open={tipsOpen}>
+						<button
+							class="tip__btn"
+							type="button"
+							aria-expanded={tipsOpen}
+							aria-describedby="deck-tips"
+							aria-label={t('player.tips')}
+							onclick={() => (tipsOpen = !tipsOpen)}
+							data-testid="toggle-tips"
+						>
+							<IconInfo size={18} aria-hidden="true" />
+						</button>
+
+						<div class="tip__panel" id="deck-tips" role="tooltip" data-testid="tips">
+							<p class="tip__title">
+								<IconKeyboard size={16} aria-hidden="true" />
+								{t('hotkeys.tipTitle')}
+							</p>
+
+							<!--
+								РЯДОК НА ДІЮ, а не суцільне речення.
+
+								Перелік клавіш читають не так, як текст: шукають очима свою
+								клавішу й зупиняються. У рядок через кому шукати нема за що —
+								доводиться прочитати все, щоб знайти одне.
+							-->
+							<dl class="keys">
+								<dt><kbd>Space</kbd></dt>
+								<dd>{t('hotkeys.actPlayPause')}</dd>
+
+								<dt><kbd>0</kbd></dt>
+								<dd>{t('hotkeys.actStop')}</dd>
+
+								<dt><kbd>1</kbd>–<kbd>9</kbd></dt>
+								<dd>{t('hotkeys.actTrack')}</dd>
+
+								<dt><kbd>←</kbd><kbd>→</kbd></dt>
+								<dd>{t('hotkeys.actSeek')}</dd>
+
+								<dt><kbd>↑</kbd><kbd>↓</kbd></dt>
+								<dd>{t('hotkeys.actVolume')}</dd>
+
+								<dt><kbd>M</kbd></dt>
+								<dd>{t('hotkeys.actMute')}</dd>
+							</dl>
+
+							<p class="tip__foot">{t('hotkeys.tipFoot')}</p>
+
+							{#if engine.armed}
+								<p class="armed" data-testid="armed">
+									<IconPower size={16} aria-hidden="true" />
+									{t('player.keepOpen')}
+								</p>
+							{/if}
+						</div>
+					</div>
+
 					<p class="deck__now" data-testid="now-playing">
 						{current?.title ?? t('remote.nothing')}
 					</p>
@@ -370,41 +375,7 @@
 						</label>
 
 						<output class="bar__time mono">{Math.round(engine.volume * 100)}</output>
-
-						<!--
-							Підказки за кнопкою, а не під керуванням.
-
-							Перелік клавіш і «не закривайте вкладку» читають один раз, а місце
-							під кнопками вони займали завжди — і саме там, куди дивляться, коли
-							треба швидко щось натиснути.
-						-->
-						<button
-							class="mute"
-							class:mute--on={tipsOpen}
-							type="button"
-							aria-expanded={tipsOpen}
-							title={t('player.tips')}
-							aria-label={t('player.tips')}
-							onclick={() => (tipsOpen = !tipsOpen)}
-							data-testid="toggle-tips"
-						>
-							<IconInfo size={20} aria-hidden="true" />
-						</button>
 					</div>
-
-					{#if tipsOpen}
-						<p class="hint" data-testid="tips">
-							<IconKeyboard size={16} aria-hidden="true" />
-							<span>{t('hotkeys.hint')}</span>
-						</p>
-
-						{#if engine.armed}
-							<p class="armed" data-testid="armed">
-								<IconPower size={16} aria-hidden="true" />
-								{t('player.keepOpen')}
-							</p>
-						{/if}
-					{/if}
 				</section>
 
 				{#if controller.trouble}
@@ -416,25 +387,97 @@
 
 			<!-- ─── Список ────────────────────────────────────────────────── -->
 			<div class="board__col">
-				<section class="card stack">
-					{#if controller.scanning}
-						<p class="muted">{t('player.scanning')}</p>
-					{:else if controller.folderName === null}
-						<!--
-							Теки ще не обрано — це НЕ порожня тека. Один текст на два випадки
-							казав людині, що в теці нічого немає, тоді коли теки ще не було.
-						-->
-						<p class="muted" data-testid="no-folder">{t('player.noFolder')}</p>
-					{:else if controller.entries.length === 0}
-						<p class="muted">{t('player.empty')}</p>
-					{:else}
-						<p class="muted">
-							{t('player.found', { count: controller.entries.length })}
-							{#if controller.hiddenCount > 0}
-								· {t('player.hiddenCount', { count: controller.hiddenCount })}
-							{/if}
-						</p>
+				<!--
+					ПАПКА Й ЇЇ ТРЕКИ — ОДНА КАРТКА.
 
+					Доти назва папки жила у власній картці в іншій колонці, а список — у
+					цій. Це дві половини одного: список і є вмістом тієї папки, і читати
+					його доводилося, тримаючи в голові, звідки він узявся. Тепер назва —
+					шапка цієї ж картки, а перечитати й змінити папку можна звідти ж.
+				-->
+				<section class="card stack">
+					{#if !controller.supported}
+						<p class="note note--warn" data-testid="no-support">
+							<IconWarning size={18} aria-hidden="true" />
+							<span>{t('player.noSupport')}</span>
+						</p>
+					{:else if controller.sourceStatus === 'none'}
+						<button
+							class="btn btn--primary"
+							type="button"
+							onclick={() => controller?.pickFolder()}
+							data-testid="pick-folder"
+						>
+							<IconFolder size={18} aria-hidden="true" />
+							{t('player.pickFolder')}
+						</button>
+						<p class="muted">{t('player.pickAgain')}</p>
+					{:else}
+						<!--
+							Назва — смуга на всю ширину картки: відʼємні відступи рівно на її
+							падінг плюс лінія знизу. Звичайним написом вона відділялася від
+							списку тим самим проміжком, що й будь-які два сусіди, і читалася як
+							ще один вміст, а не як заголовок того, що під нею.
+						-->
+						<div class="folder">
+							<IconFolder size={18} aria-hidden="true" />
+							<div class="folder__text">
+								<!--
+									Зверху — скільки треків, під нею — звідки вони.
+
+									Підпис «Папка з музикою» не казав нічого: те, що це папка,
+									видно зі значка поруч і з назви під ним. А кількість стояла
+									окремим рядком нижче — тобто заголовок списку був відірваний
+									від самого списку тим, що між ними.
+								-->
+								<span class="field__label">
+									{#if controller.scanning}
+										{t('player.scanning')}
+									{:else}
+										{t('player.found', { count: controller.entries.length })}
+										{#if controller.hiddenCount > 0}
+											· {t('player.hiddenCount', { count: controller.hiddenCount })}
+										{/if}
+									{/if}
+								</span>
+								<span class="folder__name">{controller.folderName}</span>
+							</div>
+							<div class="folder__tools">
+								<button
+									class="icon-btn"
+									type="button"
+									title={t('player.rescan')}
+									aria-label={t('player.rescan')}
+									onclick={() => controller?.rescan()}
+									data-testid="rescan"
+								>
+									<IconRefresh size={16} aria-hidden="true" />
+								</button>
+								<button
+									class="icon-btn"
+									type="button"
+									title={t('player.changeFolder')}
+									aria-label={t('player.changeFolder')}
+									onclick={() => controller?.pickFolder()}
+									data-testid="change-folder"
+								>
+									<IconFolder size={16} aria-hidden="true" />
+								</button>
+							</div>
+						</div>
+						{#if !controller.configWritable}
+							<p class="note note--warn" data-testid="config-readonly">
+								<IconWarning size={18} aria-hidden="true" />
+								<span>{t('player.configReadonly')}</span>
+							</p>
+						{/if}
+					{/if}
+					<!--
+						Тут лишився САМ список. Скільки треків і звідки вони — сказано в
+						шапці картки вище, і повторювати це окремим рядком означало б
+						відсунути список від його ж заголовка.
+					-->
+					{#if controller.entries.length > 0}
 						<ul class="tracks">
 							{#each controller.entries as entry, index (entry.id)}
 								{@const hex = colorOf(entry.color)}
@@ -504,6 +547,8 @@
 								</li>
 							{/each}
 						</ul>
+					{:else if controller.folderName !== null && !controller.scanning}
+						<p class="muted">{t('player.empty')}</p>
 					{/if}
 				</section>
 			</div>
@@ -539,7 +584,11 @@
 
 	@media (min-width: 1280px) {
 		.board {
-			grid-template-columns: 320px minmax(300px, 1fr) minmax(340px, 1.2fr);
+			/*
+			 * Ліва колонка вузька: там лишилися тільки дошка й озброєння. Папка
+			 * переїхала до свого списку, і саме йому тепер потрібна ширина.
+			 */
+			grid-template-columns: 280px minmax(340px, 1fr) minmax(400px, 1.4fr);
 		}
 	}
 
@@ -600,11 +649,30 @@
 	}
 
 	/* Значок, підпис і назва теки — один рядок картки, а не три сусіди. */
+	/*
+	 * Відʼємні відступи рівно на падінг картки — смуга доходить до її країв.
+	 * Без цього будь-яке тло чи лінія обривалися б, не діставши краю, і шапка
+	 * читалася б як ще один вміст усередині.
+	 */
 	.folder {
 		display: flex;
 		align-items: center;
 		gap: var(--gap-sm);
+		margin: calc(var(--gap-lg) * -1) calc(var(--gap-lg) * -1) 0;
+		padding: var(--gap-sm) var(--gap-lg);
+		border-bottom: 1px solid var(--border);
+		border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+		background: var(--bg-sunken);
 		color: var(--text-secondary);
+	}
+
+	@media (max-width: 480px) {
+		/* На вузькому екрані картка бере менший падінг — смуга йде за ним. */
+		.folder {
+			margin: calc(var(--gap) * -1) calc(var(--gap) * -1) 0;
+			padding: var(--gap-sm) var(--gap);
+			border-radius: var(--radius) var(--radius) 0 0;
+		}
 	}
 
 	.folder__text {
@@ -637,23 +705,146 @@
 		color: var(--warn);
 	}
 
-	.hint {
-		display: flex;
-		align-items: center;
-		gap: var(--gap-sm);
-		color: var(--text-muted);
-		font-size: 0.8rem;
-	}
-
 	/* --- Керування --------------------------------------------------------- */
 
 	.deck {
+		position: relative;
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
 	}
 
+	.tip {
+		position: absolute;
+		top: var(--gap-sm);
+		right: var(--gap-sm);
+	}
+
+	/*
+	 * Значок без кнопки навколо: рамка тут читалася б як ще один орган
+	 * керування поруч із транспортом, хоч це підпис, а не дія над звуком.
+	 * Сенсорна зона все одно повні 44px — вона просто не намальована.
+	 */
+	.tip__btn {
+		display: grid;
+		place-items: center;
+		width: var(--tap);
+		height: var(--tap);
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+		transition: color var(--transition-fast);
+	}
+
+	.tip__btn:hover,
+	.tip__btn:focus-visible {
+		color: var(--accent);
+	}
+
+	.tip__panel {
+		position: absolute;
+		top: calc(100% + var(--gap-xs));
+		right: 0;
+		z-index: 2;
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap-xs);
+		width: max-content;
+		max-width: min(300px, calc(100vw - 48px));
+		padding: var(--gap) var(--gap);
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		background: var(--bg-surface-raised);
+		box-shadow: 0 8px 20px var(--shadow-strong);
+		opacity: 0;
+		visibility: hidden;
+		transition:
+			opacity var(--transition-fast),
+			visibility var(--transition-fast);
+	}
+
+	/*
+	 * `:focus-visible`, а не `:focus-within`.
+	 *
+	 * Натискання лишає фокус на кнопці, тож із `:focus-within` підказка вже не
+	 * закривалася повторним натисканням: стан перемикався, а фокус тримав її
+	 * відкритою. Клавіатурі це не шкодить — Tab дає саме `:focus-visible`.
+	 */
+	.tip:hover .tip__panel,
+	.tip:has(.tip__btn:focus-visible) .tip__panel,
+	.tip--open .tip__panel {
+		opacity: 1;
+		visibility: visible;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.tip__btn,
+		.tip__panel {
+			transition: none;
+		}
+	}
+
+	.tip__title {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-xs);
+		color: var(--text-secondary);
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+
+	/*
+	 * Клавіші рівним стовпчиком праворуч, дії — лівим краєм ліворуч. Око
+	 * проходить по одній вертикалі, а не шукає початок кожного рядка заново.
+	 */
+	.keys {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		align-items: center;
+		gap: var(--gap-xs) var(--gap-sm);
+		margin: 0;
+	}
+
+	.keys dt {
+		display: flex;
+		gap: 2px;
+		justify-content: end;
+		white-space: nowrap;
+	}
+
+	.keys dd {
+		margin: 0;
+		color: var(--text-secondary);
+		font-size: 0.8rem;
+	}
+
+	.keys kbd {
+		display: inline-grid;
+		place-items: center;
+		min-width: 1.65rem;
+		padding: 0.1rem 0.3rem;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-sm);
+		background: var(--bg-sunken);
+		color: var(--text-primary);
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		line-height: 1.4;
+	}
+
+	.tip__foot {
+		padding-top: var(--gap-xs);
+		border-top: 1px solid var(--border);
+		color: var(--text-secondary);
+		font-size: 0.75rem;
+	}
+
 	.deck__now {
+		padding-right: var(--tap);
 		font-size: clamp(1.1rem, 3vw, 1.5rem);
 		font-weight: 700;
 		text-wrap: balance;
