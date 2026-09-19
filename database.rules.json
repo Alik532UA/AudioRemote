@@ -1,0 +1,184 @@
+// ПРАВИЛА REALTIME DATABASE — ЄДИНА МЕЖА БЕЗПЕКИ ЦЬОГО ЗАСТОСУНКУ.
+//
+// Публічний конфіг Firebase за побудовою лежить у бандлі: адресу бази знає
+// кожен, хто відкрив сайт. Усе, що робить із базою наш код, може зробити
+// будь-хто тим самим SDK із консолі браузера — повз наш інтерфейс, нашу
+// валідацію й наші перевірки. Отже єдине, що стоїть між відвідувачем і чужою
+// дошкою, — цей файл.
+//
+// ПЕРЕВІРЯЄТЬСЯ ГЕЙТОМ, А НЕ ОЧИМА: `npm run check:rules` піднімає емулятор і
+// проганяє два набори випадків — «застосунок мусить це вміти» й «сторонній не
+// мусить цього могти». Правила «дозволити все» валять другий набір, «заборонити
+// все» — перший, тож зелений результат неможливий випадково.
+//
+// ─── ЯК ТУТ ПРАЦЮЄ ПАРОЛЬ ────────────────────────────────────────────────────
+//
+// Правила бачать лише auth і ШЛЯХ. Передати їм «пароль, який я щойно ввів»
+// неможливо — тому пароль тут і НЕ перевіряється правилом. Замість цього він
+// ВХОДИТЬ В АДРЕСУ: дошка живе за boards/{hex}, де hex — хеш від пари
+// (ідентифікатор, пароль), див. src/lib/board/boardPath.ts. Неправильний пароль
+// дає інший хеш, тобто шлях, за яким нічого немає.
+//
+// Щоб це працювало, потрібна ще одна річ, і вона тут головна: **перелічити
+// boards не можна**. Дозвіл читати стоїть лише на КОНКРЕТНІЙ дошці, а на самій
+// гілці boards його немає — тож GET /boards відкидається, і зібрати список
+// хешів неможливо. Без цього пароль перестав би бути паролем.
+//
+// ─── ОДИН ВУЗОЛ — ОДИН ПИСЬМЕННИК ────────────────────────────────────────────
+//
+// library, state, ack пише лише господар; cmd — будь-хто на дошці, і ЛИШЕ
+// створити; presence — кожен про себе. Саме це й дозволяє звузити кожен дозвіл
+// до автора замість «будь-хто авторизований».
+//
+// $other: false СТОЇТЬ НА КОЖНОМУ ВУЗЛІ З ВІДОМОЮ ФОРМОЮ. Перевірка .validate
+// стосується лише НАЗВАНИХ полів: без цього рядка запис міг би принести зайве
+// поле, а головне — розбіжність імені поля між кодом і правилом лишалася б
+// тихою. У сусідньому проєкті правило валідувало last_changed, код писав
+// lastChanged, і захист не діяв ні на що: справжнє поле проходило як невідоме.
+{
+	"rules": {
+		".read": false,
+		".write": false,
+
+		"boards": {
+			// Дозволу читати тут НЕМАЄ навмисно — див. коментар вище.
+			"$key": {
+				// Хто знає адресу — той знає пару (ідентифікатор, пароль). Це і є вхід.
+				".read": "auth != null",
+
+				// Знести дошку цілком може лише господар — І ТІЛЬКИ ЗНЕСТИ.
+				// Умова !newData.exists() не дає під виглядом видалення переписати
+				// вміст: без неї те саме правило дозволяло б замінити весь вузол.
+				".write": "auth != null && !newData.exists() && data.child('info/ownerUid').val() === auth.uid",
+
+				"info": {
+					// Створити може будь-хто авторизований, але тільки назвавши
+					// господарем СЕБЕ. Далі міняти — лише господареві.
+					//
+					// Формат ключа перевіряється саме тут: дошка з’являється в базі рівно
+					// через створення info, тож звуження в одному місці не дає засмічувати
+					// boards довільними вузлами.
+					".write": "auth != null && $key.matches(/^[0-9a-f]{32}$/) && (data.exists() ? data.child('ownerUid').val() === auth.uid : newData.child('ownerUid').val() === auth.uid)",
+					".validate": "newData.hasChildren(['name', 'ownerUid', 'createdAt', 'schema'])",
+					"name": { ".validate": "newData.isString() && newData.val().length <= 60" },
+					"ownerUid": { ".validate": "newData.isString() && newData.val().length <= 128" },
+					// Час ставить сервер: serverTimestamp() розкривається ДО валідації,
+					// тож вікно навколо now відкидає підроблене число.
+					"createdAt": {
+						".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
+					},
+					"schema": { ".validate": "newData.isNumber() && newData.val() >= 1" },
+					"$other": { ".validate": false }
+				},
+
+				"library": {
+					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
+					".validate": "newData.hasChildren(['rev'])",
+					"rev": { ".validate": "newData.isNumber()" },
+					"tracks": {
+						"$trackId": {
+							".validate": "newData.hasChildren(['title', 'path'])",
+							"title": { ".validate": "newData.isString() && newData.val().length <= 200" },
+							// Довжина шляху обмежена не з міркувань місця, а тому, що це
+							// рядок із чужої файлової системи: межа мусить бути хоч якась.
+							"path": { ".validate": "newData.isString() && newData.val().length <= 400" },
+							"durationMs": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+							"$other": { ".validate": false }
+						}
+					},
+					"$other": { ".validate": false }
+				},
+
+				"hidden": {
+					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
+					"$trackId": { ".validate": "newData.isBoolean()" }
+				},
+
+				"state": {
+					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
+					".validate": "newData.hasChildren(['playing', 'armed'])",
+					"trackId": { ".validate": "newData.isString() && newData.val().length <= 64" },
+					"playing": { ".validate": "newData.isBoolean()" },
+					"armed": { ".validate": "newData.isBoolean()" },
+					"positionMs": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+					"atServer": { ".validate": "newData.isNumber() && newData.val() <= now + 5000" },
+					"volume": {
+						".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1"
+					},
+					"$other": { ".validate": false }
+				},
+
+				"cmd": {
+					"$id": {
+						// «ЛИШЕ СТВОРИТИ» — і одразу дві властивості одним рядком: команду
+						// не переписати й не підписати чужим uid.
+						//
+						// Друга половина правила — видалення господарем: приймач прибирає
+						// команду, щойно виконав її. Без цього журнал ріс би вічно, а
+						// onChildAdded при перепідключенні віддавав би його весь.
+						//
+						// info/ownerUid мусить існувати: інакше команди можна було б сипати
+						// у вузли неіснуючих дощок і засмічувати базу.
+						".write": "auth != null && ((!data.exists() && newData.child('by').val() === auth.uid && root.child('boards/' + $key + '/info/ownerUid').exists()) || (!newData.exists() && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid))",
+						".validate": "newData.hasChildren(['by', 'type', 'at'])",
+						"by": { ".validate": "newData.isString() && newData.val().length <= 128" },
+						"type": {
+							".validate": "newData.isString() && newData.val().matches(/^(play|pause|resume|stop|next|volume)$/)"
+						},
+						// Рядок або число: play несе trackId, volume — 0..100.
+						"value": {
+							".validate": "(newData.isString() && newData.val().length <= 64) || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 100)"
+						},
+						// Час серверний. Без вікна навколо now пульт міг би написати команду
+						// «з майбутнього», і межа життя команди не спрацювала б ніколи.
+						"at": {
+							".validate": "newData.isNumber() && newData.val() <= now + 5000 && newData.val() > now - 60000"
+						},
+						"$other": { ".validate": false }
+					}
+				},
+
+				"ack": {
+					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
+					"$id": {
+						".validate": "!newData.exists() || newData.hasChildren(['ok', 'at'])",
+						"ok": { ".validate": "newData.isBoolean()" },
+						"error": { ".validate": "newData.isString() && newData.val().length <= 64" },
+						"at": { ".validate": "newData.isNumber() && newData.val() <= now + 5000" },
+						"$other": { ".validate": false }
+					}
+				},
+
+				"presence": {
+					"$uid": {
+						// Кожен пише лише про себе. Дошка мусить існувати.
+						//
+						// Дозвіл стоїть на рівні $uid і ПОШИРЮЄТЬСЯ на все, що під ним,
+						// — тому додатковий рівень вкладки нижче нічого не послаблює:
+						// написати під чужим $uid так само не можна.
+						".write": "auth != null && $uid === auth.uid && root.child('boards/' + $key + '/info/ownerUid').exists()",
+						"$tab": {
+							// ДРУГИЙ РІВЕНЬ — ВКЛАДКА, і він з'явився із заміру.
+							//
+							// Анонімний вхід дає всім вкладкам одного браузера той самий
+							// uid. Поки присутність лежала просто в presence/{uid}, друга
+							// вкладка перетирала першу: плеєр і пульт, відкриті на одному
+							// комп'ютері, давали «комп'ютер офлайн» при живому плеєрі.
+							//
+							// Видалення (null) під .validate не потрапляє — це навмисно:
+							// саме так прибирає запис onDisconnect на боці сервера.
+							".validate": "newData.hasChildren(['role', 'at'])",
+							"role": {
+								".validate": "newData.isString() && newData.val().matches(/^(player|remote)$/)"
+							},
+							"at": { ".validate": "newData.isNumber() && newData.val() <= now + 5000" },
+							"$other": { ".validate": false }
+						}
+					}
+				},
+
+				"$other": { ".validate": false }
+			}
+		}
+	}
+}

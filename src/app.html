@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="uk">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		<!--
+			Статично, а не з svelte:head: `+layout.ts` вимикає SSR, тож у
+			передрендерений HTML із svelte:head не потрапляє нічого.
+		-->
+		<title>AudioRemote — звук на комп'ютері з телефона</title>
+		<meta
+			name="description"
+			content="Дошка звуків: комп'ютер грає, телефон керує. Файли лишаються на комп'ютері."
+		/>
+
+		<!--
+			NOINDEX, І ЦЕ РІШЕННЯ, А НЕ ЗАБУТИЙ КРОК.
+
+			Це інструмент для працівників школи, а не сайт. Сторінка в індексі
+			не дає нічого нікому, зате приводить сюди людей, яким тут нема чого
+			робити, — і кожен із них створює анонімний акаунт у Firebase.
+			Одним рішенням знімається весь блок SEO: ні canonical, ні sitemap,
+			ні og-розмітки тут немає навмисно (BETA-CHECKLIST-v9 § 4.1).
+			Записано в PROJECT-CONTEXT.md як свідоме відхилення від SEO-v9.
+		-->
+		<meta name="robots" content="noindex, nofollow" />
+
+		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
+		<link rel="apple-touch-icon" href="%sveltekit.assets%/icon-180.png" sizes="180x180" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-title" content="AudioRemote" />
+		<meta name="application-name" content="AudioRemote" />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="theme-color" content="#101418" />
+
+		%sveltekit.head%
+
+		<style>
+			/*
+				Фон першого кадру — `light-dark()`, а не зашитий темний.
+
+				Скрипт нижче ставить `data-theme` лише для ЯВНОГО вибору. Доки
+				вибору немає, схему вирішує CSS — тобто до виконання будь-якого
+				JS. Зашитий темний фон тут означав би темний перший кадр у
+				людини зі світлою системною темою, і тривав би він доти, доки
+				не приїде app.css.
+
+				`color-scheme: light dark` ОБОВ'ЯЗКОВИЙ: без нього `light-dark()`
+				мовчки віддає перший аргумент.
+
+				`light-dark()` тут лише для КОЛЬОРУ. Довжини, тіні й `url()`
+				через неї не проходять — властивість зникає цілком, і жоден
+				гейт про це не скаже.
+			*/
+			html,
+			body {
+				color-scheme: light dark;
+				background-color: light-dark(#f4f6f8, #101418);
+				margin: 0;
+				padding: 0;
+			}
+
+			/*
+				`only light`, а не просто `light`. Android Chrome із темною темою
+				САМОГО браузера перефарбовує кожну сторінку, яку вважає світлою й
+				без власної темної теми (Auto Dark Theme); ознака, за якою він це
+				вирішує, — оголошена схема документа, і голе `light` її й
+				оголошує. `only` — документована відмова, і на `light-dark()`
+				вона не впливає ніяк.
+			*/
+			html[data-theme='light'] {
+				color-scheme: only light;
+			}
+			html[data-theme='dark'] {
+				color-scheme: dark;
+			}
+		</style>
+
+		<script>
+			// Тема до першого кадру. <body> тут ще не існує, тож фон не чіпаємо
+			// зовсім — за нього відповідають правила вище.
+			(function () {
+				try {
+					var theme = localStorage.getItem('audioremote_theme');
+					if (theme === 'light' || theme === 'dark') {
+						document.documentElement.setAttribute('data-theme', theme);
+					}
+				} catch (e) {
+					/* приватний режим — лишається системна перевага */
+				}
+			})();
+		</script>
+	</head>
+
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">%sveltekit.body%</div>
+	</body>
+</html>

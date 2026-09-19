@@ -1,0 +1,179 @@
+/* Скидання й спільні примітиви. Кольори — лише токенами з `tokens.css`. */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	min-height: 100%;
+}
+
+body {
+	margin: 0;
+	background: var(--bg-page);
+	color: var(--text-primary);
+	font-family: var(--font);
+	font-size: 16px;
+	line-height: 1.5;
+	-webkit-text-size-adjust: 100%;
+}
+
+h1,
+h2,
+h3,
+p,
+figure {
+	margin: 0;
+}
+
+button,
+input,
+select {
+	font: inherit;
+	color: inherit;
+}
+
+/*
+ * Видимий фокус — на всіх інтерактивних, і саме `:focus-visible`.
+ * Прибирати обведення без заміни означає віддати клавіатурну навігацію.
+ */
+:where(a, button, input, select, [tabindex]):focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+	border-radius: var(--radius-sm);
+}
+
+/* --- Розкладка ----------------------------------------------------------- */
+
+.page {
+	/*
+	 * 16px обабіч — вимога до 320px без горизонтальної прокрутки
+	 * (WCAG 1.4.10 Reflow, ACCESSIBILITY-v9 § 10.8).
+	 */
+	width: 100%;
+	max-width: 760px;
+	margin-inline: auto;
+	padding: var(--gap) 16px calc(var(--gap-lg) + env(safe-area-inset-bottom));
+}
+
+.stack {
+	display: flex;
+	flex-direction: column;
+	gap: var(--gap);
+}
+
+.row {
+	display: flex;
+	align-items: center;
+	gap: var(--gap-sm);
+}
+
+/* --- Картка -------------------------------------------------------------- */
+
+.card {
+	background: var(--bg-surface);
+	border: 1px solid var(--border);
+	border-radius: var(--radius-lg);
+	padding: var(--gap-lg);
+	box-shadow: 0 1px 2px var(--shadow-weak);
+}
+
+/*
+ * Ширина картки входу — 440px (AUTH-FORM § 2). Типова скарга на форми цієї
+ * родини сайтів була саме «завузький контейнер».
+ */
+.card--auth {
+	width: 100%;
+	max-width: 440px;
+	margin-inline: auto;
+}
+
+@media (max-width: 480px) {
+	.card {
+		padding: var(--gap);
+		border-radius: var(--radius);
+	}
+}
+
+/* --- Кнопки -------------------------------------------------------------- */
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--gap-sm);
+	min-height: var(--tap);
+	padding: 0 var(--gap);
+	border: 1px solid var(--border-strong);
+	border-radius: var(--radius);
+	background: var(--bg-surface-raised);
+	color: var(--text-primary);
+	cursor: pointer;
+	text-decoration: none;
+	transition:
+		border-color 120ms ease,
+		background-color 120ms ease;
+}
+
+.btn:hover:not(:disabled) {
+	border-color: var(--accent);
+}
+
+.btn:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.btn--primary {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--text-on-accent);
+	font-weight: 600;
+}
+
+.btn--primary:hover:not(:disabled) {
+	background: var(--accent-hover);
+	border-color: var(--accent-hover);
+}
+
+.btn--danger {
+	background: var(--danger-soft);
+	border-color: var(--danger);
+	color: var(--danger);
+}
+
+.btn--block {
+	width: 100%;
+}
+
+/* --- Текстові дрібниці --------------------------------------------------- */
+
+.muted {
+	color: var(--text-secondary);
+	font-size: 0.9rem;
+}
+
+.mono {
+	font-family: var(--font-mono);
+	letter-spacing: 0.08em;
+}
+
+.error {
+	color: var(--danger);
+	font-size: 0.9rem;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
