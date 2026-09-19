@@ -43,6 +43,36 @@ describe('токени тем', () => {
 		expect(offenders).toEqual([]);
 	});
 
+	it('color-scheme оголошується лише для html, ніколи для body', () => {
+		/*
+		 * ЗАМІРЯНО В БРАУЗЕРІ, А НЕ ВИГАДАНО.
+		 *
+		 * `color-scheme` успадковується, а перемикач ставить `data-theme` на
+		 * <html>. Доки інлайн-стиль `app.html` оголошував схему й для `body`,
+		 * у <body> була ВЛАСНА `light dark`, яка перекривала успадковану: <html>
+		 * ставав світлим, а <body> — той, що малює фон сторінки, — далі питав
+		 * системну перевагу й лишався темним.
+		 *
+		 * Симптом найгірший із можливих: тема «перемикається» (атрибут є,
+		 * сховище записане, кнопка світиться), а сторінка кольору не міняє.
+		 */
+		const sources = [
+			readFileSync(join('src', 'app.html'), 'utf8'),
+			...walk(join('src', 'lib', 'css')).map((file) => readFileSync(file, 'utf8'))
+		];
+
+		const offenders: string[] = [];
+		for (const source of sources) {
+			// Селектор перед блоком, у якому оголошено color-scheme.
+			for (const match of source.matchAll(/([^{}]+)\{[^{}]*color-scheme\s*:/g)) {
+				const selector = match[1].replace(/\s+/g, ' ').trim();
+				if (/(^|[\s,>+~])body\b/.test(selector)) offenders.push(selector);
+			}
+		}
+
+		expect(offenders).toEqual([]);
+	});
+
 	it('обидві теми оголошують схему явно', () => {
 		/*
 		 * Без `color-scheme` функція `light-dark()` мовчки віддає ПЕРШИЙ
