@@ -151,6 +151,17 @@
 		visibility: visible;
 	}
 
+	/*
+	 * На телефоні панель розкривається ВГОРУ: керування там прибите до низу
+	 * екрана, і підказка, що відкривається вниз, опинялася б за його межею.
+	 */
+	@media (max-width: 899px) {
+		.tip__panel {
+			top: auto;
+			bottom: calc(100% + var(--gap-xs));
+		}
+	}
+
 	@media (prefers-reduced-motion: reduce) {
 		.tip__btn,
 		.tip__panel {

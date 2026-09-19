@@ -10,7 +10,6 @@
 		IconPause,
 		IconPhone,
 		IconPlay,
-		IconPower,
 		IconPrev,
 		IconRefresh,
 		IconSliders,
@@ -26,6 +25,7 @@
 	import { colorOf } from '$lib/config/trackColors';
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
+	import ArmDialog from '$lib/components/player/ArmDialog.svelte';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
@@ -36,6 +36,8 @@
 	let openFor = $state<string | null>(null);
 	/** Чи відкрите вікно «як підключити пульт». */
 	let remoteOpen = $state(false);
+	/** Вікно «увімкнути звук» закрили, не вмикаючи. Більше не питаємо. */
+	let armDismissed = $state(false);
 	/** Палець на повзунку перемотки: доти позиція з плеєра його не смикає. */
 	let seeking = $state(false);
 	let seekValue = $state(0);
@@ -162,27 +164,6 @@
 			<div class="board__col board__col--side">
 				{#if !narrow.matches}
 					{@render boardHead()}
-				{/if}
-
-				<!--
-					Прохання ввімкнути звук стоїть біля самої дошки, а не над керуванням:
-					це крок налаштування дошки, як і вибір папки, а не орган плеєра. У
-					середній колонці воно ще й зсувало все керування вниз рівно тоді, коли
-					до нього тягнуться вперше.
-				-->
-				{#if !engine.armed}
-					<section class="arm card" data-testid="arm-block">
-						<button
-							class="btn btn--primary arm__btn"
-							type="button"
-							onclick={() => controller?.arm()}
-							data-testid="arm"
-						>
-							<IconPower size={22} aria-hidden="true" />
-							{t('player.arm')}
-						</button>
-						<p class="muted">{t('player.armHint')}</p>
-					</section>
 				{/if}
 			</div>
 
@@ -514,6 +495,13 @@
 				</section>
 			</div>
 		</div>
+		{#if !engine.armed && !armDismissed}
+			<ArmDialog
+				onarm={() => controller?.arm() ?? Promise.resolve(false)}
+				ondismiss={() => (armDismissed = true)}
+			/>
+		{/if}
+
 		{#if remoteOpen && board.password}
 			<RemoteDialog id={board.id} password={board.password} onclose={() => (remoteOpen = false)} />
 		{/if}
@@ -530,23 +518,6 @@
 </div>
 
 <style>
-	.arm {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap-sm);
-		border-color: var(--accent);
-	}
-
-	.arm__btn {
-		min-height: 64px;
-		font-size: 1.1rem;
-		/*
-		 * Підпис переноситься. `.btn` тримає `nowrap`, і в колонці 320px довгий
-		 * напис просто обрізало по краю кнопки — половини слова не було видно.
-		 */
-		white-space: normal;
-	}
-
 	/* Значок, підпис і назва теки — один рядок картки, а не три сусіди. */
 
 	.note {

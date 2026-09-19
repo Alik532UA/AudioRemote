@@ -97,6 +97,8 @@ export const en: Record<TranslationKey, string> = {
 	'player.subtitle': 'This computer will play the sound',
 	'player.arm': 'Enable sound',
 	'player.armed': 'Sound enabled',
+	'player.armRefused':
+		'The browser refused. Try again, or just pick a track — the permission is granted for that very tap.',
 	'player.armHint':
 		'Browsers will not play sound until a person allows it. Press once — after that the board is controlled from the phone.',
 	'player.pickFolder': 'Choose a music folder',
