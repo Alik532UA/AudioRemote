@@ -1,2 +1,0 @@
-let o=null;class e extends Error{constructor(n){super(`Firebase не налаштований: немає ${n}`),this.name="ConfigMissingError"}}class s extends Error{constructor(n){super(n?"емулятор Firebase не запущено":"база не відповідає"),this.emulator=n,this.name="ConnectionDownError"}emulator}async function t(){throw new e("VITE_FIREBASE_PROJECT_ID")}function c(){return o??=t().catch(r=>{throw o=null,r}),o}const i=()=>!1;export{e as ConfigMissingError,s as ConnectionDownError,c as connect,i as isEmulator};
-//# sourceMappingURL=iZeFm7Es.js.map
