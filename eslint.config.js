@@ -57,7 +57,19 @@ export default ts.config(
 				 * project service», і це виглядає як зламаний конфіг, а не як
 				 * файл поза проєктом.
 				 */
-				projectService: { allowDefaultProject: ['*.js', 'scripts/*.mjs'] },
+				/*
+				 * МЕЖА «типового проєкту» піднята з типових восьми, і це не
+				 * оптимізація. Восьмий скрипт у `scripts/` валить ВЕСЬ прогін
+				 * одним рядком «Too many files (>8) have matched the default
+				 * project» — причому названий у ньому файл (`svelte.config.js`)
+				 * до справи не має стосунку, тож виглядає це як зламаний конфіг.
+				 * Тут ці файли дрібні (гейти й службові скрипти), і платня за
+				 * межу — частки секунди.
+				 */
+				projectService: {
+					allowDefaultProject: ['*.js', 'scripts/*.mjs'],
+					maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20
+				},
 				extraFileExtensions: ['.svelte']
 			}
 		},
