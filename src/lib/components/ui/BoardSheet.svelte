@@ -1,15 +1,16 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { resolve } from '$app/paths';
 	import { IconClose, IconSettings } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 
 	interface Props {
 		head: Snippet;
+		/** Відкрити налаштування — вікном, а не переходом (див. `SettingsDialog`). */
+		onsettings: () => void;
 		onclose: () => void;
 	}
 
-	let { head, onclose }: Props = $props();
+	let { head, onsettings, onclose }: Props = $props();
 
 	/**
 	 * НАЛАШТУВАННЯ НА ТЕЛЕФОНІ — дошка плюс перехід до застосунку.
@@ -54,10 +55,10 @@
 
 		{@render head()}
 
-		<a class="btn" href={resolve('/settings')} data-testid="go-settings-full">
+		<button class="btn" type="button" onclick={onsettings} data-testid="go-settings-full">
 			<IconSettings size={18} aria-hidden="true" />
 			{t('settings.app')}
-		</a>
+		</button>
 	</div>
 </dialog>
 

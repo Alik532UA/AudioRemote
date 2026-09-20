@@ -14,6 +14,7 @@
 	import { mark, rotate } from '$lib/services/breadcrumbs';
 	import { purgeLegacyHandles } from '$lib/audio/localSource';
 	import BoardSheet from '$lib/components/ui/BoardSheet.svelte';
+	import SettingsDialog from '$lib/components/settings/SettingsDialog.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
 
@@ -58,6 +59,19 @@
 	 */
 	const sheetFirst = $derived(narrow.matches && boardPanel.content !== null);
 	let sheetOpen = $state(false);
+
+	/**
+	 * Налаштування відкриваються ВІКНОМ, а не переходом.
+	 *
+	 * Перехід коштував двох речей: у браузері сторінка приймача, яку покинули,
+	 * втрачає дескриптор теки (тобто повернення = «оберіть папку заново»), а ще
+	 * вона грає — піти з неї посеред заняття означає зупинити музику в залі.
+	 *
+	 * Сторінка `/settings` лишається: пряме посилання мусить працювати, і на ній
+	 * самій вікно не потрібне. Тому кнопка там веде себе як і раніше.
+	 */
+	let settingsOpen = $state(false);
+	const onSettingsPage = $derived(page.url.pathname.replace(/\/$/, '') === `${root}/settings`);
 
 	const goBack = () => {
 		if (window.history.length > 1) window.history.back();
@@ -136,7 +150,7 @@
 					>
 						<IconSettings size={20} aria-hidden="true" />
 					</button>
-				{:else}
+				{:else if onSettingsPage}
 					<a
 						class="shell__settings"
 						href={resolve('/settings')}
@@ -146,6 +160,17 @@
 					>
 						<IconSettings size={20} aria-hidden="true" />
 					</a>
+				{:else}
+					<button
+						class="shell__settings"
+						type="button"
+						title={t('settings.open')}
+						aria-label={t('settings.open')}
+						onclick={() => (settingsOpen = true)}
+						data-testid="go-settings"
+					>
+						<IconSettings size={20} aria-hidden="true" />
+					</button>
 				{/if}
 			</div>
 		{/if}
@@ -157,7 +182,18 @@
 </div>
 
 {#if sheetOpen && boardPanel.content}
-	<BoardSheet head={boardPanel.content} onclose={() => (sheetOpen = false)} />
+	<BoardSheet
+		head={boardPanel.content}
+		onsettings={() => {
+			sheetOpen = false;
+			settingsOpen = true;
+		}}
+		onclose={() => (sheetOpen = false)}
+	/>
+{/if}
+
+{#if settingsOpen}
+	<SettingsDialog onclose={() => (settingsOpen = false)} />
 {/if}
 
 <ReloadPrompt />
