@@ -12,6 +12,7 @@
 	import ReloadPrompt from '$lib/components/ui/ReloadPrompt.svelte';
 	import { IconBack, IconMenu, IconSettings } from '$lib/config/icons';
 	import { mark, rotate } from '$lib/services/breadcrumbs';
+	import { logCrashes } from '$lib/services/crashLog';
 	import { purgeLegacyHandles } from '$lib/audio/localSource';
 	import BoardSheet from '$lib/components/ui/BoardSheet.svelte';
 	import SettingsDialog from '$lib/components/settings/SettingsDialog.svelte';
@@ -101,6 +102,14 @@
 		mark('app:start');
 
 		/*
+		 * Перехоплювач — ОДРАЗУ ЗА ЖУРНАЛОМ, до першого ж рядка, який здатен
+		 * кинути. Межа помилки нижче ловить рендер і `$effect`; усе інше —
+		 * обробники подій, таймери, колбеки бази, `void poll()` в опитувачі —
+		 * летіло повз усіх, і слід у журналі обривався, не назвавши причини.
+		 */
+		const unlog = logCrashes(window);
+
+		/*
 		 * Прибрати базу, у якій доти лежав дескриптор теки. Читання того запису
 		 * вбиває рендерер (див. `localSource.ts`), тож у того, хто вже
 		 * користувався застосунком, вона лежить зарядженою. Видалення читанням не
@@ -115,7 +124,10 @@
 		ready = true;
 		mark('app:ready');
 
-		return unwatch;
+		return () => {
+			unwatch();
+			unlog();
+		};
 	});
 </script>
 
