@@ -22,7 +22,16 @@ export default ts.config(
 			'playwright-report/',
 			'coverage/',
 			'.claude/',
-			'.private/'
+			'.private/',
+			/*
+			 * Збірка нативної частини. Tauri кладе туди згенерований JS
+			 * (`__global-api-script.js`), і eslint падає на ньому розбором —
+			 * у tsconfig його немає й бути не може. У CI цього не видно: там
+			 * свіжий клон без `target/`, тож червоніє лише локальна машина,
+			 * і виглядає це як зламаний лінтер.
+			 */
+			'src-tauri/target/',
+			'src-tauri/gen/'
 		]
 	},
 	js.configs.recommended,

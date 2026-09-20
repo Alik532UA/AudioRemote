@@ -135,12 +135,6 @@ export class TauriFolderSource implements AudioSource {
 		return true;
 	}
 
-	/** Забути папку. Потрібне рівно тоді, коли її хочуть змінити назавжди. */
-	forget(): void {
-		this.root = null;
-		writeItem(FOLDER_KEY, '');
-	}
-
 	async scan(): Promise<SourceTrack[]> {
 		if (!this.root) throw new Error('папку не обрано');
 		mark('scan:start');
