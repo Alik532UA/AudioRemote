@@ -281,6 +281,7 @@ export const en: Record<TranslationKey, string> = {
 	'remote.noAck': 'The player did not answer. Check that the board is open where it plays.',
 	'remote.connecting': 'Connecting…',
 	'remote.emptyLibrary': 'No music folder has been chosen on the player yet.',
+	'remote.emptyLibraryWait': 'Hold on: the folder is chosen on the computer that plays.',
 
 	// ─── Third role: administrator ───────────────────────────────────────────
 	'admin.title': 'Administrator',

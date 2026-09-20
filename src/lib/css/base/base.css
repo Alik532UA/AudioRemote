@@ -94,9 +94,17 @@ select {
 	flex: 1;
 	flex-direction: column;
 	width: 100%;
-	max-width: 1280px;
+	/*
+	 * Відступ по боках — ЗОВНІШНІЙ, і разом із `min()` він же й тримає
+	 * центрування: `100% - 32px` дає ті самі 16 пікселів обабіч на вузькому
+	 * екрані, а на широкому спрацьовує стеля в 1280. Падінгом цього не зробити
+	 * без другої обгортки: падінг входить у ширину елемента, і `max-width`
+	 * рахувався б по зовнішньому краю.
+	 */
+	max-width: min(1280px, 100% - 32px);
 	margin-inline: auto;
-	padding: var(--gap) 16px calc(var(--gap-lg) + env(safe-area-inset-bottom));
+	margin-block: var(--gap) calc(var(--gap-lg) + env(safe-area-inset-bottom));
+	padding: 0;
 }
 
 .stack {
@@ -506,7 +514,7 @@ svg {
 
 	.shell:has(.board) .page {
 		min-height: 0;
-		padding-bottom: calc(var(--gap) + env(safe-area-inset-bottom));
+		margin-bottom: calc(var(--gap) + env(safe-area-inset-bottom));
 	}
 
 	.shell:has(.board) .stack--wide {

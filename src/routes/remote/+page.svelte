@@ -572,7 +572,15 @@
 						<!-- Ще не знаємо. Тиха фраза замість висновку, якого нема з чого зробити. -->
 						<p class="muted">{t('remote.connecting')}</p>
 					{:else if rows.length === 0}
-						<p class="muted">{t('remote.emptyLibrary')}</p>
+						<!--
+							Це не помилка й не збій, а очікування: людина з пультом нічого
+							вдіяти не може, доки за компʼютером не оберуть папку. Тому текст
+							посеред порожнього місця й другим рядком каже, чого саме чекати.
+						-->
+						<p class="empty" data-testid="empty-library">
+							<span>{t('remote.emptyLibrary')}</span>
+							<span class="muted">{t('remote.emptyLibraryWait')}</span>
+						</p>
 					{:else}
 						<!--
 							Шапка та сама, що в плеєра, але без назви папки: пульт її не знає
@@ -827,6 +835,15 @@
 		.tracks__folder:first-child {
 			display: none;
 		}
+	}
+
+	/* Очікування — посеред порожнього місця, а не притиснуте до лівого краю. */
+	.empty {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap-xs);
+		padding-block: var(--gap-lg);
+		text-align: center;
 	}
 
 	/* Рядок треку в режимі адміністратора: кнопка на всю ширину плюс інструменти. */
