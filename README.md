@@ -87,16 +87,22 @@ npm run dev
 ## Перевірки
 
 ```bash
-npm run check        # типи (обов'язково перед комітом правок .svelte)
-npm run lint         # ідіоми
-npm test             # юніт-перевірки
-npm run check:rules  # правила бази на емуляторі: 20 дозволів і 41 заборона
+npm run check         # типи (обов'язково перед комітом правок .svelte)
+npm run lint          # ідіоми
+npm test              # юніт-перевірки; серед них — перевірки над самим проєктом:
+                      # закінчення рядків, стан workflow, базовий набір eslint,
+                      # досяжність модулів, розмір файлів, імена керування,
+                      # факти в цих документах
+npm run check:runners # чи всі перевірки хтось запускає (окремим процесом — навмисно)
+npm run check:rules   # правила бази на емуляторі: 20 дозволів і 41 заборона
 ```
 
-Збірка й гейт над нею:
+Збірка й гейти над нею:
 
 ```bash
-MSYS_NO_PATHCONV=1 BASE_PATH=/AudioRemote npm run build && npm run check:build
+MSYS_NO_PATHCONV=1 BASE_PATH=/AudioRemote npm run build
+npm run check:build   # маніфест, воркер, CSP і хеші інлайн-скриптів
+npm run check:bundle  # критичний шлях сторінки в КБ gzip
 ```
 
 ## Застосунок для стаціонарного комп'ютера
