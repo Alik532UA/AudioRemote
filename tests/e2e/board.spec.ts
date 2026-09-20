@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
 import { uk } from '../../src/lib/i18n/uk';
+import { ACROSS, createBoard, expectInside, joinAsRemote } from './board';
 
 /*
  * ТЕКСТ БЕРЕТЬСЯ ЗІ СЛОВНИКА, А НЕ З ГОЛОВИ.
@@ -51,32 +52,6 @@ import { uk } from '../../src/lib/i18n/uk';
  * лишаються там, де й були, — над `build/` у `shell.spec.ts`.
  */
 
-/** Пароль довгий навмисно: короткий дає попередження, яке заважає читати екран. */
-const PASSWORD = 'пароль-для-проби-достатньо-довгий';
-
-/** Створити дошку справжнім плеєром і повернути її ідентифікатор. */
-async function createBoard(player: Page, name = 'Проба'): Promise<string> {
-	await player.goto('./create');
-	await expect(player.getByTestId('board-id')).toBeVisible();
-
-	const id = (await player.getByTestId('board-id').innerText()).trim();
-	await player.getByTestId('board-name').fill(name);
-	await player.getByTestId('board-password').fill(PASSWORD);
-	await player.getByTestId('create-submit').click();
-
-	// Плеєр відкрився — отже `ensureBoard` уже записав дошку в базу.
-	await expect(player.getByTestId('pick-folder')).toBeVisible();
-	return id;
-}
-
-/** Під'єднатися пультом до наявної дошки. */
-async function joinAsRemote(remote: Page, id: string, password = PASSWORD): Promise<void> {
-	await remote.goto('./connect');
-	await remote.getByTestId('connect-id').fill(id);
-	await remote.locator('input[type="password"]').fill(password);
-	await remote.getByTestId('connect-submit').click();
-}
-
 test('пульт бачить плеєр, а плеєр — пульт', async ({ browser }) => {
 	/*
 	 * Присутність тримається на `onDisconnect` — обіцянці, яку виконує СЕРВЕР,
@@ -90,12 +65,15 @@ test('пульт бачить плеєр, а плеєр — пульт', async (
 
 	const id = await createBoard(player);
 	await joinAsRemote(remote, id);
+	await expectInside(remote);
 
 	await expect(remote.getByTestId('link-state'), 'пульт не побачив плеєра').toHaveText(
-		uk['remote.online']
+		uk['remote.online'],
+		ACROSS
 	);
 	await expect(player.getByTestId('board-head'), 'плеєр не порахував пульт').toContainText(
-		uk['player.listeners'].replace('{count}', '1')
+		uk['player.listeners'].replace('{count}', '1'),
+		ACROSS
 	);
 
 	await board.close();
@@ -152,7 +130,8 @@ test('команда з пульта долітає до плеєра', async ({
 
 	const id = await createBoard(player);
 	await joinAsRemote(remote, id);
-	await expect(remote.getByTestId('link-state')).toHaveText(uk['remote.online']);
+	await expectInside(remote);
+	await expect(remote.getByTestId('link-state')).toHaveText(uk['remote.online'], ACROSS);
 
 	// Заразом видно, чому обрано гучність: усе інше без папки недоступне.
 	await expect(
@@ -165,7 +144,7 @@ test('команда з пульта долітає до плеєра', async ({
 	await expect(
 		player.getByTestId('player-volume'),
 		'команда не долетіла: гучність на плеєрі не змінилася'
-	).toHaveValue('35', { timeout: 20_000 });
+	).toHaveValue('35', ACROSS);
 	await expect(remote.getByTestId('remote-trouble'), 'пульт поскаржився').toBeHidden();
 
 	await board.close();
@@ -186,7 +165,8 @@ test('пульт помічає, що плеєр пішов', async ({ browser }
 
 	const id = await createBoard(player);
 	await joinAsRemote(remote, id);
-	await expect(remote.getByTestId('link-state')).toHaveText(uk['remote.online']);
+	await expectInside(remote);
+	await expect(remote.getByTestId('link-state')).toHaveText(uk['remote.online'], ACROSS);
 
 	await board.close();
 
