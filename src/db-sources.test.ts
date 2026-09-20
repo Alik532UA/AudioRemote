@@ -84,6 +84,48 @@ describe('правила доступу (CLOUD-DATABASE-v9 § 4.2)', () => {
 			'database.rules.json'
 		);
 	});
+
+	/*
+	 * КОНФІГ ЛЕЖИТЬ У ДЖЕРЕЛІ, А НЕ У ЗМІННИХ CI
+	 * (SECURITY-v9 § 4.2.1, `SEC-CONFIG-IN-SOURCE`).
+	 *
+	 * Стан «значення порожнє» через це зник, але зʼявився інший, тихіший:
+	 * значення на місці, а веде в ЧУЖИЙ проєкт. Тоді правила поїдуть в одну
+	 * базу, застосунок писатиме в іншу, і обидві дії будуть «успішні».
+	 *
+	 * `.firebaserc` існує окремо, бо його читає `firebase-tools`, а той не
+	 * вміє в TypeScript. Тож не «одне джерело», а «два, звірені тут».
+	 */
+	const configSource = read(join('src', 'lib', 'net', 'firebase.ts'));
+
+	it('конфіг не читається зі змінних оточення', () => {
+		expect(
+			configSource,
+			'значення повернулися в `import.meta.env` — тоді воно знову живе у двох місцях, ' +
+				'а `git clone && npm run dev` знову не працює'
+		).not.toMatch(/import\.meta\.env\.VITE_FIREBASE/);
+	});
+
+	it('ідентифікатор проєкту всюди один', () => {
+		const inSource = /projectId:\s*'([^']+)'/.exec(configSource)?.[1];
+		expect(inSource, 'у firebase.ts немає літерала projectId').toBeTruthy();
+		const rc = JSON.parse(read('.firebaserc')) as { projects?: { default?: string } };
+		expect(rc.projects?.default, '`.firebaserc` називає інший проєкт').toBe(inSource);
+	});
+
+	/*
+	 * АДРЕСА БАЗИ — НЕ ДРІБНИЦЯ. Без неї SDK виводить адресу з `projectId` і
+	 * йде на американську `firebaseio.com`, якої в цього проєкту немає, а CSP
+	 * дозволяє лише `*.firebasedatabase.app`. Скарги не буде: SDK не знає, що
+	 * адреса «не та», — він просто йде за нею.
+	 */
+	it('адреса бази європейська й вписана в джерело', () => {
+		const url = /databaseURL:\s*'([^']+)'/.exec(configSource)?.[1];
+		expect(url, 'у firebase.ts немає літерала databaseURL').toBeTruthy();
+		expect(url, 'адреса не з `firebasedatabase.app` — CSP її заблокує').toMatch(
+			/\.europe-west1\.firebasedatabase\.app$/
+		);
+	});
 });
 
 describe('SDK бази (CLOUD-DATABASE-v9 § 13, CDB-LAZY-SDK)', () => {

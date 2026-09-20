@@ -72,12 +72,6 @@ jobs:
     # форку, де секрету немає зовсім.
     env:
       SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-      # З ТОГО САМОГО джерела, що й збірка, а не з окремого. Окреме вимагало б
-      # другого джерела для одного факту — і тоді запасне значення мовчки
-      # відправляло б правила в чужий або неіснуючий проєкт. У сусідніх
-      # `Slovko` і `MindStep` цей самий недогляд щойно знайшовся звіркою.
-      FIREBASE_PROJECT: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
-      FIREBASE_DATABASE_URL: ${{ vars.VITE_FIREBASE_DATABASE_URL }}
     steps:
       - uses: actions/checkout@v5
 
@@ -90,10 +84,11 @@ jobs:
         run: |
           echo "::warning title=Правила не викладені::Немає секрету FIREBASE_SERVICE_ACCOUNT, тож правила в базі лишилися старі. Вставте свіжий database.rules.json у Firebase Console руками, інакше база відкине бібліотеку з новими полями."
 
-      - name: Ідентифікатора проєкту немає
-        if: ${{ env.FIREBASE_PROJECT == '' }}
-        run: |
-          echo "::warning title=Правила не викладені::Немає змінної VITE_FIREBASE_PROJECT_ID. Без неї невідомо, у який проєкт викладати."
+      # Кроку «ідентифікатора проєкту немає» тут більше немає, і це не
+      # спрощення: ідентифікатор перестав бути налаштуванням. Він лежить у
+      # `.firebaserc` і в `src/lib/net/firebase.ts`, тобто в git, і бракувати
+      # його може хіба що разом із репозиторієм
+      # (SECURITY-v9 § 4.2.1, `SEC-CONFIG-IN-SOURCE`).
 
       # КЛЮЧ СЕРВІСНОГО АКАУНТА ЖИВЕ РІВНО ОДИН КРОК.
       #
@@ -106,11 +101,11 @@ jobs:
       # `umask 077` перед записом: типові права на файл у раннері дають читання
       # всім, а в кроках нижче може виконуватися будь-що.
       - name: Викласти правила
-        if: ${{ env.SERVICE_ACCOUNT != '' && env.FIREBASE_PROJECT != '' }}
+        if: ${{ env.SERVICE_ACCOUNT != '' }}
         run: |
           trap 'rm -f "$RUNNER_TEMP/sa.json"' EXIT
           (umask 077; printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json")
-          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@15 deploy --only database --project "$FIREBASE_PROJECT" --non-interactive
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@15 deploy --only database --non-interactive
 
       # ПЕРЕВІРКА ПІСЛЯ ВИКЛАДЕННЯ — і вона не дублює крок вище.
       #
@@ -123,7 +118,7 @@ jobs:
       # перевіркою знайшлася редакція на сім місяців старша за файл. Різниця
       # була не в акуратності, а в тому, що ніхто не дивився.
       - name: У базі справді те, що в git
-        if: ${{ env.SERVICE_ACCOUNT != '' && env.FIREBASE_PROJECT != '' }}
+        if: ${{ env.SERVICE_ACCOUNT != '' }}
         run: |
           trap 'rm -f "$RUNNER_TEMP/sa.json"' EXIT
           (umask 077; printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json")
@@ -216,13 +211,9 @@ jobs:
         run: npm run build
         env:
           BASE_PATH: /AudioRemote
-          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           # АДРЕСА RTDB — без неї онлайн ламається МОВЧКИ: SDK виводить адресу з
           # `projectId` і йде на американську `*.firebaseio.com`, якої в цього
           # проєкту немає, а CSP дозволяє лише `*.firebasedatabase.app`.
-          VITE_FIREBASE_DATABASE_URL: ${{ vars.VITE_FIREBASE_DATABASE_URL }}
 
       # Єдиний гейт, який бачить дефекти, невидимі в `src/`: базовий шлях у
       # посиланнях, CSP у `<meta>` замість заголовка, маніфест PWA і те, що

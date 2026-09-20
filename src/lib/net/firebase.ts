@@ -34,12 +34,30 @@ import type { Database } from 'firebase/database';
 
 const USE_EMULATOR = import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true';
 
+/*
+ * КОНФІГ СТОЇТЬ ТУТ, А НЕ ПРИЇЖДЖАЄ ЗІ ЗМІННИХ CI.
+ *
+ * Значення публічні за побудовою: вони в бандлі, який качає кожен відвідувач,
+ * і сховати їх неможливо. Межу безпеки тримає `database.rules.json` — і лише
+ * він (SECURITY-v9 § 4.1, § 4.2.1 `SEC-CONFIG-IN-SOURCE`).
+ *
+ * Змінні дають рівно одне: зібрати той самий код під іншу базу. Такого
+ * сценарію тут немає — проєкт Firebase один, а емулятор підключається за
+ * адресою (`127.0.0.1:9020`), а не іншим `projectId`.
+ *
+ * Натомість вони коштували трьох речей: значення жило в трьох місцях
+ * (локальний `.env`, Variables, Secrets); `git clone && npm run dev` не
+ * працював без `.env`; і жодне зі значень не було ні в рев'ю, ні в історії.
+ *
+ * Межа: щойно з'явиться ДРУГА база — значення повертаються у змінні, бо вшите
+ * в бандл перецілити неможливо.
+ */
 const CONFIG = {
-	apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-	authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-	projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-	databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL
-};
+	apiKey: 'AIzaSyBGlXLpeE8YV1xowwHYHg6KwXILX5tlDho',
+	authDomain: 'audioremote.firebaseapp.com',
+	projectId: 'audioremote',
+	databaseURL: 'https://audioremote-default-rtdb.europe-west1.firebasedatabase.app'
+} as const;
 
 export interface Connection {
 	uid: string;
@@ -63,8 +81,17 @@ export class ConnectionDownError extends Error {
 	}
 }
 
+/*
+ * ДВІ ПЕРЕВІРКИ НИЖЧЕ ЛИШИЛИСЯ, ХОЧ ЗНАЧЕННЯ ВЖЕ НЕ МОЖЕ НЕ БУТИ.
+ *
+ * Доти вони стерегли порожню змінну CI — стан, якого більше не існує: конфіг
+ * лежить літералами в git. Лишилися вони заради іншого: правки самого
+ * `CONFIG`. Порожній рядок там дав би не помилку, а ТИХО НЕПРАВИЛЬНУ поведінку
+ * (див. коментар про адресу), тож перетворити її на названу помилку коштує
+ * двох рядків. Те саме на збірці ловить `firebase-config.test.ts`.
+ */
 async function connectOnce(): Promise<Connection> {
-	if (!CONFIG.projectId) throw new ConfigMissingError('VITE_FIREBASE_PROJECT_ID');
+	if (!CONFIG.projectId) throw new ConfigMissingError('projectId');
 	/*
 	 * ВІДСУТНЯ АДРЕСА БАЗИ — це не «типове значення», а зламаний застосунок.
 	 *
@@ -73,7 +100,7 @@ async function connectOnce(): Promise<Connection> {
 	 * дозволяє лише `*.firebasedatabase.app`. Скарги при цьому не буде: SDK не
 	 * знає, що адреса «не та», — він просто йде за нею.
 	 */
-	if (!CONFIG.databaseURL) throw new ConfigMissingError('VITE_FIREBASE_DATABASE_URL');
+	if (!CONFIG.databaseURL) throw new ConfigMissingError('databaseURL');
 
 	const [{ getApps, initializeApp }, authModule, dbModule] = await Promise.all([
 		import('firebase/app'),
