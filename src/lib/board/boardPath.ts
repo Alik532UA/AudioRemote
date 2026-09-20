@@ -95,6 +95,17 @@ export async function deriveBoardKey(rawId: string, rawPassword: string): Promis
 		.slice(0, KEY_HEX_LENGTH);
 }
 
+/**
+ * Чи схоже це на адресу дошки.
+ *
+ * Потрібне там, де ключ приходить ЗЗОВНІ, — у посиланні на пульт. Довжина
+ * береться звідси, а не переписується в місці виклику: переписана, вона
+ * розійшлася б із `KEY_HEX_LENGTH` мовчки, і посилання перестало б працювати
+ * без жодного сліду (саме так і сталося з першою спробою — там стояло 64).
+ */
+export const isBoardKey = (value: string): boolean =>
+	new RegExp(`^[0-9a-f]{${KEY_HEX_LENGTH}}$`).test(value);
+
 /** Шлях до вузла дошки в Realtime Database. */
 export function boardPath(key: string): string {
 	return `boards/${key}`;

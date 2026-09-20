@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { t } from '$lib/i18n/i18n.svelte';
-	import { deriveBoardKey, EmptySecretError } from '$lib/board/boardPath';
+	import { deriveBoardKey, EmptySecretError, isBoardKey } from '$lib/board/boardPath';
 	import { normalizeBoardId } from '$lib/board/secret';
 	import { listBoards, rememberBoard } from '$lib/board/myBoards';
 	import { boardSession } from '$lib/board/session.svelte';
@@ -33,28 +33,28 @@
 	 */
 	onMount(() => {
 		/*
-		 * ПОСИЛАННЯ-КЛЮЧ: пара приїжджає у ФРАГМЕНТІ адреси, а не в запиті.
+		 * ПОСИЛАННЯ НЕСЕ АДРЕСУ ДОШКИ, А НЕ ПАРОЛЬ.
 		 *
-		 * Різниця не косметична. Усе після `#` браузер серверу не надсилає
-		 * ніколи: ні в журнал хостингу, ні в журнал проксі, ні в заголовок
-		 * `Referer` при переході за будь-яким зовнішнім посиланням. У `?id=…`
-		 * пароль опинився б у всіх трьох місцях одразу.
+		 * Пульту пароль не потрібен ніколи: увійти досить за ключем, бо ключ і є
+		 * адреса. Тому тут його й не питають — і пароль не покидає комп'ютера,
+		 * що особливо важить при сталій парі в налаштуваннях: там один пароль
+		 * відкриває всі дошки.
 		 *
-		 * Лишається історія браузера й знімок екрана — тому фрагмент стирається
-		 * з адреси відразу, як його прочитали.
+		 * Ключ приїжджає у ФРАГМЕНТІ, після `#`: браузер серверу його не
+		 * надсилає ніколи — ні в журнал хостингу, ні в проксі, ні в `Referer`.
+		 * Лишалася б історія браузера, тому фрагмент стирається з адреси
+		 * відразу, як його прочитали.
 		 *
-		 * Названо прямо: саме посилання ДОРІВНЮЄ паролю. Хто його отримав, той
+		 * Названо прямо: ключ ВІДКРИВАЄ дошку. Хто отримав посилання, той
 		 * усередині — інакше «одне натискання» неможливе за побудовою.
 		 */
 		const fromLink = new URLSearchParams(window.location.hash.slice(1));
+		const linkedKey = fromLink.get('k');
 		const linkedId = fromLink.get('id');
-		const linkedPassword = fromLink.get('pw');
 
-		if (linkedId && linkedPassword) {
+		if (linkedKey && isBoardKey(linkedKey)) {
 			history.replaceState(null, '', window.location.pathname + window.location.search);
-			boardId = linkedId;
-			password = linkedPassword;
-			void enter();
+			void openByKey(linkedKey, linkedId ?? '');
 			return;
 		}
 
@@ -75,6 +75,33 @@
 	 * невдачі поля лишаються заповненими — щоб людина могла просто натиснути
 	 * ще раз, а не набирати все наново.
 	 */
+	/**
+	 * Вхід за посиланням: ключ уже готовий, виводити його нема з чого.
+	 *
+	 * Перевірка існування дошки лишається та сама — застаріле посилання мусить
+	 * сказати «немає такої дошки», а не відкрити порожній пульт.
+	 */
+	async function openByKey(key: string, linkedId: string) {
+		busy = true;
+		failure = null;
+
+		try {
+			if (!(await boardExists(key))) {
+				failure = t('connect.notFound');
+				busy = false;
+				return;
+			}
+
+			const board = { key, id: normalizeBoardId(linkedId), name: '', role: 'remote' as const };
+			if (remember) rememberBoard(board);
+			boardSession.open(board);
+			await goto(resolve('/remote'));
+		} catch (error) {
+			busy = false;
+			failure = t(describeError(error));
+		}
+	}
+
 	async function enter() {
 		busy = true;
 		failure = null;

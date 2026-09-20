@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { boardPath, deriveBoardKey, EmptySecretError } from './boardPath';
+import { boardPath, deriveBoardKey, EmptySecretError, isBoardKey } from './boardPath';
 
 /**
  * ЧОМУ ЦЕ НАЙВАЖЛИВІШИЙ ТЕСТ У ПРОЄКТІ.
@@ -87,5 +87,20 @@ describe('deriveBoardKey', () => {
 describe('boardPath', () => {
 	it('складає шлях до вузла дошки', () => {
 		expect(boardPath('deadbeef')).toBe('boards/deadbeef');
+	});
+});
+
+describe('ключ у посиланні на пульт', () => {
+	it('справжній ключ приймається', async () => {
+		expect(isBoardKey(await deriveBoardKey('ABCDE', 'КАВА-КАВА-КАВА-1234'))).toBe(true);
+	});
+
+	it('чуже не приймається', () => {
+		// Саме тут і був дефект: перевірка вимагала 64 символи, а ключ має 32,
+		// і посилання мовчки не спрацьовувало.
+		expect(isBoardKey('a'.repeat(64))).toBe(false);
+		expect(isBoardKey('A'.repeat(32))).toBe(false);
+		expect(isBoardKey('не ключ')).toBe(false);
+		expect(isBoardKey('')).toBe(false);
 	});
 });
