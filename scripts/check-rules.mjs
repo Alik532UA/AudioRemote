@@ -162,11 +162,7 @@ await must('пульт просить перемотку', () =>
 );
 
 await must('пульт просить попередній трек', () =>
-	write(
-		`boards/${KEY}/cmd/p1`,
-		{ by: stranger.uid, type: 'prev', at: SERVER_TIME },
-		stranger.token
-	)
+	write(`boards/${KEY}/cmd/p1`, { by: stranger.uid, type: 'prev', at: SERVER_TIME }, stranger.token)
 );
 
 await must('пульт дописує команду, підписану собою', () =>
@@ -241,11 +237,7 @@ await must('господар оголошує стан із тривалістю
 );
 
 await mustNot('тривалість більша за добу', () =>
-	write(
-		`boards/${KEY}/state`,
-		{ playing: true, armed: true, durationMs: 86_400_001 },
-		owner.token
-	)
+	write(`boards/${KEY}/state`, { playing: true, armed: true, durationMs: 86_400_001 }, owner.token)
 );
 
 // ─── НАБІР 2: сторонній не мусить цього могти ───────────────────────────────

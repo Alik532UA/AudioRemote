@@ -84,9 +84,13 @@
 							".validate": "newData.hasChildren(['title', 'path', 'order'])",
 							"order": { ".validate": "newData.isNumber() && newData.val() >= 0" },
 							// КОД клавіші, а не символ і не число: `KeyQ`, `F5`, `Numpad3`.
-							"hotkey": { ".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,20}$/)" },
+							"hotkey": {
+								".validate": "newData.isString() && newData.val().matches(/^[A-Za-z0-9]{1,20}$/)"
+							},
 							// Назва заготовки, а не код кольору: коротку назву можна перевірити.
-							"color": { ".validate": "newData.isString() && newData.val().matches(/^[a-z]{2,12}$/)" },
+							"color": {
+								".validate": "newData.isString() && newData.val().matches(/^[a-z]{2,12}$/)"
+							},
 							// ПІДПИС клавіші, яку порахував приймач, — не код і не число.
 							// Пульт не рахує номери сам: трек «лише приймач» займає свою
 							// цифру там і сюди не їде, тож власний рахунок пульта розійшовся
