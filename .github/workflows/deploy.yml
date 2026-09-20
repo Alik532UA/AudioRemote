@@ -187,6 +187,14 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npm run check:build
 
+      # Бюджет міряється КРИТИЧНИМ ШЛЯХОМ сторінки — усіма чанками, на які вона
+      # посилається, — а не текою `entry/`: у ній два кілобайти, і гейт над нею
+      # був би завжди зеленим. Головне, що він стереже: `firebase` важить більше
+      # за весь інший код разом і мусить лишатися динамічним імпортом.
+      - name: Бюджет бандла
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run check:bundle
+
       - name: Збірка не змінює відстежувані файли
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: git diff --exit-code

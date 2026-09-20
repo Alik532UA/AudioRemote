@@ -2,7 +2,7 @@
   "name": "audioremote",
   "description": "Remote audio board: trigger sounds on a computer from a phone.",
   "private": true,
-  "version": "0.0.55",
+  "version": "0.0.56",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"
@@ -15,6 +15,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "check:build": "node scripts/check-build.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs",
     "check:runners": "node scripts/check-runners.mjs",
     "check:rules": "node scripts/firebase-cli.mjs emulators:exec --project demo-audioremote --only database,auth \"node scripts/check-rules.mjs\"",
     "emulators": "node scripts/firebase-cli.mjs emulators:start --project demo-audioremote --only database,auth",
