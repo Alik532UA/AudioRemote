@@ -1,2 +1,0 @@
-import{w as o,r as a}from"./Bonjmqh-.js";const r="boards",i=12;function n(){return a(r,[]).filter(t=>typeof t?.key=="string"&&t.key.length>0).sort((t,e)=>e.at-t.at)}function l(t){const e=n().filter(s=>s.key!==t.key);o(r,[{...t,at:Date.now()},...e].slice(0,i))}function c(t){o(r,n().filter(e=>e.key!==t))}function u(t){return n().find(e=>e.key===t)??null}export{c as a,u as f,n as l,l as r};
-//# sourceMappingURL=CMt9Nsds.js.map

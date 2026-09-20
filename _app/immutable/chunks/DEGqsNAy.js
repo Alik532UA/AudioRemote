@@ -1,0 +1,2 @@
+import{c as g,x as d,y as l,z as i,u as m,A as b,g as p,B as v,C as y,E as h}from"./D1Mf0Sje.js";function x(n=!1){const s=g,e=s.l.u;if(!e)return;let f=()=>v(s.s);if(n){let a=0,t={};const _=y(()=>{let c=!1;const r=s.s;for(const o in r)r[o]!==t[o]&&(t[o]=r[o],c=!0);return c&&a++,a});f=()=>p(_)}e.b.length&&d(()=>{u(s,f),i(e.b)}),l(()=>{const a=m(()=>e.m.map(b));return()=>{for(const t of a)typeof t=="function"&&t()}}),e.a.length&&l(()=>{u(s,f),i(e.a)})}function u(n,s){if(n.l.s)for(const e of n.l.s)p(e);s()}h();export{x as i};
+//# sourceMappingURL=DEGqsNAy.js.map
