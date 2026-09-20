@@ -138,7 +138,7 @@ export const en: Record<TranslationKey, string> = {
 	'player.empty': 'There are no audio files in this folder.',
 	'visibility.label': 'Who sees it',
 	'visibility.all': 'Everyone',
-	'visibility.player': 'This computer',
+	'visibility.player': 'Only here',
 	'visibility.none': 'Nobody',
 	'visibility.allHint': 'In the list here and on the remote.',
 	'visibility.playerHint':
@@ -281,7 +281,7 @@ export const en: Record<TranslationKey, string> = {
 	'remote.noAck': 'The player did not answer. Check that the board is open where it plays.',
 	'remote.connecting': 'Connecting…',
 	'remote.emptyLibrary': 'No music folder has been chosen on the player yet.',
-	'remote.emptyLibraryWait': 'Hold on: the folder is chosen on the computer that plays.',
+	'remote.emptyLibraryWait': 'Hold on: the folder is chosen on the device that will play.',
 
 	// ─── Third role: administrator ───────────────────────────────────────────
 	'admin.title': 'Administrator',
@@ -298,13 +298,13 @@ export const en: Record<TranslationKey, string> = {
 	'admin.askPassword': 'Enter the administrator password for this board.',
 	'admin.wrong': 'Wrong password, or this board has no administrator turned on.',
 	'admin.mode': 'Administrator mode',
-	'admin.modeHint': 'You are changing the board. Changes go to the computer that plays.',
-	'admin.waiting': 'Waiting for settings from the computer…',
+	'admin.modeHint': 'You are changing the board. Changes go to the device that plays.',
+	'admin.waiting': 'Waiting for settings from the player…',
 	'admin.rescan': 'Re-read the folder',
 	'admin.stale':
 		'The board changed elsewhere just now. Reopen the track settings for fresh values.',
 	'admin.badPatch': 'The player did not understand the change.',
-	'admin.noFolder': 'The folder can only be chosen on the computer that plays.',
+	'admin.noFolder': 'The folder can only be chosen on the device that plays.',
 
 	'error.network': 'No connection to the database. Check the internet.',
 	'error.emulatorDown':
@@ -315,8 +315,8 @@ export const en: Record<TranslationKey, string> = {
 	'error.fileGone': 'The file is gone from the folder: {name}',
 	'error.dbOffline': 'No connection to the database.',
 	'player.libraryDenied':
-		'The database refused the track list, so remotes see an empty board. Most likely its rules are out of date: publish the current database.rules.json. Sound on this computer keeps working.',
+		'The database refused the track list, so remotes see an empty board. Most likely its rules are out of date: publish the current database.rules.json. Sound here keeps working.',
 	'player.dbOffline':
-		'No connection to the database. The remote will not see this board, and everything you do now stays on this computer.',
+		'No connection to the database. The remote will not see this board, and everything you do now stays on this device.',
 	'error.unknown': 'Something went wrong.'
 };

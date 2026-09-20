@@ -94,17 +94,9 @@ select {
 	flex: 1;
 	flex-direction: column;
 	width: 100%;
-	/*
-	 * Відступ по боках — ЗОВНІШНІЙ, і разом із `min()` він же й тримає
-	 * центрування: `100% - 32px` дає ті самі 16 пікселів обабіч на вузькому
-	 * екрані, а на широкому спрацьовує стеля в 1280. Падінгом цього не зробити
-	 * без другої обгортки: падінг входить у ширину елемента, і `max-width`
-	 * рахувався б по зовнішньому краю.
-	 */
-	max-width: min(1280px, 100% - 32px);
+	max-width: 1280px;
 	margin-inline: auto;
-	margin-block: var(--gap) calc(var(--gap-lg) + env(safe-area-inset-bottom));
-	padding: 0;
+	padding: var(--gap) 16px calc(var(--gap-lg) + env(safe-area-inset-bottom));
 }
 
 .stack {
@@ -512,9 +504,22 @@ svg {
 		overflow: hidden;
 	}
 
+	/*
+	 * ВІДСТУП ЗВЕРХУ ПЕРЕЇЖДЖАЄ ВСЕРЕДИНУ ЗОНИ ПРОКРУТКИ.
+	 *
+	 * Він потрібен — без нього перший трек прилипає до смуги застосунку. Але
+	 * поки він лежав на сторінці, між смугою й КРАЄМ вікна прокрутки лишалася
+	 * щілина з голим фоном: трек обривався на 16 пікселів нижче смуги, і це
+	 * читалося як обрізаний навпіл рядок, а не як «список іде далі».
+	 *
+	 * Усередині `.board` той самий відступ поводиться інакше: у спокої він
+	 * відсовує перший рядок від смуги, а щойно почалася прокрутка — зникає разом
+	 * із вмістом, і рядки обриваються рівно під смугою.
+	 */
 	.shell:has(.board) .page {
 		min-height: 0;
-		margin-bottom: calc(var(--gap) + env(safe-area-inset-bottom));
+		padding-top: 0;
+		padding-bottom: calc(var(--gap) + env(safe-area-inset-bottom));
 	}
 
 	.shell:has(.board) .stack--wide {
@@ -543,6 +548,7 @@ svg {
 		flex-direction: column;
 		align-items: stretch;
 		min-height: 0;
+		padding-top: var(--gap);
 		overflow-y: auto;
 		/* Дійшовши до краю, палець не тягне за собою сторінку. */
 		overscroll-behavior: contain;
