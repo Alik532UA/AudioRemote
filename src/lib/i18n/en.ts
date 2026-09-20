@@ -51,6 +51,9 @@ export const en: Record<TranslationKey, string> = {
 	'settings.launchTitle': 'Launch',
 	'settings.diagTitle': 'Diagnostics',
 	'settings.startTitle': 'What to open on launch',
+	'settings.showTrigger': 'Mark tracks that start from an API',
+	'settings.showTriggerHint':
+		'An icon in the list row. It answers “why did that play by itself” without opening the track settings.',
 	'settings.startBoardTitle': 'Which board to open',
 	'settings.startBoardLead':
 		'Pin a board where the remote is always the same one — a tablet in the hall, for instance.',
@@ -186,6 +189,10 @@ export const en: Record<TranslationKey, string> = {
 	'trigger.lead':
 		'The app polls the address itself and starts the track when the condition BECOMES true. The other server must allow browser requests — otherwise an error shows below, and that is their decision, not ours.',
 	'trigger.on': 'Poll it',
+	'trigger.onChange': 'Only when the condition changed',
+	'trigger.onChangeHint':
+		'An alert lasts a long time, and the condition holds throughout. Turned off means “every time it holds” — the track will restart on every poll.',
+	'trigger.fires': 'Fired times: {count}',
 	'trigger.url': 'Request address',
 	'trigger.every': 'Ask every, seconds',
 	'trigger.headers': 'Headers — one per line, “Name: value”',

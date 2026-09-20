@@ -1,19 +1,25 @@
 import { mark } from '$lib/services/breadcrumbs';
-import { matches, MIN_INTERVAL_SEC, readPath, triggerReady, type TrackTrigger } from './trigger';
+import {
+	matches,
+	MIN_INTERVAL_SEC,
+	readPath,
+	shouldFire,
+	triggerReady,
+	type TrackTrigger
+} from './trigger';
 
 /**
  * ОПИТУВАЧ: тримає по одному таймеру на кожен увімкнений тригер.
  *
- * ## Спрацьовує на ПЕРЕХОДІ, а не на стані
+ * ## Рішення «запускати чи ні» живе НЕ тут
  *
- * Умова «тривога триває» лишається правдивою всі сорок хвилин. Якби трек грав
- * на кожне «так», він перезапускався б щопівхвилини й перекривав сам себе.
- * Тому пам'ятається попередня відповідь, і трек іде рівно тоді, коли «ні»
- * стало «так».
+ * Воно в `shouldFire` — чистій функції з тестом на кожен випадок. Раніше
+ * воно стояло тут, посеред таймерів і мережі, і містило помилку, якої на
+ * цьому місці не було видно: попередній результат зберігався, але з
+ * поточним не порівнювався. Умову «виконується» видавали за подію «щойно
+ * почала виконуватися», і сирена починалася спочатку щопівхвилини.
  *
- * Перше опитування після запуску НЕ рахується переходом: якщо застосунок
- * відкрили посеред тривоги, вона почалася без нас, і зустрічати її сиреною
- * означало б лякати зал на порожньому місці.
+ * Опитувач тепер робить рівно три речі: питає, читає, запам'ятовує.
  *
  * ## Чому помилки видно — і чому не словом браузера
  *
@@ -46,6 +52,14 @@ export interface TriggerHealth {
 	/** Що прочитали за шляхом, коротким текстом. */
 	value: string;
 	error: TriggerFault | null;
+	/**
+	 * Скільки разів запускав трек від відкриття сторінки.
+	 *
+	 * Не прикраса: саме лічильник робить помилку «спрацьовує щоразу» видимою
+	 * очима. Доти її можна було тільки почути — і то лише тому, що сирена
+	 * починалася спочатку.
+	 */
+	fires: number;
 }
 
 interface Watched {
@@ -172,14 +186,16 @@ class TriggerWatcher {
 			const value = readPath(data, trigger.path.trim());
 			const now = matches(value, trigger.test, trigger.value);
 
+			const fire = shouldFire(watched.was, now, trigger.onChange);
+			watched.was = now;
+
+			const fires = (this.health[trackId]?.fires ?? 0) + (fire ? 1 : 0);
 			this.health = {
 				...this.health,
-				[trackId]: { at: Date.now(), value: brief(value), error: null }
+				[trackId]: { at: Date.now(), value: brief(value), error: null, fires }
 			};
 
-			const first = watched.was === null;
-			watched.was = now;
-			if (!first && now && this.fire) {
+			if (fire && this.fire) {
 				mark(`trigger:fire ${trackId}`);
 				this.fire(trackId);
 			}
@@ -191,7 +207,12 @@ class TriggerWatcher {
 			 */
 			this.health = {
 				...this.health,
-				[trackId]: { at: Date.now(), value: '', error: await this.fault(error, trigger.url.trim()) }
+				[trackId]: {
+					at: Date.now(),
+					value: '',
+					error: await this.fault(error, trigger.url.trim()),
+					fires: this.health[trackId]?.fires ?? 0
+				}
 			};
 		}
 	}

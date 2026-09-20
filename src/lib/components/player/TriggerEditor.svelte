@@ -92,6 +92,16 @@
 	/>
 
 	<div class="field">
+		<Switch
+			checked={draft.onChange}
+			label={t('trigger.onChange')}
+			testid="trigger-onchange"
+			onchange={(next) => (draft.onChange = next)}
+		/>
+		<p class="muted">{t('trigger.onChangeHint')}</p>
+	</div>
+
+	<div class="field">
 		<label class="field__label" for="trigger-url">{t('trigger.url')}</label>
 		<input
 			id="trigger-url"
@@ -197,7 +207,10 @@
 				{/if}
 			</span>
 		{:else if health}
-			<span>{t('trigger.lastOk', { value: health.value })}</span>
+			<span>
+				{t('trigger.lastOk', { value: health.value })}
+				· {t('trigger.fires', { count: health.fires })}
+			</span>
 		{:else}
 			<span>{t('trigger.never')}</span>
 		{/if}

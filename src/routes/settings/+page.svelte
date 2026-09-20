@@ -12,6 +12,7 @@
 	import { START_BOARDS, START_PAGES } from '$lib/settings/startPage.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import ThemeSwitcher from '$lib/components/ui/ThemeSwitcher.svelte';
+	import Switch from '$lib/components/ui/Switch.svelte';
 	import { isEmulator } from '$lib/net/firebase';
 	import { currentTrail, previousTrail, trailAsText } from '$lib/services/breadcrumbs';
 
@@ -175,6 +176,16 @@
 					{/each}
 				</div>
 				<p class="muted">{t('settings.startLead')}</p>
+			</div>
+
+			<div class="field">
+				<Switch
+					checked={settings.showTrigger}
+					label={t('settings.showTrigger')}
+					testid="settings-show-trigger"
+					onchange={(next) => settings.save({ showTrigger: next })}
+				/>
+				<p class="muted">{t('settings.showTriggerHint')}</p>
 			</div>
 
 			{#if boardChoiceShown}

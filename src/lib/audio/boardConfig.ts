@@ -131,7 +131,10 @@ function toTrigger(value: unknown): TrackTrigger | null {
 		headers,
 		path: typeof record.path === 'string' ? record.path : '',
 		test,
-		value: typeof record.value === 'string' ? record.value : ''
+		value: typeof record.value === 'string' ? record.value : '',
+		// Відсутнє поле — це файл, записаний до появи вибору. Тодішній намір
+		// був саме «лише на зміну», тож типове значення його й повторює.
+		onChange: record.onChange !== false
 	};
 }
 

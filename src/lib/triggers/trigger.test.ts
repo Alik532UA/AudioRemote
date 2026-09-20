@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matches, readPath, triggerReady, emptyTrigger } from './trigger';
+import { matches, readPath, shouldFire, triggerReady, emptyTrigger } from './trigger';
 
 describe('читання значення з відповіді', () => {
 	const data = {
@@ -107,6 +107,44 @@ describe('заперечення умов', () => {
 	it('«не дорівнює» — дзеркало «дорівнює»', () => {
 		expect(matches(false, 'notEquals', 'true')).toBe(true);
 		expect(matches(true, 'notEquals', 'true')).toBe(false);
+	});
+});
+
+describe('чи запускати трек', () => {
+	/*
+	 * САМЕ ТУТ БУЛА ПОМИЛКА, і кожен її випадок тепер займає рядок.
+	 *
+	 * Попередній результат зберігався, але з поточним не порівнювався: умову
+	 * «виконується» видавали за подію «щойно почала виконуватися». Сирена
+	 * починалася спочатку на кожному опитуванні — щопівхвилини всю тривогу.
+	 */
+	it('лише на зміну: спрацьовує РІВНО на переході «ні → так»', () => {
+		expect(shouldFire(false, true, true)).toBe(true);
+	});
+
+	it('лише на зміну: доки умова тримається — тиша', () => {
+		expect(shouldFire(true, true, true)).toBe(false);
+	});
+
+	it('лише на зміну: зникнення умови теж не подія', () => {
+		// «Відбій» описується протилежною умовою на іншому треку, а не цим.
+		expect(shouldFire(true, false, true)).toBe(false);
+		expect(shouldFire(false, false, true)).toBe(false);
+	});
+
+	it('щоразу: спрацьовує на кожному «так»', () => {
+		expect(shouldFire(true, true, false)).toBe(true);
+		expect(shouldFire(false, true, false)).toBe(true);
+		expect(shouldFire(true, false, false)).toBe(false);
+	});
+
+	it('перше опитування не рахується за подію в ЖОДНОМУ режимі', () => {
+		/*
+		 * Тривога, яка почалася до відкриття застосунку, почалася без нас.
+		 * Зустрічати її сиреною посеред заняття — лякати зал на порожньому місці.
+		 */
+		expect(shouldFire(null, true, true)).toBe(false);
+		expect(shouldFire(null, true, false)).toBe(false);
 	});
 });
 

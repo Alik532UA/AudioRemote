@@ -44,6 +44,8 @@ export interface StoredSettings {
 	/** Пара для «певної дошки». Порожня — «певної» немає. */
 	startBoardId: string;
 	startBoardPassword: string;
+	/** Позначати в списку треки, які запускаються за API. */
+	showTrigger: boolean;
 }
 
 const EMPTY: StoredSettings = {
@@ -52,7 +54,8 @@ const EMPTY: StoredSettings = {
 	startPage: 'menu',
 	startBoard: 'last',
 	startBoardId: '',
-	startBoardPassword: ''
+	startBoardPassword: '',
+	showTrigger: true
 };
 
 class SettingsState {
@@ -62,6 +65,7 @@ class SettingsState {
 	startBoard = $state<StartBoard>('last');
 	startBoardId = $state('');
 	startBoardPassword = $state('');
+	showTrigger = $state(true);
 
 	/**
 	 * Чи налаштована стала пара.
@@ -89,6 +93,7 @@ class SettingsState {
 		this.startBoardId = typeof stored.startBoardId === 'string' ? stored.startBoardId : '';
 		this.startBoardPassword =
 			typeof stored.startBoardPassword === 'string' ? stored.startBoardPassword : '';
+		this.showTrigger = stored.showTrigger !== false;
 	}
 
 	/**
@@ -105,6 +110,7 @@ class SettingsState {
 		if (patch.startBoard !== undefined) this.startBoard = patch.startBoard;
 		if (patch.startBoardId !== undefined) this.startBoardId = patch.startBoardId;
 		if (patch.startBoardPassword !== undefined) this.startBoardPassword = patch.startBoardPassword;
+		if (patch.showTrigger !== undefined) this.showTrigger = patch.showTrigger;
 
 		writeJson(STORAGE_KEY, {
 			fixedBoardId: this.fixedBoardId,
@@ -112,7 +118,8 @@ class SettingsState {
 			startPage: this.startPage,
 			startBoard: this.startBoard,
 			startBoardId: this.startBoardId,
-			startBoardPassword: this.startBoardPassword
+			startBoardPassword: this.startBoardPassword,
+			showTrigger: this.showTrigger
 		} satisfies StoredSettings);
 	}
 

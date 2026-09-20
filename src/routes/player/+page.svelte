@@ -16,7 +16,8 @@
 		IconStop,
 		IconUp,
 		IconVolume,
-		IconWarning
+		IconWarning,
+		IconZap
 	} from '$lib/config/icons';
 	import { plural, t } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
@@ -30,6 +31,7 @@
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
+	import { settings } from '$lib/settings/settings.svelte';
 
 	let controller = $state<PlayerController | null>(null);
 	let fatal = $state<string | null>(null);
@@ -60,6 +62,9 @@
 	};
 
 	onMount(() => {
+		// Потрібні тут заради `showTrigger`: сторінку відкривають і прямим
+		// посиланням, минаючи корінь, який їх читає.
+		settings.load();
 		boardSession.restore();
 		const board = boardSession.current;
 		if (!board) {
@@ -554,6 +559,21 @@
 											{/if}
 										</button>
 
+										{#if settings.showTrigger && entry.trigger?.on}
+											<!--
+												Значок відповідає на «чому воно заграло саме́». Без нього про запуск
+												за API знав би лише той, хто відкрив налаштування саме цього треку.
+											-->
+											<span
+												class="tracks__zap"
+												title={t('track.trigger')}
+												aria-label={t('track.trigger')}
+												data-testid="trigger-mark-{entry.id}"
+											>
+												<IconZap size={14} aria-hidden="true" />
+											</span>
+										{/if}
+
 										<div class="tracks__tools">
 											<button
 												class="icon-btn"
@@ -900,7 +920,16 @@
 		color: var(--accent);
 	}
 
+	/* Позначка живе поруч із інструментами й теж не ловить натискання назви. */
+	.tracks__zap {
+		display: grid;
+		place-items: center;
+		flex: none;
+		color: var(--text-secondary);
+	}
+
 	/* Вище за накладку назви — інакше «вгору» теж запускало б трек. */
+	.tracks__zap,
 	.tracks__key,
 	.tracks__tools {
 		position: relative;
