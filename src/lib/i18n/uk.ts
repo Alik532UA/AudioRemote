@@ -183,8 +183,6 @@ export const uk = {
 	'player.leaveGo': 'Все одно вийти',
 	'player.connectManual': 'Або вручну',
 	'player.connectQrHint': 'Наведіть камеру телефона або планшета.',
-	'player.connectSecrets': 'Значення',
-	'player.connectSecretsHint': 'Знадобляться, якщо підключаються вручну.',
 	'player.connectStep1': 'Відкрийте цю саму адресу на пристрої, який керуватиме.',
 	'player.connectStep2': 'Натисніть «Підключитися».',
 	'player.connectStep3': 'Введіть ідентифікатор і пароль звідси.',

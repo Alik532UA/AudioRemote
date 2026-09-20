@@ -180,8 +180,6 @@ export const en: Record<TranslationKey, string> = {
 	'player.leaveGo': 'Leave anyway',
 	'player.connectManual': 'Or by hand',
 	'player.connectQrHint': 'Point a phone or tablet camera at it.',
-	'player.connectSecrets': 'Values',
-	'player.connectSecretsHint': 'Needed only when connecting by hand.',
 	'player.connectStep1': 'Open this same address on the device that will control it.',
 	'player.connectStep2': 'Tap “Connect”.',
 	'player.connectStep3': 'Enter the board id and password from here.',
