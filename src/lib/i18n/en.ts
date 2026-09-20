@@ -313,6 +313,8 @@ export const en: Record<TranslationKey, string> = {
 	'error.playback': 'Could not play the file: {name}',
 	'error.fileGone': 'The file is gone from the folder: {name}',
 	'error.dbOffline': 'No connection to the database.',
+	'player.libraryDenied':
+		'The database refused the track list, so remotes see an empty board. Most likely its rules are out of date: publish the current database.rules.json. Sound on this computer keeps working.',
 	'player.dbOffline':
 		'No connection to the database. The remote will not see this board, and everything you do now stays on this computer.',
 	'error.unknown': 'Something went wrong.'

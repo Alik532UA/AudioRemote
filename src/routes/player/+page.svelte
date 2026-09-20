@@ -20,7 +20,7 @@
 		IconWarning,
 		IconZap
 	} from '$lib/config/icons';
-	import { plural, t } from '$lib/i18n/i18n.svelte';
+	import { plural, t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { rememberBoard } from '$lib/board/myBoards';
 	import { describeError } from '$lib/net/describeError';
@@ -504,6 +504,20 @@
 						<p class="note note--warn" data-testid="db-offline">
 							<IconWarning size={18} aria-hidden="true" />
 							<span>{t('player.dbOffline')}</span>
+						</p>
+					{/if}
+
+					<!--
+						ВІДМОВА БАЗИ В ЗАПИСІ СПИСКУ — тут, а не в консолі.
+						
+						Доти вона зникала мовчки, і єдиним її слідом був напис на ЧУЖОМУ
+						екрані: «на плеєрі ще не обрано папку». Причину тричі шукали в
+						папці, хоч папка обрана й список на місці.
+					-->
+					{#if controller.libraryTrouble}
+						<p class="note note--warn" role="alert" data-testid="library-denied">
+							<IconWarning size={18} aria-hidden="true" />
+							<span>{t(controller.libraryTrouble as TranslationKey)}</span>
 						</p>
 					{/if}
 

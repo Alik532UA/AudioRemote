@@ -1,5 +1,24 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+/**
+ * Оголошення в базу підмінене на весь файл, і це не обхід перевірки.
+ *
+ * Мережі тут не буде в жодному разі — без емулятора `connect()` падає ще на
+ * конфігу. Підміна дає інше: можливість сказати «база ВІДМОВИЛА» й подивитися,
+ * що з цього побачить людина за компʼютером.
+ */
+const net = vi.hoisted(() => ({ denied: false }));
+
+vi.mock('$lib/net/board', async (importOriginal) => ({
+	...(await importOriginal<typeof import('$lib/net/board')>()),
+	publishLibrary: async () => {
+		if (!net.denied) return;
+		throw Object.assign(new Error('permission_denied at /library'), {
+			code: 'PERMISSION_DENIED'
+		});
+	}
+}));
 import { MemorySource, titleLines } from '$lib/audio/source';
 import { PlayerController } from './controller.svelte';
 import type { ActiveBoard } from '$lib/board/session.svelte';
@@ -487,5 +506,32 @@ describe('файл налаштувань', () => {
 		expect(second.entries.map((entry) => entry.title)).toEqual(['Криниця', 'Автобус']);
 		expect(second.entries[0].hotkey).toBe('KeyP');
 		expect(second.entries[0].color).toBe('azure');
+	});
+});
+
+describe('відмова бази в записі списку', () => {
+	/**
+	 * ЦЕ ТРЕТЯ ПОЯВА ОДНІЄЇ Й ТІЄЇ САМОЇ ПОМИЛКИ, і саме тому на неї тест.
+	 *
+	 * Правило `$other: false` відкидає незнане поле разом з УСІМ записом. Отже
+	 * поле, додане в коді раніше, ніж у правилах, зупиняє бібліотеку цілком —
+	 * мовчки, бо відмова прилітала в `void this.persist()` і зникала. Симптом
+	 * зʼявлявся за два екрани звідси: пульт писав «на плеєрі ще не обрано папку»,
+	 * хоч папка обрана й список на екрані.
+	 */
+	it('плеєр каже про відмову, а не мовчить', async () => {
+		const controller = build(withFiles('Гонг.mp3'));
+		controller.owned = true;
+		Reflect.set(controller, 'ownershipKnown', true);
+
+		net.denied = true;
+		await Reflect.get(controller, 'publish').call(controller);
+		expect(controller.libraryTrouble).toBe('player.libraryDenied');
+
+		// І зникає, щойно запис пройшов: скарга, яка лишається назавжди, — це не
+		// попередження, а декорація.
+		net.denied = false;
+		await Reflect.get(controller, 'publish').call(controller);
+		expect(controller.libraryTrouble).toBeNull();
 	});
 });

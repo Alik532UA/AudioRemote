@@ -28,6 +28,7 @@ import {
 	keyLabelsFor,
 	type HotkeyAction
 } from '$lib/hotkeys/hotkeys';
+import { describeError } from '$lib/net/describeError';
 import { mark } from '$lib/services/breadcrumbs';
 import { emptyTrigger, type TrackTrigger } from '$lib/triggers/trigger';
 import { triggerWatcher } from '$lib/triggers/watcher.svelte';
@@ -112,6 +113,20 @@ export class PlayerController implements BoardEditor {
 
 	/** `false` — теку видали лише на читання, налаштування не збережуться. */
 	configWritable = $state(true);
+
+	/**
+	 * БАЗА НЕ ПРИЙНЯЛА СПИСОК ТРЕКІВ. Ключ перекладу або `null`.
+	 *
+	 * Найдорожчий рядок у цьому файлі, і ось чому. Правило `$other: false`
+	 * відкидає незнане поле разом з УСІМ записом, тож одне поле, додане в коді
+	 * раніше, ніж у правилах, зупиняє бібліотеку цілком. Помилка при цьому
+	 * прилітала в `void this.persist()` і зникала без сліду, а симптом вилазив за
+	 * два екрани звідси: пульт писав «на плеєрі ще не обрано папку», хоч папка
+	 * обрана й список на екрані. Тричі поспіль причину шукали в папці.
+	 *
+	 * Тепер той, у кого є що виправити, бачить це там, де він стоїть.
+	 */
+	libraryTrouble = $state<string | null>(null);
 
 	/**
 	 * Базу не чути. Показувати це ОБОВ'ЯЗКОВО: без бази сторінка виглядає
@@ -613,7 +628,24 @@ export class PlayerController implements BoardEditor {
 			};
 		});
 
-		await publishLibrary(this.board.key, forCloud);
+		try {
+			await publishLibrary(this.board.key, forCloud);
+			this.libraryTrouble = null;
+		} catch (error) {
+			/*
+			 * Відмова НЕ кидається далі: оголошення — не та дія, заради якої варто
+			 * валити сторінку, і плеєр мусить грати далі навіть тоді, коли пульт
+			 * його не бачить. Але й мовчати про неї не можна.
+			 */
+			/*
+			 * «Відмовлено» тут означає рівно одне, і сказати це варто прямо: код
+			 * пише поле, про яке правила ще не знають. Загальне «база відмовила в
+			 * доступі» відправило б шукати причину в паролі чи в мережі.
+			 */
+			const reason = describeError(error);
+			this.libraryTrouble = reason === 'error.denied' ? 'player.libraryDenied' : reason;
+			mark(`publish:denied ${String(error).slice(0, 60)}`);
+		}
 	}
 
 	// ─── Відтворення ─────────────────────────────────────────────────────────
