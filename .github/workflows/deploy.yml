@@ -85,12 +85,22 @@ jobs:
         run: |
           echo "::warning title=Правила не викладені::Немає секрету FIREBASE_SERVICE_ACCOUNT, тож правила в базі лишилися старі. Вставте свіжий database.rules.json у Firebase Console руками, інакше база відкине бібліотеку з новими полями."
 
+      # КЛЮЧ СЕРВІСНОГО АКАУНТА ЖИВЕ РІВНО ОДИН КРОК.
+      #
+      # Прибирає його `trap … EXIT`, а не `rm` наприкінці, і різниця тут не
+      # стилістична: якщо `deploy` упаде — а падає він щоразу, коли правила не
+      # приймаються, тобто саме тоді, коли це найімовірніше, — рядок із `rm` не
+      # виконається взагалі, і файл із ключем долежить на раннері до кінця
+      # jobʼа разом із рештою кроків (CI-CD-AND-TOOLS-v9 § 2, `CI-SECRET-EPHEMERAL`).
+      #
+      # `umask 077` перед записом: типові права на файл у раннері дають читання
+      # всім, а в кроках нижче може виконуватися будь-що.
       - name: Викласти правила
         if: ${{ env.SERVICE_ACCOUNT != '' }}
         run: |
-          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
-          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"             npx --yes firebase-tools@15 deploy --only database             --project "${FIREBASE_PROJECT:-audioremote}" --non-interactive
-          rm -f "$RUNNER_TEMP/sa.json"
+          trap 'rm -f "$RUNNER_TEMP/sa.json"' EXIT
+          (umask 077; printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json")
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@15 deploy --only database --project "${FIREBASE_PROJECT:-audioremote}" --non-interactive
 
   build-and-deploy:
     # Правила йдуть ПЕРШИМИ: нові сумісні зі старим кодом, старі з новим — ні.
