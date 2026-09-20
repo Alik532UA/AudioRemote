@@ -10,6 +10,7 @@
 	} from '$lib/triggers/trigger';
 	import { triggerWatcher } from '$lib/triggers/watcher.svelte';
 	import type { PlayerController } from '$lib/player/controller.svelte';
+	import Switch from '$lib/components/ui/Switch.svelte';
 
 	interface Props {
 		trackId: string;
@@ -83,10 +84,12 @@
 <div class="stack">
 	<p class="muted">{t('trigger.lead')}</p>
 
-	<label class="check">
-		<input type="checkbox" bind:checked={draft.on} data-testid="trigger-on" />
-		<span>{t('trigger.on')}</span>
-	</label>
+	<Switch
+		checked={draft.on}
+		label={t('trigger.on')}
+		testid="trigger-on"
+		onchange={(next) => (draft.on = next)}
+	/>
 
 	<div class="field">
 		<label class="field__label" for="trigger-url">{t('trigger.url')}</label>
@@ -221,14 +224,6 @@
 		min-height: calc(var(--tap) * 1.4);
 		resize: vertical;
 		font-size: 0.8rem;
-	}
-
-	.check {
-		display: flex;
-		align-items: center;
-		gap: var(--gap-sm);
-		min-height: var(--tap);
-		cursor: pointer;
 	}
 
 	.note {

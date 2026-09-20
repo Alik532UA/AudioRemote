@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { IconClose, IconEye, IconEyeOff, IconKeyboard, IconZap } from '$lib/config/icons';
+	import { IconClose, IconKeyboard, IconZap } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { colorNumber, TRACK_COLORS } from '$lib/config/trackColors';
 	import { isAssignable, labelForCode } from '$lib/hotkeys/hotkeys';
 	import type { BoardTrack } from '$lib/player/controller.svelte';
 	import type { PlayerController } from '$lib/player/controller.svelte';
 	import TriggerEditor from './TriggerEditor.svelte';
+	import Switch from '$lib/components/ui/Switch.svelte';
 
 	interface Props {
 		track: BoardTrack;
@@ -208,20 +209,18 @@
 			{/if}
 		</div>
 
-		<button
-			class="btn"
-			type="button"
-			onclick={() => controller.toggleHidden(track.id)}
-			data-testid="toggle-hidden"
-		>
-			{#if track.hidden}
-				<IconEyeOff size={18} aria-hidden="true" />
-				{t('player.show')}
-			{:else}
-				<IconEye size={18} aria-hidden="true" />
-				{t('player.hide')}
-			{/if}
-		</button>
+		<!--
+			Перемикач, а не кнопка. Кнопка з написом, що стрибає між «Приховати» і
+			«Показати», ніколи не каже, у якому стані трек СТОЇТЬ: щоб дізнатися,
+			треба прочитати напис і подумки його інвертувати.
+		-->
+		<Switch
+			checked={track.hidden}
+			label={t('player.hidden')}
+			title={track.hidden ? t('player.show') : t('player.hide')}
+			testid="toggle-hidden"
+			onchange={() => controller.toggleHidden(track.id)}
+		/>
 	</div>
 </dialog>
 

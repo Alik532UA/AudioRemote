@@ -61,9 +61,9 @@ export const en: Record<TranslationKey, string> = {
 	'settings.startLabel': 'First page',
 	'start.menu': 'Menu',
 	'start.create': 'Create a board',
-	'start.player': 'The last player board',
-	'start.connect': 'Connect to a board',
-	'start.remote': 'The last remote board',
+	'start.player': 'My board',
+	'start.connect': 'Connecting to a board',
+	'start.remote': 'A remote board',
 	'start.noPlayerBoard':
 		'The player did not open: there is no saved board yet. Create one and it will open by itself next time.',
 	'start.noRemoteBoard':
@@ -136,6 +136,7 @@ export const en: Record<TranslationKey, string> = {
 	'player.empty': 'There are no audio files in this folder.',
 	'player.hide': 'Hide from the remote',
 	'player.show': 'Show',
+	'player.hidden': 'Hidden from the remote',
 	'player.hiddenCount': 'Hidden: {count}',
 	'player.noSupport':
 		'This browser cannot give a page access to a folder. Open the player in Chrome or Edge on a computer.',

@@ -59,9 +59,9 @@ export const uk = {
 	'settings.startLabel': 'Перша сторінка',
 	'start.menu': 'Меню',
 	'start.create': 'Створити дошку',
-	'start.player': 'Останню дошку приймача',
-	'start.connect': 'Підключитися до дошки',
-	'start.remote': 'Останню дошку пульта',
+	'start.player': 'Моя дошка',
+	'start.connect': 'Підключення до дошки',
+	'start.remote': 'Віддалена дошка',
 	'start.noPlayerBoard':
 		'Приймач не відкрився: збереженої дошки ще немає. Створіть її — наступного разу відкриється сама.',
 	'start.noRemoteBoard':
@@ -139,6 +139,7 @@ export const uk = {
 	'player.empty': 'У цій папці немає аудіофайлів.',
 	'player.hide': 'Приховати від пульта',
 	'player.show': 'Показати',
+	'player.hidden': 'Приховано від пульта',
 	'player.hiddenCount': 'Приховано: {count}',
 	'player.noSupport':
 		'Цей браузер не вміє давати сторінці доступ до папки. Відкрийте плеєр у Chrome або Edge на комп’ютері.',
