@@ -149,22 +149,43 @@ function toTrigger(value: unknown): TrackTrigger | null {
 export async function readConfig(folder: FileSystemDirectoryHandle): Promise<BoardConfig> {
 	try {
 		const handle = await folder.getFileHandle(CONFIG_FILE);
-		const text = await (await handle.getFile()).text();
-		const parsed: unknown = JSON.parse(text);
-
-		if (typeof parsed !== 'object' || parsed === null) return emptyConfig();
-		const record = parsed as Record<string, unknown>;
-		const tracks = Array.isArray(record.tracks)
-			? record.tracks.map(toSetting).filter((entry): entry is TrackSetting => entry !== null)
-			: [];
-
-		mark(`config:read ${tracks.length}`);
-		return { schema: SCHEMA, tracks };
+		const config = parseConfig(await (await handle.getFile()).text());
+		mark(`config:read ${config.tracks.length}`);
+		return config;
 	} catch {
 		mark('config:none');
 		return emptyConfig();
 	}
 }
+
+/**
+ * РОЗБІР ОКРЕМО ВІД ЧИТАННЯ ФАЙЛУ.
+ *
+ * Той самий файл лежить у тій самій папці, але дістають його двома різними
+ * способами: у браузері — через дескриптор, у застосунку на комп'ютері — за
+ * шляхом. Правила ж розбору однакові, і роздвоювати їх не можна: розійшлися б
+ * тихо, і папка, налаштована в одному, читалася б без кольорів у другому.
+ */
+export function parseConfig(text: string): BoardConfig {
+	try {
+		const parsed: unknown = JSON.parse(text);
+		if (typeof parsed !== 'object' || parsed === null) return emptyConfig();
+
+		const record = parsed as Record<string, unknown>;
+		const tracks = Array.isArray(record.tracks)
+			? record.tracks.map(toSetting).filter((entry): entry is TrackSetting => entry !== null)
+			: [];
+
+		return { schema: SCHEMA, tracks };
+	} catch {
+		// Зіпсований файл — це «налаштувань немає», а не привід падати.
+		return emptyConfig();
+	}
+}
+
+/** Текст файлу. Із відступами: його читає людина, а не лише ми. */
+export const serializeConfig = (config: BoardConfig): string =>
+	JSON.stringify({ ...config, schema: SCHEMA }, null, '\t');
 
 /**
  * Записати налаштування в теку. `false` — записати не вдалося.
@@ -180,8 +201,7 @@ export async function writeConfig(
 	try {
 		const handle = await folder.getFileHandle(CONFIG_FILE, { create: true });
 		const writable = await handle.createWritable();
-		// Із відступами: файл читає людина, а не лише ми.
-		await writable.write(JSON.stringify({ ...config, schema: SCHEMA }, null, '\t'));
+		await writable.write(serializeConfig(config));
 		await writable.close();
 		mark(`config:write ${config.tracks.length}`);
 		return true;

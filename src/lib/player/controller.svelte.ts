@@ -1,6 +1,7 @@
 import { untrack } from 'svelte';
 import { AudioEngine, EngineError } from '$lib/audio/engine.svelte';
 import { LocalFolderSource } from '$lib/audio/localSource';
+import { runningInTauri, TauriFolderSource } from '$lib/audio/tauriSource';
 import type { AudioSource, SourceStatus } from '$lib/audio/source';
 import { emptyConfig, type BoardConfig } from '$lib/audio/boardConfig';
 import type { ActiveBoard } from '$lib/board/session.svelte';
@@ -99,9 +100,16 @@ export class PlayerController {
 		private readonly board: ActiveBoard,
 		source?: AudioSource
 	) {
-		// Джерело можна підставити — саме так перевіряються правила плеєра без
-		// діалогу вибору теки, у який не заходить жоден автотест.
-		this.source = source ?? new LocalFolderSource();
+		/*
+		 * Джерело можна підставити — саме так перевіряються правила плеєра без
+		 * діалогу вибору папки, у який не заходить жоден автотест.
+		 *
+		 * Типове вибирається за середовищем, і різниця не косметична: у
+		 * застосунку на комп'ютері папка ЗАПАМ'ЯТОВУЄТЬСЯ (там це звичайний
+		 * шлях), а в браузері її доводиться обирати щоразу — дескриптор не
+		 * переживає перезавантаження. Плеєр цієї різниці не бачить.
+		 */
+		this.source = source ?? (runningInTauri() ? new TauriFolderSource() : new LocalFolderSource());
 		this.engine = new AudioEngine(this.source);
 	}
 
