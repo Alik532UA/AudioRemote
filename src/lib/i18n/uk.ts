@@ -45,7 +45,15 @@ export const uk = {
 
 	'settings.title': 'Налаштування',
 	'settings.app': 'Налаштування застосунку',
+	'settings.lookTitle': 'Вигляд',
+	'settings.launchTitle': 'Запуск',
+	'settings.diagTitle': 'Діагностика',
 	'settings.startTitle': 'Що відкривати при запуску',
+	'settings.startBoardTitle': 'Яку дошку відкривати',
+	'settings.startBoardLead':
+		'Певну дошку варто вказати там, де пульт завжди той самий, — наприклад на планшеті в залі.',
+	'startBoard.last': 'Останню відкриту',
+	'startBoard.fixed': 'Певну дошку',
 	'settings.startLead':
 		'Стосується лише запуску застосунку. Знак угорі ліворуч завжди веде в меню, хоч би що тут стояло.',
 	'settings.startLabel': 'Перша сторінка',

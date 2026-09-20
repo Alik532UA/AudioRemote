@@ -9,7 +9,7 @@
 		normalizePassword
 	} from '$lib/board/secret';
 	import { settings } from '$lib/settings/settings.svelte';
-	import { isStartPage, START_PAGES } from '$lib/settings/startPage.svelte';
+	import { START_BOARDS, START_PAGES } from '$lib/settings/startPage.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import ThemeSwitcher from '$lib/components/ui/ThemeSwitcher.svelte';
 	import { isEmulator } from '$lib/net/firebase';
@@ -19,7 +19,11 @@
 
 	let boardId = $state('');
 	let password = $state('');
+	/** Пара «певної дошки» для запуску. Зберігається окремою кнопкою. */
+	let pinnedId = $state('');
+	let pinnedPassword = $state('');
 	let saved = $state(false);
+	let pinnedSaved = $state(false);
 	let trailCopied = $state(false);
 	let trail = $state<{ at: number; step: string }[]>([]);
 	let trailIsPrevious = $state(false);
@@ -52,6 +56,8 @@
 		settings.load();
 		boardId = settings.fixedBoardId;
 		password = settings.fixedPassword;
+		pinnedId = settings.startBoardId;
+		pinnedPassword = settings.startBoardPassword;
 	});
 
 	const hasId = $derived(normalizeBoardId(boardId).length > 0);
@@ -66,6 +72,20 @@
 		setTimeout(() => (saved = false), 2000);
 	}
 
+	/** Вибір дошки має сенс лише для сторінок, які дошку відкривають. */
+	const boardChoiceShown = $derived(
+		settings.startPage === 'remote' || settings.startPage === 'connect'
+	);
+
+	function savePinned() {
+		settings.save({
+			startBoardId: pinnedId.trim(),
+			startBoardPassword: pinnedPassword.trim()
+		});
+		pinnedSaved = true;
+		setTimeout(() => (pinnedSaved = false), 2000);
+	}
+
 	function clear() {
 		settings.clear();
 		boardId = '';
@@ -73,31 +93,42 @@
 	}
 </script>
 
-<div class="stack stack--auth">
-	<section class="card card--auth stack">
-		<h1 class="title">{t('settings.title')}</h1>
+<!--
+	СІТКА КАРТОК, А НЕ ОДИН СТОВПЕЦЬ НА 440px.
 
-		<div class="field">
-			<span class="field__label" id="lang-label">{t('settings.language')}</span>
-			<div class="langs" role="group" aria-labelledby="lang-label">
-				{#each LOCALES as locale (locale)}
-					<button
-						type="button"
-						class="btn langs__btn"
-						class:btn--primary={i18n.locale === locale}
-						aria-pressed={i18n.locale === locale}
-						data-testid="settings-lang-{locale}"
-						onclick={() => i18n.set(locale)}
-					>
-						{LOCALE_NAMES[locale]}
-					</button>
-				{/each}
+	Налаштувань стало вчетверо більше, ніж було, і в одну колонку вони давали
+	довгу стрічку посеред монітора: порожньо з боків, прокрутка там, де
+	прокручувати нема чого. Колонки не задані числом — `auto-fit` сам ставить
+	одну на телефоні, дві на планшеті й три на моніторі.
+-->
+<div class="stack stack--wide">
+	<h1 class="title">{t('settings.title')}</h1>
+
+	<div class="cards">
+		<section class="card stack">
+			<h2 class="subtitle">{t('settings.lookTitle')}</h2>
+
+			<div class="field">
+				<span class="field__label" id="lang-label">{t('settings.language')}</span>
+				<div class="langs" role="group" aria-labelledby="lang-label">
+					{#each LOCALES as locale (locale)}
+						<button
+							type="button"
+							class="btn langs__btn"
+							class:btn--primary={i18n.locale === locale}
+							aria-pressed={i18n.locale === locale}
+							data-testid="settings-lang-{locale}"
+							onclick={() => i18n.set(locale)}
+						>
+							{LOCALE_NAMES[locale]}
+						</button>
+					{/each}
+				</div>
 			</div>
-		</div>
 
-		<div class="field">
-			<span class="field__label" id="theme-label">{t('theme.group')}</span>
-			<!--
+			<div class="field">
+				<span class="field__label" id="theme-label">{t('theme.group')}</span>
+				<!--
 				ТРИТАКТНИЙ ВИБІР ЖИВЕ САМЕ ТУТ.
 
 				У шапці стоїть двопозиційний тугал: він показує, що людина бачить,
@@ -106,37 +137,102 @@
 				Тому воно тут, разом із показом теми на наведенні, якого тугал теж
 				не вміє (THEME-SWITCHER § 2–4).
 			-->
-			<div aria-labelledby="theme-label">
-				<ThemeSwitcher />
+				<div aria-labelledby="theme-label">
+					<ThemeSwitcher />
+				</div>
 			</div>
-		</div>
+		</section>
 
-		<div class="field">
-			<label class="field__label" for="start-page">{t('settings.startTitle')}</label>
-			<!--
-				Списком, а не рядом кнопок: варіантів п'ять, і підписи в них довгі —
-				ряд кнопок на телефоні перетворився б на п'ять рядків.
-			-->
-			<select
-				id="start-page"
-				class="input"
-				value={settings.startPage}
-				data-testid="settings-start"
-				onchange={(event) => {
-					const chosen = event.currentTarget.value;
-					if (isStartPage(chosen)) settings.save({ startPage: chosen });
-				}}
-			>
-				{#each START_PAGES as page (page)}
-					<option value={page}>{t(`start.${page}`)}</option>
-				{/each}
-			</select>
-			<p class="muted">{t('settings.startLead')}</p>
-		</div>
+		<section class="card stack">
+			<h2 class="subtitle">{t('settings.launchTitle')}</h2>
 
-		<hr class="rule" />
+			<div class="field">
+				<span class="field__label" id="start-label">{t('settings.startTitle')}</span>
+				<!--
+					Кнопки в спільній рамці, а не випадний список. Список ховає варіанти
+					за одним рядком: щоб побачити, з чого взагалі можна обирати, треба
+					спершу його відкрити. Тут усі пʼять видно одразу, і обраний видно
+					теж — без жодного натискання.
+				-->
+				<div class="picker" role="radiogroup" aria-labelledby="start-label">
+					{#each START_PAGES as page (page)}
+						<button
+							class="picker__item"
+							type="button"
+							role="radio"
+							aria-checked={settings.startPage === page}
+							onclick={() => settings.save({ startPage: page })}
+							data-testid="settings-start-{page}"
+						>
+							{t(`start.${page}`)}
+						</button>
+					{/each}
+				</div>
+				<p class="muted">{t('settings.startLead')}</p>
+			</div>
 
-		<div class="stack">
+			{#if boardChoiceShown}
+				<div class="field">
+					<span class="field__label" id="start-board-label">{t('settings.startBoardTitle')}</span>
+					<div class="picker" role="radiogroup" aria-labelledby="start-board-label">
+						{#each START_BOARDS as which (which)}
+							<button
+								class="picker__item"
+								type="button"
+								role="radio"
+								aria-checked={settings.startBoard === which}
+								onclick={() => settings.save({ startBoard: which })}
+								data-testid="settings-board-{which}"
+							>
+								{t(`startBoard.${which}`)}
+							</button>
+						{/each}
+					</div>
+				</div>
+
+				{#if settings.startBoard === 'fixed'}
+					<div class="field">
+						<label class="field__label" for="pinned-id">{t('create.idLabel')}</label>
+						<input
+							id="pinned-id"
+							class="input mono"
+							type="text"
+							bind:value={pinnedId}
+							maxlength="16"
+							autocapitalize="characters"
+							autocorrect="off"
+							spellcheck="false"
+							data-testid="pinned-id"
+						/>
+					</div>
+
+					<PasswordField
+						id="pinned-password"
+						label={t('create.passwordLabel')}
+						bind:value={pinnedPassword}
+						autocomplete="off"
+					/>
+
+					<p class="muted">{t('settings.startBoardLead')}</p>
+
+					<button
+						class="btn btn--primary"
+						type="button"
+						onclick={savePinned}
+						data-testid="pinned-save"
+					>
+						{#if pinnedSaved}
+							<IconCheck size={18} aria-hidden="true" />
+							{t('settings.saved')}
+						{:else}
+							{t('settings.save')}
+						{/if}
+					</button>
+				{/if}
+			{/if}
+		</section>
+
+		<section class="card stack">
 			<h2 class="subtitle">{t('settings.fixedTitle')}</h2>
 			<p class="muted">{t('settings.fixedLead')}</p>
 
@@ -228,11 +324,12 @@
 					</button>
 				{/if}
 			</div>
-		</div>
+		</section>
 
-		<hr class="rule" />
+		<section class="card stack">
+			<h2 class="subtitle">{t('settings.diagTitle')}</h2>
 
-		<!--
+			<!--
 			Версія переїхала сюди з підвалу кожної сторінки. Вона потрібна рівно
 			тоді, коли про неї питають («а яка у вас збірка?»), — тобто в
 			налаштуваннях, а не під очима щохвилини.
@@ -240,44 +337,131 @@
 			Поруч — ознака емулятора: інакше «дошка не створюється» на бойовій
 			адресі й на локальній виглядають однаково.
 		-->
-		<details class="trail" data-testid="trail">
-			<summary class="trail__toggle">
-				{t('settings.trail')}
-				{#if trailIsPrevious}· {t('settings.trailHint')}{/if}
-			</summary>
+			<details class="trail" data-testid="trail">
+				<summary class="trail__toggle">
+					{t('settings.trail')}
+					{#if trailIsPrevious}· {t('settings.trailHint')}{/if}
+				</summary>
 
-			<div class="trail__body">
-				{#if trail.length === 0}
-					<p class="muted">{t('settings.trailEmpty')}</p>
-				{:else}
-					<pre class="trail__text mono">{trailText}</pre>
-					<button class="btn" type="button" onclick={copyTrail} data-testid="copy-trail">
-						{#if trailCopied}
-							<IconCheck size={18} aria-hidden="true" />
-							{t('common.copied')}
-						{:else}
-							{t('common.copy')}
-						{/if}
-					</button>
+				<div class="trail__body">
+					{#if trail.length === 0}
+						<p class="muted">{t('settings.trailEmpty')}</p>
+					{:else}
+						<pre class="trail__text mono">{trailText}</pre>
+						<button class="btn" type="button" onclick={copyTrail} data-testid="copy-trail">
+							{#if trailCopied}
+								<IconCheck size={18} aria-hidden="true" />
+								{t('common.copied')}
+							{:else}
+								{t('common.copy')}
+							{/if}
+						</button>
+					{/if}
+				</div>
+			</details>
+
+			<hr class="rule" />
+
+			<p class="about muted" data-testid="about">
+				<span>{t('app.name')}</span>
+				<span class="mono">{t('settings.version')} {__APP_VERSION__}</span>
+				{#if isEmulator()}
+					<span class="about__badge">{t('settings.emulator')}</span>
 				{/if}
-			</div>
-		</details>
-
-		<hr class="rule" />
-
-		<p class="about muted" data-testid="about">
-			<span>{t('app.name')}</span>
-			<span class="mono">{t('settings.version')} {__APP_VERSION__}</span>
-			{#if isEmulator()}
-				<span class="about__badge">{t('settings.emulator')}</span>
-			{/if}
-		</p>
-	</section>
+			</p>
+		</section>
+	</div>
 </div>
 
 <style>
 	.title {
 		font-size: 1.3rem;
+	}
+
+	/*
+	 * ТРИ КОЛОНКИ — межа, а не побажання.
+	 *
+	 * `auto-fit` із мінімумом 300px давав на моніторі чотири, і картка
+	 * «Діагностика» їхала в окремий стовпець сама до себе. Три ставить
+	 * стільки, скільки груп налаштувань у застосунку є.
+	 */
+	.cards {
+		display: grid;
+		gap: var(--gap);
+		grid-template-columns: 1fr;
+		align-items: start;
+	}
+
+	@media (min-width: 720px) {
+		.cards {
+			grid-template-columns: repeat(2, 1fr);
+		}
+	}
+
+	@media (min-width: 1100px) {
+		.cards {
+			grid-template-columns: repeat(3, 1fr);
+		}
+	}
+
+	/*
+	 * `.stack` центрує себе по вертикалі автоматичними відступами — це потрібно
+	 * картці входу посеред екрана й шкодить картці в комірці сітки: сусіди
+	 * різної висоти розʼїжджалися сходинкою.
+	 */
+	.cards :global(.stack) {
+		margin-block: 0;
+	}
+
+	/*
+	 * Перемикач списком: кнопки без власних рамок у спільній рамці.
+	 *
+	 * Ряд окремих кнопок на пʼять довгих підписів розсипався б на пʼять рядків
+	 * із проміжками між ними — і перестав би читатися як ОДИН вибір.
+	 */
+	.picker {
+		display: flex;
+		flex-direction: column;
+		overflow: hidden;
+		border: 1px solid var(--border);
+		border-radius: var(--radius);
+		background: var(--bg-surface-raised);
+	}
+
+	.picker__item {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-sm);
+		min-height: var(--tap);
+		padding: 0 var(--gap);
+		border: 0;
+		border-top: 1px solid var(--border);
+		background: none;
+		color: var(--text-primary);
+		cursor: pointer;
+		font: inherit;
+		font-size: 0.9rem;
+		text-align: start;
+	}
+
+	.picker__item:first-child {
+		border-top: 0;
+	}
+
+	.picker__item:hover,
+	.picker__item:focus-visible {
+		background: var(--bg-sunken);
+	}
+
+	/*
+	 * Обраний позначено смугою збоку, а не самим лише тлом: тло в темній темі
+	 * відрізняється на кілька відсотків яскравості й на проєкторі в залі
+	 * зникає зовсім.
+	 */
+	.picker__item[aria-checked='true'] {
+		box-shadow: inset 3px 0 0 var(--accent);
+		background: var(--accent-soft);
+		font-weight: 600;
 	}
 
 	.subtitle {

@@ -47,7 +47,15 @@ export const en: Record<TranslationKey, string> = {
 
 	'settings.title': 'Settings',
 	'settings.app': 'App settings',
+	'settings.lookTitle': 'Appearance',
+	'settings.launchTitle': 'Launch',
+	'settings.diagTitle': 'Diagnostics',
 	'settings.startTitle': 'What to open on launch',
+	'settings.startBoardTitle': 'Which board to open',
+	'settings.startBoardLead':
+		'Pin a board where the remote is always the same one — a tablet in the hall, for instance.',
+	'startBoard.last': 'The last one opened',
+	'startBoard.fixed': 'A specific board',
 	'settings.startLead':
 		'Applies to launching the app only. The mark at the top left always leads to the menu, whatever is set here.',
 	'settings.startLabel': 'First page',

@@ -1,13 +1,15 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { deriveBoardKey, EmptySecretError } from '$lib/board/boardPath';
 	import { normalizeBoardId } from '$lib/board/secret';
-	import { rememberBoard } from '$lib/board/myBoards';
+	import { listBoards, rememberBoard } from '$lib/board/myBoards';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { boardExists } from '$lib/net/board';
 	import { describeError } from '$lib/net/describeError';
+	import { settings } from '$lib/settings/settings.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 
 	let boardId = $state('');
@@ -17,6 +19,29 @@
 	let failure = $state<string | null>(null);
 
 	const ready = $derived(boardId.trim().length > 0 && password.trim().length > 0 && !busy);
+
+	/**
+	 * ФОРМА ВІДКРИВАЄТЬСЯ НЕ ПОРОЖНЬОЮ.
+	 *
+	 * На телефоні набрати п'ятизначний ідентифікатор і пароль зі словами — це
+	 * півхвилини щовечора заради того самого залу. Названа в налаштуваннях
+	 * дошка підставляється цілком; інакше підставляється хоча б ідентифікатор
+	 * останньої, до якої підключалися.
+	 *
+	 * Пароля збереженої дошки тут немає й бути не може: пульт його не зберігає
+	 * (див. `myBoards`), а з ключа він не відновлюється за побудовою.
+	 */
+	onMount(() => {
+		settings.load();
+
+		if (settings.startBoard === 'fixed' && settings.startBoardId.trim()) {
+			boardId = settings.startBoardId;
+			password = settings.startBoardPassword;
+			return;
+		}
+
+		boardId = listBoards().find((board) => board.role === 'remote')?.id ?? '';
+	});
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();

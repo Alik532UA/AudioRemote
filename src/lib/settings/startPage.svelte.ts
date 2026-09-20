@@ -29,6 +29,19 @@ export const isStartPage = (value: unknown): value is StartPage =>
 	typeof value === 'string' && (START_PAGES as readonly string[]).includes(value);
 
 /**
+ * Яку саме дошку відкривати, коли обрано «пульт» або «підключитися».
+ *
+ * `last` — ту, з якою працювали востаннє. `fixed` — названу парою в
+ * налаштуваннях: так поводиться планшет у залі, який щовечора той самий.
+ */
+export const START_BOARDS = ['last', 'fixed'] as const;
+
+export type StartBoard = (typeof START_BOARDS)[number];
+
+export const isStartBoard = (value: unknown): value is StartBoard =>
+	typeof value === 'string' && (START_BOARDS as readonly string[]).includes(value);
+
+/**
  * Чому замість обіцяної сторінки показали меню.
  *
  * Мовчазне меню замість плеєра людина читає як «налаштування не зберігається».
@@ -43,18 +56,26 @@ export type StartDecision =
 	| { kind: 'page'; page: 'create' | 'connect' }
 	/** Стала пара є — відкрити ту саму дошку приймача, не питаючи. */
 	| { kind: 'createFixed' }
+	/** Названа парою дошка пульта — вивести ключ і зайти, не питаючи. */
+	| { kind: 'fixedRemote'; id: string; password: string }
 	/** Повернутися в збережену дошку: роль бере з неї самої. */
 	| { kind: 'board'; board: SavedBoard };
 
 /**
  * `boards` очікується відсортованим за «коли востаннє відкривали» — саме таким
  * його віддає `listBoards()`.
+ *
+ * @param pinned Пара з налаштувань для «певної дошки». Порожня — не задана.
  */
 export function decideStart(
 	start: StartPage,
 	boards: readonly SavedBoard[],
-	hasFixedPair: boolean
+	hasFixedPair: boolean,
+	startBoard: StartBoard = 'last',
+	pinned: { id: string; password: string } = { id: '', password: '' }
 ): StartDecision {
+	const pinnedReady = pinned.id.trim().length > 0 && pinned.password.trim().length > 0;
+
 	switch (start) {
 		case 'create':
 			/*
@@ -65,10 +86,20 @@ export function decideStart(
 			return hasFixedPair ? { kind: 'createFixed' } : { kind: 'page', page: 'create' };
 
 		case 'connect':
+			/*
+			 * Форма лишається формою: «підключитися» — це саме вона. Яку пару в неї
+			 * підставити, вирішує сама сторінка з тих самих налаштувань; сюди це не
+			 * заходить, бо на рішення «куди йти» не впливає.
+			 */
 			return { kind: 'page', page: 'connect' };
 
 		case 'player':
 		case 'remote': {
+			// Названа пара перемагає історію: її вказали руками саме для цього.
+			if (start === 'remote' && startBoard === 'fixed' && pinnedReady) {
+				return { kind: 'fixedRemote', id: pinned.id.trim(), password: pinned.password.trim() };
+			}
+
 			const board = boards.find((saved) => saved.role === start);
 			if (board) return { kind: 'board', board };
 			return {

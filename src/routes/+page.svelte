@@ -4,7 +4,7 @@
 	import { resolve } from '$app/paths';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { listBoards } from '$lib/board/myBoards';
-	import { openPlayerBoard } from '$lib/board/openBoard';
+	import { openBoard } from '$lib/board/openBoard';
 	import { boardSession, toActive } from '$lib/board/session.svelte';
 	import { settings } from '$lib/settings/settings.svelte';
 	import { decideStart, startNotice, type StartDecision } from '$lib/settings/startPage.svelte';
@@ -31,7 +31,13 @@
 	 */
 	onMount(() => {
 		settings.load();
-		const decision = decideStart(settings.startPage, listBoards(), settings.hasFixedPair);
+		const decision = decideStart(
+			settings.startPage,
+			listBoards(),
+			settings.hasFixedPair,
+			settings.startBoard,
+			{ id: settings.startBoardId, password: settings.startBoardPassword }
+		);
 		mark(`start:${settings.startPage} → ${decision.kind}`);
 		void follow(decision);
 	});
@@ -50,9 +56,20 @@
 				await to(decision.board.role === 'player' ? '/player' : '/remote');
 				return;
 
+			case 'fixedRemote':
+				try {
+					await openBoard('remote', decision.id, decision.password);
+					await to('/remote');
+				} catch (error) {
+					mark(`start:failed ${String(error).slice(0, 60)}`);
+					startNotice.reason = 'createFailed';
+					await to('/menu');
+				}
+				return;
+
 			case 'createFixed':
 				try {
-					await openPlayerBoard(settings.fixedBoardId, settings.fixedPassword);
+					await openBoard('player', settings.fixedBoardId, settings.fixedPassword);
 					await to('/player');
 				} catch (error) {
 					// Вивести ключ можна лише в безпечному контексті; решта причин теж

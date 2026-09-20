@@ -1,6 +1,6 @@
 import { normalizeBoardId, normalizePassword } from '$lib/board/secret';
 import { readJson, writeJson } from '$lib/services/storage';
-import { isStartPage, type StartPage } from './startPage.svelte';
+import { isStartBoard, isStartPage, type StartBoard, type StartPage } from './startPage.svelte';
 
 /**
  * НАЛАШТУВАННЯ — і головне з них: СТАЛА ПАРА (ідентифікатор, пароль).
@@ -39,14 +39,29 @@ export interface StoredSettings {
 	fixedPassword: string;
 	/** Що відкривати при запуску. Див. `startPage.svelte.ts`. */
 	startPage: StartPage;
+	/** Яку дошку відкривати, коли обрано пульт або підключення. */
+	startBoard: StartBoard;
+	/** Пара для «певної дошки». Порожня — «певної» немає. */
+	startBoardId: string;
+	startBoardPassword: string;
 }
 
-const EMPTY: StoredSettings = { fixedBoardId: '', fixedPassword: '', startPage: 'menu' };
+const EMPTY: StoredSettings = {
+	fixedBoardId: '',
+	fixedPassword: '',
+	startPage: 'menu',
+	startBoard: 'last',
+	startBoardId: '',
+	startBoardPassword: ''
+};
 
 class SettingsState {
 	fixedBoardId = $state('');
 	fixedPassword = $state('');
 	startPage = $state<StartPage>('menu');
+	startBoard = $state<StartBoard>('last');
+	startBoardId = $state('');
+	startBoardPassword = $state('');
 
 	/**
 	 * Чи налаштована стала пара.
@@ -70,6 +85,10 @@ class SettingsState {
 		// Невідоме значення — це або чужа версія, або зіпсуте сховище: меню
 		// безпечне в обох випадках.
 		this.startPage = isStartPage(stored.startPage) ? stored.startPage : 'menu';
+		this.startBoard = isStartBoard(stored.startBoard) ? stored.startBoard : 'last';
+		this.startBoardId = typeof stored.startBoardId === 'string' ? stored.startBoardId : '';
+		this.startBoardPassword =
+			typeof stored.startBoardPassword === 'string' ? stored.startBoardPassword : '';
 	}
 
 	/**
@@ -83,11 +102,17 @@ class SettingsState {
 		if (patch.fixedBoardId !== undefined) this.fixedBoardId = patch.fixedBoardId;
 		if (patch.fixedPassword !== undefined) this.fixedPassword = patch.fixedPassword;
 		if (patch.startPage !== undefined) this.startPage = patch.startPage;
+		if (patch.startBoard !== undefined) this.startBoard = patch.startBoard;
+		if (patch.startBoardId !== undefined) this.startBoardId = patch.startBoardId;
+		if (patch.startBoardPassword !== undefined) this.startBoardPassword = patch.startBoardPassword;
 
 		writeJson(STORAGE_KEY, {
 			fixedBoardId: this.fixedBoardId,
 			fixedPassword: this.fixedPassword,
-			startPage: this.startPage
+			startPage: this.startPage,
+			startBoard: this.startBoard,
+			startBoardId: this.startBoardId,
+			startBoardPassword: this.startBoardPassword
 		} satisfies StoredSettings);
 	}
 
