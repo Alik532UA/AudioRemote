@@ -72,13 +72,12 @@ jobs:
     # форку, де секрету немає зовсім.
     env:
       SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-      # З ТОГО САМОГО секрету, який читає збірка, а не з окремого. Окремий
-      # вимагав би заводити друге джерело для одного факту — і тоді запасне
-      # значення нижче мовчки відправляло б правила в чужий або неіснуючий
-      # проєкт. У сусідніх `Slovko` і `MindStep` цей самий недогляд щойно
-      # знайшовся звіркою з `gh secret list`.
-      FIREBASE_PROJECT: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-      FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
+      # З ТОГО САМОГО джерела, що й збірка, а не з окремого. Окреме вимагало б
+      # другого джерела для одного факту — і тоді запасне значення мовчки
+      # відправляло б правила в чужий або неіснуючий проєкт. У сусідніх
+      # `Slovko` і `MindStep` цей самий недогляд щойно знайшовся звіркою.
+      FIREBASE_PROJECT: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+      FIREBASE_DATABASE_URL: ${{ vars.VITE_FIREBASE_DATABASE_URL }}
     steps:
       - uses: actions/checkout@v5
 
@@ -91,6 +90,11 @@ jobs:
         run: |
           echo "::warning title=Правила не викладені::Немає секрету FIREBASE_SERVICE_ACCOUNT, тож правила в базі лишилися старі. Вставте свіжий database.rules.json у Firebase Console руками, інакше база відкине бібліотеку з новими полями."
 
+      - name: Ідентифікатора проєкту немає
+        if: ${{ env.FIREBASE_PROJECT == '' }}
+        run: |
+          echo "::warning title=Правила не викладені::Немає змінної VITE_FIREBASE_PROJECT_ID. Без неї невідомо, у який проєкт викладати."
+
       # КЛЮЧ СЕРВІСНОГО АКАУНТА ЖИВЕ РІВНО ОДИН КРОК.
       #
       # Прибирає його `trap … EXIT`, а не `rm` наприкінці, і різниця тут не
@@ -101,11 +105,6 @@ jobs:
       #
       # `umask 077` перед записом: типові права на файл у раннері дають читання
       # всім, а в кроках нижче може виконуватися будь-що.
-      - name: Ідентифікатора проєкту немає
-        if: ${{ env.FIREBASE_PROJECT == '' }}
-        run: |
-          echo "::warning title=Правила не викладені::Немає секрету VITE_FIREBASE_PROJECT_ID. Без нього невідомо, у який проєкт викладати."
-
       - name: Викласти правила
         if: ${{ env.SERVICE_ACCOUNT != '' && env.FIREBASE_PROJECT != '' }}
         run: |
@@ -146,6 +145,14 @@ jobs:
           cache: npm
 
       - run: npm ci
+
+      # Емулятор бази — java-процес, і браузерний набір піднімає його сам
+      # (`playwright.config.ts`). Без цього кроку описи ролей падають із
+      # «java not found», і виглядає це як зламаний застосунок.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
 
       - name: Типи
         run: npm run check
@@ -192,21 +199,29 @@ jobs:
       # а не пошуку константи по коду.
       #
       # Значення Firebase публічні за побудовою — вони лежать у бандлі, і
-      # приховати їх неможливо. У секретах вони не заради таємниці, а щоб
-      # форк не бив у чужу базу.
+      # приховати їх неможливо. Тому ЗМІННІ, а не секрети
+      # (SECURITY-v9 § 4.2, `SEC-PUBLIC-AS-VARIABLE`).
+      #
+      # Доти тут стояли секрети з поясненням «не заради таємниці, а щоб форк не
+      # бив у чужу базу». Мета правильна, засіб — ні: форк не дістає ні
+      # секретів, ні змінних, тож і те, і те її виконує однаково. А ціну
+      # секрети мають: провайдер маскує їхнє значення скрізь, і в журналі
+      # прогону стоїть `***` замість того, що поїхало. У сусідньому `Slovko`
+      # саме через це сім місяців не було видно, що правила викладаються не
+      # туди.
       - name: Збірка
         id: build
         if: ${{ !cancelled() }}
         run: npm run build
         env:
           BASE_PATH: /AudioRemote
-          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
           # АДРЕСА RTDB — без неї онлайн ламається МОВЧКИ: SDK виводить адресу з
           # `projectId` і йде на американську `*.firebaseio.com`, якої в цього
           # проєкту немає, а CSP дозволяє лише `*.firebasedatabase.app`.
-          VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
+          VITE_FIREBASE_DATABASE_URL: ${{ vars.VITE_FIREBASE_DATABASE_URL }}
 
       # Єдиний гейт, який бачить дефекти, невидимі в `src/`: базовий шлях у
       # посиланнях, CSP у `<meta>` замість заголовка, маніфест PWA і те, що
@@ -223,10 +238,16 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npm run check:bundle
 
-      # БРАУЗЕР — ЄДИНЕ, ЩО БАЧИТЬ ТРИ РЕЧІ: чи пустила політика безпеки свій
-      # же інлайн-скрипт теми, чи `light-dark()` справді перемальовує сторінку
-      # й чи віддає хостинг `404.html` саме з кодом 404. Усе це ламається без
-      # жодної помилки на екрані.
+      # БРАУЗЕР — ДВІ ЧАСТИНИ, І ВОНИ ПРО РІЗНЕ.
+      #
+      # Над АРТЕФАКТОМ (`shell.spec.ts`): чи пустила політика безпеки свій же
+      # інлайн-скрипт теми, чи `light-dark()` перемальовує сторінку, чи віддає
+      # хостинг `404.html` саме з кодом 404. Усе це ламається без жодної
+      # помилки на екрані.
+      #
+      # Над ПОВЕДІНКОЮ ДВОХ РОЛЕЙ (`board.spec.ts`): присутність, команди й
+      # пароль у адресі дошки — домовленість МІЖ пристроями, якої всередині
+      # одного процесу не існує. Піднімає емулятор бази й dev-сервер сам.
       #
       # Ставиться ЛИШЕ chromium: приймач працює тільки в Chrome або Edge
       # (File System Access API), тож firefox і webkit тут перевіряли б те,

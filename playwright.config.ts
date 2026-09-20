@@ -40,6 +40,22 @@ import { defineConfig, devices } from '@playwright/test';
 const PORT = Number(process.env.PREVIEW_PORT ?? 4173);
 const BASE = (process.env.BASE_PATH ?? '/AudioRemote').replace(/\/$/, '');
 
+/**
+ * Другий сервер — DEV, і саме він говорить із емулятором бази.
+ *
+ * Конфіг Firebase запікається у збірку, тож набір з базою потребував би ВЛАСНОЇ
+ * збірки — а в CI, де змінні вказують на бойову базу, переплутати дві теки
+ * означало б писати пробними дошками у справжню базу школи. Dev-сервер бере
+ * конфіг із `.env.development`, де прописано емулятор і нічого іншого бути не
+ * може: помилитися нема чим.
+ *
+ * Базовий шлях у нього той самий, що в проді, — на одну розбіжність менше, і
+ * заразом не доводиться передавати порожню змінну оточення, яку Windows
+ * перетворює на відсутню.
+ */
+const DEV_PORT = Number(process.env.E2E_DEV_PORT ?? 5174);
+const DB_PORT = Number(process.env.E2E_DB_PORT ?? 9020);
+
 export default defineConfig({
 	testDir: 'tests/e2e',
 	/*
@@ -69,21 +85,87 @@ export default defineConfig({
 	projects: [
 		{ name: 'identity', testMatch: /identity\.setup\.ts$/ },
 		{
+			/*
+			 * НАД АРТЕФАКТОМ: політика безпеки, базовий шлях, 404 — усе, що
+			 * залежить від того, ЩО САМЕ поїде на хостинг.
+			 */
 			name: 'chromium',
 			use: devices['Desktop Chrome'],
+			testIgnore: /board\.spec\.ts$/,
 			dependencies: ['identity']
+		},
+		{ name: 'emulator', testMatch: /board\.setup\.ts$/ },
+		{
+			/*
+			 * НАД ПОВЕДІНКОЮ ДВОХ РОЛЕЙ: присутність, команди, квитанції, пароль
+			 * у адресі дошки. Це домовленість між пристроями, і всередині одного
+			 * процесу її не перевірити взагалі.
+			 */
+			name: 'board',
+			use: {
+				...devices['Desktop Chrome'],
+				baseURL: `http://localhost:${DEV_PORT}${BASE}/`,
+				/*
+				 * Мова закріплена: типово Playwright дає `en-US`, і описи, писані
+				 * українською, шукали б текст, якого на екрані немає. `uk-UA` —
+				 * не підгонка, а основна мова інструменту: англійська тут запасна.
+				 */
+				locale: 'uk-UA'
+			},
+			testMatch: /board\.spec\.ts$/,
+			dependencies: ['emulator'],
+			/*
+			 * ПОСЛІДОВНО Й З ДОВШОЮ МЕЖЕЮ, на відміну від решти набору.
+			 *
+			 * Кожен опис тут піднімає ДВА контексти браузера, і кожен з них
+			 * компілюється dev-сервером на льоту та відкриває власний сокет до
+			 * бази. Чотири такі пари одночасно впираються не в застосунок, а в
+			 * перший компіл Vite — тобто червоне означало б «машина зайнята», а
+			 * не «щось зламано». Плаваючий гейт гірший за відсутній.
+			 */
+			fullyParallel: false,
+			timeout: 90_000
 		}
 	],
 
-	webServer: {
-		command: `node scripts/serve-build.mjs ${PORT}`,
-		url: `http://localhost:${PORT}${BASE}/`,
-		/*
-		 * `reuseExistingServer` вимкнено й у CI, і локально. Чужий процес на
-		 * тому самому порті — це рівно той випадок, який `identity` і ловить,
-		 * але дешевше не пускати його взагалі, ніж ловити наслідки.
-		 */
-		reuseExistingServer: false,
-		timeout: 30_000
-	}
+	webServer: [
+		{
+			command: `node scripts/serve-build.mjs ${PORT}`,
+			url: `http://localhost:${PORT}${BASE}/`,
+			/*
+			 * `reuseExistingServer` вимкнено й у CI, і локально. Чужий процес на
+			 * тому самому порті — це рівно той випадок, який `identity` і ловить,
+			 * але дешевше не пускати його взагалі, ніж ловити наслідки.
+			 */
+			reuseExistingServer: false,
+			timeout: 30_000
+		},
+		{
+			/*
+			 * ЕМУЛЯТОР ПЕРЕВИКОРИСТОВУЄТЬСЯ ЛОКАЛЬНО — і це протилежне рішення
+			 * до сервера вище, бо питання інше. Там чужий процес підмінює те, що
+			 * перевіряють; тут він і Є те, що потрібно, а піднімати другий однаково
+			 * нікуди: порт один. У розробника емулятор часто вже висить із
+			 * `npm run emulators`, і вимагати його зупинити означало б вимагати
+			 * зупиняти роботу заради проби.
+			 *
+			 * У CI — завжди свій: там висіти нічому.
+			 *
+			 * Чи ТОЙ це емулятор, питає `board.setup.ts`: чужий, піднятий лише з
+			 * `--only database`, виглядає як робочий, поки не дійде до входу.
+			 */
+			command:
+				'node scripts/firebase-cli.mjs emulators:start --project demo-audioremote --only database,auth',
+			port: DB_PORT,
+			reuseExistingServer: !process.env.CI,
+			timeout: 180_000
+		},
+		{
+			command: `npx vite dev --port ${DEV_PORT} --strictPort`,
+			port: DEV_PORT,
+			env: { BASE_PATH: BASE },
+			reuseExistingServer: !process.env.CI,
+			timeout: 120_000
+		}
+	]
 });
