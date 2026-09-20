@@ -23,6 +23,7 @@
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
+	import { createLatch, SEEK_HOLD_MS, SEEK_TOLERANCE_MS, VOLUME_HOLD_MS } from '$lib/remote/latch';
 
 	let controller = $state<RemoteController | null>(null);
 	// Те саме число, що й типова гучність приймача: доки той не оголосив свою,
@@ -79,13 +80,42 @@
 	});
 
 	/*
-	 * Гучність приїжджає з приймача, але НЕ поки палець на повзунку: інакше
-	 * кожне оголошення стану смикало б повзунок назад під пальцем.
+	 * ДВІ ЗАСУВКИ — і без них повзунки стрибали туди-сюди після кожного руху.
+	 *
+	 * Захисту «не чіпати, поки палець на повзунку» замало: він знімається на
+	 * відпусканні, тобто ДО того, як команда дійде до приймача й той оголосить
+	 * новий стан. У цю щілину прилітає старе значення. Пояснення й межі часу —
+	 * у `latch.ts`, там же на це тести.
 	 */
+	const volumeLatch = createLatch<number>((mine, incoming) => mine === incoming, VOLUME_HOLD_MS);
+	const seekLatch = createLatch<number>(
+		(mine, incoming) => Math.abs(mine - incoming) <= SEEK_TOLERANCE_MS,
+		SEEK_HOLD_MS
+	);
+
+	/** Позиція, яку показувати: своя після перемотки, інакше з приймача. */
+	let shownPosition = $state(0);
+
 	$effect(() => {
 		const fromPlayer = controller?.state?.volume;
-		if (fromPlayer !== undefined && !draggingVolume) volume = Math.round(fromPlayer * 100);
+		if (fromPlayer === undefined || draggingVolume) return;
+		volume = volumeLatch.show(Math.round(fromPlayer * 100), Date.now());
 	});
+
+	$effect(() => {
+		const live = controller?.positionMs ?? 0;
+		if (seeking) return;
+		shownPosition = seekLatch.show(live, Date.now());
+	});
+
+	/** Наказати нову позицію: засувка тримає її до підтвердження приймачем. */
+	function commitSeek(value: number) {
+		seeking = false;
+		seekValue = value;
+		shownPosition = value;
+		seekLatch.set(value, Date.now());
+		void controller?.seek(value);
+	}
 
 	/**
 	 * Чи розгорнуте керування на телефоні. `null` — «як само вийде».
@@ -214,7 +244,7 @@
 							-->
 							<div class="bar">
 								<span class="bar__time mono">
-									{clock(seeking ? seekValue : controller.positionMs)}
+									{clock(seeking ? seekValue : shownPosition)}
 								</span>
 								<!--
 									Перемотка комітиться на `pointerup`, і значення береться з САМОГО
@@ -235,23 +265,17 @@
 									max={Math.max(1000, controller.durationMs)}
 									step="250"
 									disabled={!controller.state?.trackId || controller.durationMs === 0}
-									value={seeking ? seekValue : controller.positionMs}
+									value={seeking ? seekValue : shownPosition}
 									data-testid="remote-seek"
 									onpointerdown={(event) => {
 										seeking = true;
 										seekValue = Number(event.currentTarget.value);
 									}}
 									oninput={(event) => (seekValue = Number(event.currentTarget.value))}
-									onpointerup={(event) => {
-										seeking = false;
-										void controller?.seek(Number(event.currentTarget.value));
-									}}
+									onpointerup={(event) => commitSeek(Number(event.currentTarget.value))}
 									onpointercancel={() => (seeking = false)}
 									onkeydown={() => (seeking = true)}
-									onkeyup={(event) => {
-										seeking = false;
-										void controller?.seek(Number(event.currentTarget.value));
-									}}
+									onkeyup={(event) => commitSeek(Number(event.currentTarget.value))}
 								/>
 								<span class="bar__time mono">{clock(controller.durationMs)}</span>
 							</div>
@@ -351,7 +375,13 @@
 								bind:value={volume}
 								data-testid="cmd-volume"
 								onpointerdown={() => (draggingVolume = true)}
-								onpointerup={() => (draggingVolume = false)}
+								onpointerup={() => {
+									draggingVolume = false;
+									// Засувка ставиться саме тут, а не в `oninput`: доки палець
+									// тягне, показується своє й так, а підтверджувати треба
+									// останнє значення, а не кожне проміжне.
+									volumeLatch.set(volume, Date.now());
+								}}
 								oninput={() => controller?.setVolume(volume)}
 							/>
 							<output class="volume__value mono">{volume}</output>
