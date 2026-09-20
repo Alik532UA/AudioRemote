@@ -93,6 +93,14 @@
 	/** Зараз поза розкладом — це стан, а не помилка, і сказати про нього варто. */
 	const asleep = $derived(scheduleOn && !withinSchedule(draft.schedule));
 
+	/** Час першого дня — на всі інші. Вимкнені дні лишаються вимкненими. */
+	function sameEveryDay() {
+		const week = draft.schedule;
+		const first = week?.[0];
+		if (!week || !first) return;
+		draft.schedule = week.map((day) => ({ ...day, from: first.from, to: first.to }));
+	}
+
 	function toggleSchedule(next: boolean) {
 		scheduleOn = next;
 		draft.schedule = next ? (draft.schedule ?? defaultSchedule()) : null;
@@ -231,16 +239,23 @@
 			{#if scheduleOn && draft.schedule}
 				<ul class="week">
 					{#each draft.schedule as day, index (index)}
-						<li class="week__row">
-							<label class="week__day">
-								<input
-									type="checkbox"
-									checked={day.on}
-									onchange={(event) => (day.on = event.currentTarget.checked)}
-									data-testid="week-on-{index}"
-								/>
+						<li class="week__row" class:week__row--off={!day.on}>
+							<!--
+								День — сама кнопка, а не прапорець поруч із написом. Прапорець
+								браузера тут виглядав чужим і забирав ширину, якої в колонці
+								немає; до того ж «Пн» і галочка біля нього — це одна річ, а не
+								дві.
+							-->
+							<button
+								class="week__day"
+								type="button"
+								role="switch"
+								aria-checked={day.on}
+								onclick={() => (day.on = !day.on)}
+								data-testid="week-on-{index}"
+							>
 								{t(DAYS[index])}
-							</label>
+							</button>
 							<input
 								class="input week__time"
 								type="time"
@@ -249,7 +264,7 @@
 								oninput={(event) => (day.from = event.currentTarget.value)}
 								data-testid="week-from-{index}"
 							/>
-							<span class="muted">–</span>
+							<span class="week__dash">–</span>
 							<input
 								class="input week__time"
 								type="time"
@@ -261,6 +276,16 @@
 						</li>
 					{/each}
 				</ul>
+
+				<!--
+					Сім однакових рядків набирають руками рівно один раз, і після цього
+					цю кнопку шукають. Копіює перший рядок у решту — вимкнені дні
+					лишаються вимкненими, бо це окреме рішення.
+				-->
+				<button class="week__same" type="button" onclick={sameEveryDay} data-testid="week-same">
+					{t('trigger.scheduleSame')}
+				</button>
+
 				<p class="muted">{t('trigger.scheduleHint')}</p>
 				{#if asleep}
 					<p class="note note--warn" data-testid="schedule-asleep">
@@ -375,7 +400,14 @@
 		display: contents;
 	}
 
-	/* Низ іде під усіма колонками, скільки б їх не було. */
+	/*
+	 * Низ іде під колонками ТРИГЕРА, а не під усіма.
+	 *
+	 * Стан опитування й кнопка «Прибрати запуск за API» до колонки «Трек»
+	 * стосунку не мають: там підпис, клавіша й колір. Розтягнутий на всю ширину
+	 * рядок читався як підсумок усього вікна — тобто обіцяв, що «прочитано…»
+	 * якось стосується й назви треку.
+	 */
 	.foot {
 		display: flex;
 		flex-wrap: wrap;
@@ -383,6 +415,13 @@
 		justify-content: space-between;
 		gap: var(--gap);
 		grid-column: 1 / -1;
+	}
+
+	/* Та сама межа, що в сітки вікна: доки колонка одна, низ під нею ж. */
+	@media (min-width: 980px) {
+		.foot {
+			grid-column: 2 / -1;
+		}
 	}
 
 	.foot__text {
@@ -414,21 +453,64 @@
 		gap: var(--gap-xs);
 	}
 
+	/* Вимкнений день лишається на місці, але не тягне на себе увагу. */
+	.week__row--off {
+		opacity: 0.55;
+	}
+
 	.week__day {
-		display: flex;
 		flex: none;
-		align-items: center;
-		gap: var(--gap-xs);
-		width: 4.2rem;
-		font-size: 0.85rem;
+		width: 2.6rem;
+		min-height: 32px;
+		padding: 0;
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--bg-surface-raised);
+		color: var(--text-secondary);
 		cursor: pointer;
+		font: inherit;
+		font-size: 0.8rem;
+		font-weight: 600;
+	}
+
+	.week__day[aria-checked='true'] {
+		border-color: var(--accent);
+		background: var(--accent-soft);
+		color: var(--accent);
+	}
+
+	.week__dash {
+		flex: none;
+		color: var(--text-muted);
 	}
 
 	.week__time {
 		flex: 1 1 0;
 		min-width: 0;
+		min-height: 32px;
 		padding-inline: var(--gap-xs);
 		font-size: 0.85rem;
+	}
+
+	/*
+	 * Годинник із поля часу прибраний: у колонці завширшки з долоню він з'їдав
+	 * місце, потрібне самим цифрам, а набирають їх однаково з клавіатури.
+	 */
+	.week__time::-webkit-calendar-picker-indicator {
+		display: none;
+	}
+
+	.week__same {
+		align-self: start;
+		padding: 0;
+		border: 0;
+		background: none;
+		color: var(--accent);
+		cursor: pointer;
+		font: inherit;
+		font-size: 0.8rem;
+		text-decoration: underline dotted;
+		text-underline-offset: 3px;
 	}
 
 	.area {

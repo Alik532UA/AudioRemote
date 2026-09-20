@@ -229,6 +229,7 @@ export const uk = {
 	'trigger.scheduleHint':
 		'Поза розкладом трек не запуститься, і адресу навіть не опитуватимуть. Час — за годинником цього комп’ютера.',
 	'trigger.scheduleNow': 'Зараз поза розкладом.',
+	'trigger.scheduleSame': 'Такий самий час на всі дні',
 	'week.mon': 'Пн',
 	'week.tue': 'Вт',
 	'week.wed': 'Ср',

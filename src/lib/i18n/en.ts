@@ -226,6 +226,7 @@ export const en: Record<TranslationKey, string> = {
 	'trigger.scheduleHint':
 		'Outside the schedule the track will not start, and the address is not polled at all. Times follow this computer’s clock.',
 	'trigger.scheduleNow': 'Outside the schedule right now.',
+	'trigger.scheduleSame': 'Same hours every day',
 	'week.mon': 'Mon',
 	'week.tue': 'Tue',
 	'week.wed': 'Wed',
