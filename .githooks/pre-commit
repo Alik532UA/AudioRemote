@@ -14,6 +14,16 @@
 # версія однаково формується при деплої.
 set -e
 
+# ПОРОЖНІЙ КОМІТ ВЕРСІЮ НЕ ПІДНІМАЄ.
+#
+# git перевіряє «чи є що комітити» ДО хука, а хук потім однаково бампав номер і
+# додавав файли — тобто після відхиленого коміту в дереві лишалася піднята
+# версія, якої немає в жодному коміті. Наступний коміт підхоплював її мовчки, і
+# номер стрибав через один.
+if git diff --cached --quiet; then
+	exit 0
+fi
+
 staged=$(git show :package.json 2>/dev/null | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).version' 2>/dev/null || echo '')
 head=$(git show HEAD:package.json 2>/dev/null | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).version' 2>/dev/null || echo '')
 
