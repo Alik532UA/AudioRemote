@@ -18,6 +18,8 @@
 	 * поламану сторінку.
 	 */
 	let notice = $state<StartNotice | null>(null);
+	/** Ключ дошки, яку не вдалося знести. Порожньо — помилки немає. */
+	let deleteError = $state<string | null>(null);
 
 	onMount(() => {
 		saved = listBoards();
@@ -30,7 +32,60 @@
 		goto(board.role === 'player' ? resolve('/player') : resolve('/remote'));
 	}
 
-	function forget(board: SavedBoard) {
+	/**
+	 * ДВІ РІЗНІ ДІЇ ЗА ОДНІЄЮ КНОПКОЮ, і різниця тут не в тоні.
+	 *
+	 * «Прибрати зі списку» прибирає лише місцевий запис. Доти це була ЄДИНА
+	 * дія, і назва кнопки чесно про це казала — а наслідок був такий, що жодна
+	 * створена дошка не видалялася з бази НІКОЛИ. Прибрати її було нічим:
+	 * `boards` не перелічується за побудовою (саме на цьому тримається
+	 * пароль), тож покинуту дошку не знайде ні людина в консолі, ні скрипт.
+	 * Адресу знає лише той, хто зберіг пароль, — і лише доки зберіг.
+	 *
+	 * Тому для СВОЇХ дощок кнопка тепер зносить дошку з бази. «Своя» — це та,
+	 * для якої збережений пароль, тобто створена в цьому браузері; правило
+	 * бази перевіряє те саме через `ownerUid`, і чужу дошку воно не віддасть.
+	 *
+	 * Для підключених (пульт) дія лишилася колишньою: там немає ні пароля, ні
+	 * права, та й видаляти чужу дошку пульт не мусить.
+	 */
+	const isMine = (board: SavedBoard) => Boolean(board.password);
+
+	async function remove(board: SavedBoard) {
+		if (!isMine(board)) {
+			forgetBoard(board.key);
+			saved = listBoards();
+			return;
+		}
+
+		if (!confirm(t('entry.deleteConfirm', { name: board.name || board.id }))) return;
+
+		try {
+			/*
+			 * Спершу адмінський канал, потім дошка. Порядок важить: канал
+			 * живе в окремій гілці й із видаленням дошки НЕ зникає, а знайти
+			 * його потім буде нічим — адміністраторський пароль лежав у тому
+			 * самому місцевому записі, який ми зараз зітремо.
+			 */
+			if (board.adminPassword) {
+				const { deriveAdminKey } = await import('$lib/board/boardPath');
+				const { closeChannel } = await import('$lib/net/admin');
+				await closeChannel(await deriveAdminKey(board.id, board.adminPassword));
+			}
+
+			const { deleteBoard } = await import('$lib/net/board');
+			await deleteBoard(board.key);
+		} catch {
+			/*
+			 * Відмова НЕ мовчазна. Мовчазна читалася б як «видалив», а дошка
+			 * лишалася б жити — причому знайти її після зникнення місцевого
+			 * запису було б уже нічим.
+			 */
+			deleteError = board.key;
+			return;
+		}
+
+		deleteError = null;
 		forgetBoard(board.key);
 		saved = listBoards();
 	}
@@ -92,13 +147,19 @@
 						<button
 							class="mine__forget"
 							type="button"
-							title={t('entry.forget')}
-							aria-label={t('entry.forget')}
-							onclick={() => forget(board)}
+							title={isMine(board) ? t('entry.delete') : t('entry.forget')}
+							aria-label={isMine(board) ? t('entry.delete') : t('entry.forget')}
+							onclick={() => remove(board)}
 						>
 							<IconTrash size={18} aria-hidden="true" />
 						</button>
 					</li>
+					{#if deleteError === board.key}
+						<li class="note note--warn" role="alert" data-testid="board-delete-error">
+							<IconWarning size={18} aria-hidden="true" />
+							<span>{t('entry.deleteFailed')}</span>
+						</li>
+					{/if}
 				{/each}
 			</ul>
 		</section>

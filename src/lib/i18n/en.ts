@@ -39,6 +39,11 @@ export const en: Record<TranslationKey, string> = {
 	'entry.connectHint': 'To control someone else’s board',
 	'entry.mine': 'My boards',
 	'entry.forget': 'Remove from list',
+	'entry.delete': 'Delete board',
+	'entry.deleteConfirm':
+		'Delete board “{name}”? It disappears from the database: nothing will be left at its address, and the library will have to be published again. The sound files themselves stay where they are.',
+	'entry.deleteFailed':
+		'Could not delete the board. Only the browser that created it can remove it.',
 
 	'settings.title': 'Settings',
 	'settings.boardMenu': 'Board menu',
