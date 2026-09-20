@@ -8,6 +8,7 @@
 		IconMute,
 		IconNext,
 		IconPause,
+		IconEyeOff,
 		IconPhone,
 		IconPlay,
 		IconPrev,
@@ -26,6 +27,7 @@
 	import { colorOf } from '$lib/config/trackColors';
 	import { titleLines } from '$lib/audio/source';
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
+	import HiddenDialog from '$lib/components/player/HiddenDialog.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import ArmDialog from '$lib/components/player/ArmDialog.svelte';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
@@ -37,6 +39,7 @@
 	let fatal = $state<string | null>(null);
 	/** Для якого треку відкрите вікно налаштувань. `null` — для жодного. */
 	let openFor = $state<string | null>(null);
+	let hiddenOpen = $state(false);
 	/** Чи відкрите вікно «як підключити пульт». */
 	let remoteOpen = $state(false);
 	/** Вікно «увімкнути звук» закрили, не вмикаючи. Більше не питаємо. */
@@ -467,7 +470,21 @@
 											controller.entries.length
 										)}
 										{#if controller.hiddenCount > 0}
-											· {t('player.hiddenCount', { count: controller.hiddenCount })}
+											·
+											<!--
+												Лічильник І Є входом. Трек, прихований від усіх, зникає
+												зі списку повністю, тож іншого шляху повернути його не
+												існує — а стан, з якого немає виходу, це не стан.
+											-->
+											<button
+												class="folder__hidden"
+												type="button"
+												title={t('player.hiddenOpen')}
+												onclick={() => (hiddenOpen = true)}
+												data-testid="open-hidden"
+											>
+												{t('player.hiddenCount', { count: controller.hiddenCount })}
+											</button>
 										{/if}
 									{/if}
 								</span>
@@ -507,15 +524,11 @@
 						шапці картки вище, і повторювати це окремим рядком означало б
 						відсунути список від його ж заголовка.
 					-->
-					{#if controller.entries.length > 0}
+					{#if controller.visible.length > 0}
 						<ul class="tracks">
-							{#each controller.entries as entry, index (entry.id)}
+							{#each controller.visible as entry, index (entry.id)}
 								{@const hex = colorOf(entry.color)}
-								<li
-									class="tracks__row"
-									class:tracks__row--hidden={entry.hidden}
-									style={hex ? `--track-color: ${hex}` : undefined}
-								>
+								<li class="tracks__row" style={hex ? `--track-color: ${hex}` : undefined}>
 									<!--
 										Стан треку показує ВЕСЬ РЯДОК, а не підпис усередині нього. Обвідка
 										навколо самих літер виглядала як поле вводу, у яке потрапив курсор, а
@@ -545,7 +558,6 @@
 										<button
 											class="tracks__title"
 											type="button"
-											disabled={entry.hidden}
 											title={t('player.playHere')}
 											onclick={() => controller?.toggleLocal(entry.id)}
 											data-testid="play-here-{entry.id}"
@@ -558,6 +570,22 @@
 												{entry.title}
 											{/if}
 										</button>
+
+										{#if entry.visibility === 'player'}
+											<!--
+												Значок відповідає на «чому цього треку немає на телефоні».
+												Без нього різниця між двома списками виглядала б як збій
+												зв'язку, а не як рішення людини.
+											-->
+											<span
+												class="tracks__zap"
+												title={t('visibility.playerMark')}
+												aria-label={t('visibility.playerMark')}
+												data-testid="player-only-{entry.id}"
+											>
+												<IconEyeOff size={14} aria-hidden="true" />
+											</span>
+										{/if}
 
 										{#if settings.showTrigger && entry.trigger?.on}
 											<!--
@@ -589,7 +617,7 @@
 											<button
 												class="icon-btn"
 												type="button"
-												disabled={index === controller.entries.length - 1}
+												disabled={index === controller.visible.length - 1}
 												title={t('player.moveDown')}
 												aria-label={t('player.moveDown')}
 												onclick={() => controller?.move(entry.id, 1)}
@@ -618,6 +646,10 @@
 				</section>
 			</div>
 		</div>
+		{#if hiddenOpen && controller}
+			<HiddenDialog {controller} onclose={() => (hiddenOpen = false)} />
+		{/if}
+
 		{#if !engine.armed && !armDismissed}
 			<ArmDialog
 				onarm={() => controller?.arm() ?? Promise.resolve(false)}
@@ -838,9 +870,29 @@
 		background: var(--bg-sunken);
 	}
 
-	.tracks__row--hidden .tracks__title {
-		color: var(--text-secondary);
-		text-decoration: line-through;
+	/*
+	 * Лічильник прихованих — кнопка, яка не виглядає кнопкою.
+	 *
+	 * Вона стоїть усередині рядка з назвою папки й кількістю треків, тобто
+	 * серед тексту. Рамка й тло зробили б із неї дію, рівноцінну «перечитати» й
+	 * «змінити папку», хоч це радше виноска: більшість дощок прихованих не має
+	 * взагалі. Тому підкреслення — і повний вигляд кнопки на наведенні.
+	 */
+	.folder__hidden {
+		padding: 0;
+		border: 0;
+		background: none;
+		color: inherit;
+		cursor: pointer;
+		font: inherit;
+		text-decoration: underline dotted;
+		text-underline-offset: 3px;
+	}
+
+	.folder__hidden:hover,
+	.folder__hidden:focus-visible {
+		color: var(--text-primary);
+		text-decoration-style: solid;
 	}
 
 	/* Клавіша — у вигляді клавіші, щоб не читалася як порядковий номер. */

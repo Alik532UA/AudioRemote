@@ -3,7 +3,7 @@ import { AudioEngine, EngineError } from '$lib/audio/engine.svelte';
 import { LocalFolderSource } from '$lib/audio/localSource';
 import { runningInTauri, TauriFolderSource } from '$lib/audio/tauriSource';
 import type { AudioSource, SourceStatus } from '$lib/audio/source';
-import { emptyConfig, type BoardConfig } from '$lib/audio/boardConfig';
+import { emptyConfig, type BoardConfig, type TrackVisibility } from '$lib/audio/boardConfig';
 import type { ActiveBoard } from '$lib/board/session.svelte';
 import { ensureBoard, publishLibrary, publishState } from '$lib/net/board';
 import type { BoardInfo, Command, Track } from '$lib/net/boardTypes';
@@ -31,7 +31,8 @@ export interface BoardTrack {
 	color: string | null;
 	/** Код гарячої клавіші (`KeyQ`, `F5`), або `null`. */
 	hotkey: string | null;
-	hidden: boolean;
+	/** Кого трек стосується. Див. `TrackVisibility`. */
+	visibility: TrackVisibility;
 	/** Запуск за зовнішнім API. `null` — трек запускають руками. */
 	trigger: TrackTrigger | null;
 }
@@ -117,8 +118,26 @@ export class PlayerController {
 		return this.source.supported;
 	}
 
-	/** Показані треки в порядку дошки — те, що бачить пульт і клавіші. */
-	readonly visible: BoardTrack[] = $derived(this.entries.filter((entry) => !entry.hidden));
+	/**
+	 * Список ПРИЙМАЧА: усе, крім прихованого зовсім.
+	 *
+	 * Сюди входять і треки «лише приймач»: вони мусять лишатися під своєю
+	 * клавішею й у своєму рядку — ховають їх від пульта, а не від того, хто
+	 * стоїть за комп'ютером.
+	 */
+	readonly visible: BoardTrack[] = $derived(
+		this.entries.filter((entry) => entry.visibility !== 'none')
+	);
+
+	/** Список ПУЛЬТА: лише те, що видно всім. */
+	readonly forRemote: BoardTrack[] = $derived(
+		this.entries.filter((entry) => entry.visibility === 'all')
+	);
+
+	/** Приховані зовсім — їх видно лише в окремому розділі налаштувань дошки. */
+	readonly hiddenTracks: BoardTrack[] = $derived(
+		this.entries.filter((entry) => entry.visibility === 'none')
+	);
 
 	/**
 	 * Яка клавіша ДІЄ для кожного показаного треку — разом із запасними цифрами.
@@ -129,8 +148,13 @@ export class PlayerController {
 	 */
 	readonly keyLabels: Record<string, string> = $derived(keyLabelsFor(this.visible));
 
-	/** Скільки треків приховано — для підпису над списком. */
-	readonly hiddenCount: number = $derived(this.entries.filter((entry) => entry.hidden).length);
+	/** Скільки треків приховано зовсім — для підпису над списком. */
+	readonly hiddenCount: number = $derived(this.hiddenTracks.length);
+
+	/** Скільки треків лишилося тільки приймачу. */
+	readonly playerOnlyCount: number = $derived(
+		this.entries.filter((entry) => entry.visibility === 'player').length
+	);
 
 	/** Записати прибирання — або виконати одразу, якщо вже пізно. */
 	private track(cleanup: () => void): void {
@@ -257,7 +281,7 @@ export class PlayerController {
 					title: setting?.title ?? track.title,
 					color: setting?.color ?? null,
 					hotkey: setting?.hotkey ?? null,
-					hidden: setting?.hidden === true,
+					visibility: setting?.visibility ?? 'all',
 					trigger: setting?.trigger ?? null
 				};
 			});
@@ -276,8 +300,8 @@ export class PlayerController {
 		this.update(trackId, (entry) => ({ ...entry, color: slug }));
 	}
 
-	toggleHidden(trackId: string): void {
-		this.update(trackId, (entry) => ({ ...entry, hidden: !entry.hidden }));
+	setVisibility(trackId: string, visibility: TrackVisibility): void {
+		this.update(trackId, (entry) => ({ ...entry, visibility }));
 	}
 
 	/**
@@ -311,11 +335,23 @@ export class PlayerController {
 		void this.persist();
 	}
 
-	/** Пересунути трек на одну позицію. `-1` — вище, `+1` — нижче. */
+	/**
+	 * Пересунути трек на одну позицію. `-1` — вище, `+1` — нижче.
+	 *
+	 * Сусід шукається серед ПОКАЗАНИХ, а не в повному переліку. Прихований
+	 * зовсім трек лишається в переліку (він зберігає свій порядок на випадок
+	 * повернення), і обмін місцями з ним виглядав би як кнопка, що не працює:
+	 * натиснули — на екрані нічого не змінилося.
+	 */
 	move(trackId: string, delta: number): void {
+		const shown = this.visible;
+		const at = shown.findIndex((entry) => entry.id === trackId);
+		const neighbour = shown[at + delta];
+		if (at < 0 || !neighbour) return;
+
 		const from = this.entries.findIndex((entry) => entry.id === trackId);
-		const to = from + delta;
-		if (from < 0 || to < 0 || to >= this.entries.length) return;
+		const to = this.entries.findIndex((entry) => entry.id === neighbour.id);
+		if (from < 0 || to < 0) return;
 
 		const next = [...this.entries];
 		[next[from], next[to]] = [next[to], next[from]];
@@ -360,7 +396,7 @@ export class PlayerController {
 				...(entry.title !== entry.fileName ? { title: entry.title } : {}),
 				...(entry.color ? { color: entry.color } : {}),
 				...(entry.hotkey ? { hotkey: entry.hotkey } : {}),
-				...(entry.hidden ? { hidden: true } : {}),
+				...(entry.visibility === 'all' ? {} : { visibility: entry.visibility }),
 				...(entry.trigger ? { trigger: entry.trigger } : {})
 			}))
 		};
@@ -372,18 +408,30 @@ export class PlayerController {
 	 *
 	 * Приховані сюди НЕ потрапляють узагалі — не «позначені прихованими», а
 	 * відсутні. Рішення «не показувати» має діяти й тоді, коли пульт відкрив
-	 * хтось інший, а не лише в нашому інтерфейсі.
+	 * хтось інший, а не лише в нашому інтерфейсі. Те саме стосується треків
+	 * «лише приймач»: їх немає в оголошенні, тож пульту нема чого показувати й
+	 * нема чого запускати.
+	 *
+	 * РАЗОМ ІЗ ТРЕКОМ ЇДЕ ЙОГО КЛАВІША — та, що діє, а не призначена.
+	 *
+	 * Доти пульт рахував цифри сам, за своїм списком, і це збігалося, бо
+	 * списки були однакові. Тепер не однакові: трек «лише приймач» займає
+	 * місце в списку приймача й не їде на пульт. Пульт, рахуючи сам, зсунув би
+	 * усі цифри після нього — і «трійка» на двох екранах знову вказувала б на
+	 * різні треки (та сама причина, з якої колись з'явився `order`).
 	 */
 	private async publish(): Promise<void> {
 		if (!this.owned || this.stopped) return;
 
 		const forCloud: Record<string, Track> = {};
-		this.visible.forEach((entry, index) => {
+		this.forRemote.forEach((entry, index) => {
+			const key = this.keyLabels[entry.id];
 			forCloud[entry.id] = {
 				title: entry.title,
 				path: entry.path,
 				durationMs: 0,
 				order: index,
+				...(key ? { key } : {}),
 				...(entry.hotkey ? { hotkey: entry.hotkey } : {}),
 				...(entry.color ? { color: entry.color } : {})
 			};
@@ -411,7 +459,8 @@ export class PlayerController {
 	 * браузер чекає для дозволу грати.
 	 */
 	async playLocal(trackId: string): Promise<void> {
-		if (this.entries.find((entry) => entry.id === trackId)?.hidden) return;
+		// Прихований зовсім не запускається нічим — навіть тригером.
+		if (this.entries.find((entry) => entry.id === trackId)?.visibility === 'none') return;
 
 		try {
 			if (!this.engine.armed && !(await this.engine.arm())) {
@@ -566,7 +615,14 @@ export class PlayerController {
 			switch (command.type) {
 				case 'play': {
 					const id = String(command.value ?? '');
-					if (this.entries.find((entry) => entry.id === id)?.hidden) return 'error.fileGone';
+					/*
+					 * Пульт не мусить могти запустити те, чого йому не оголошували. Він
+					 * цього й не показує — але команда приходить мережею, і перевіряти
+					 * її треба тут, а не покладатися на чужий інтерфейс.
+					 */
+					if (this.entries.find((entry) => entry.id === id)?.visibility !== 'all') {
+						return 'error.fileGone';
+					}
 					await this.engine.play(id);
 					break;
 				}

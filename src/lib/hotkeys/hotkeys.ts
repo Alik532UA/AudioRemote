@@ -245,3 +245,24 @@ export function builtinFor(event: KeyboardEvent): HotkeyAction | null {
 
 	return null;
 }
+
+/**
+ * ЯКИЙ ТРЕК ХОВАЄТЬСЯ ЗА ЦИФРОЮ, коли підписи порахував хтось інший.
+ *
+ * На приймачі цифра — це місце в списку, і шукати трек можна за індексом. На
+ * пульті так більше не можна: трек «лише приймач» займає свою цифру там і сюди
+ * не приїжджає, тож у списку пульта цифри йдуть із пропусками. Пошук за
+ * індексом дав би зсув — рівно ту помилку, через яку колись з'явився `order`,
+ * тільки тепер непомітну на око: цифра є, трек під нею інший.
+ *
+ * Пропущена цифра не робить нічого, і це правильно: пульт не мусить запускати
+ * те, чого йому не показали.
+ */
+export function trackForDigit(
+	tracks: readonly { id: string }[],
+	labels: Record<string, string>,
+	index: number
+): string | null {
+	const digit = String(index + 1);
+	return tracks.find((track) => labels[track.id] === digit)?.id ?? null;
+}

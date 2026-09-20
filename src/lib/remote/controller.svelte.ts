@@ -3,7 +3,13 @@ import { watchInfo, watchLibrary, watchState } from '$lib/net/board';
 import type { BoardInfo, CommandType, Library, PlayerState, Track } from '$lib/net/boardTypes';
 import { sendCommand, serverNow, waitForAck } from '$lib/net/commands';
 import { hasPlayer, trackPresence, watchPresence } from '$lib/net/presence';
-import { builtinFor, isHotkeyEvent, keyLabelsFor, type HotkeyAction } from '$lib/hotkeys/hotkeys';
+import {
+	builtinFor,
+	isHotkeyEvent,
+	keyLabelsFor,
+	trackForDigit,
+	type HotkeyAction
+} from '$lib/hotkeys/hotkeys';
 
 export interface VisibleTrack extends Track {
 	id: string;
@@ -68,13 +74,22 @@ export class RemoteController {
 	});
 
 	/**
-	 * Яка клавіша діє для кожного треку — те саме правило, що й на приймачі.
+	 * Яка клавіша діє для кожного треку — ПОРАХОВАНА НА ПРИЙМАЧІ.
 	 *
-	 * Пульт отримує лише показані треки, тож список тут уже правильний. Підпис
-	 * потрібен і на телефоні: цифри натискають на клавіатурі планшета, а на
-	 * екрані номер ще й підказує, який трек під якою цифрою на комп'ютері.
+	 * Свій рахунок тут був правильним рівно доти, доки списки збігалися. Тепер
+	 * трек «лише приймач» у списку приймача є, а сюди не приїжджає — і цифри
+	 * після нього зсунулися б. Тому підпис приїжджає разом із треком, а пульт
+	 * лише показує його: на обох екранах під цифрою той самий трек, а цифри
+	 * прихованих просто відсутні.
+	 *
+	 * Запасний шлях — власний рахунок: дошку могла оголосити вкладка приймача
+	 * зі старішої збірки, і тоді підписів у ній ще немає.
 	 */
-	readonly keyLabels: Record<string, string> = $derived(keyLabelsFor(this.tracks));
+	readonly keyLabels: Record<string, string> = $derived.by(() => {
+		const published: Record<string, string> = {};
+		for (const track of this.tracks) if (track.key) published[track.id] = track.key;
+		return Object.keys(published).length > 0 ? published : keyLabelsFor(this.tracks);
+	});
 
 	get currentTitle(): string | null {
 		const id = this.state?.trackId;
@@ -262,9 +277,15 @@ export class RemoteController {
 	async handleHotkey(action: HotkeyAction): Promise<void> {
 		switch (action.kind) {
 			case 'play': {
-				// Цифри за порядком працюють завжди — див. `keyLabelsFor`.
-				const track = this.tracks[action.index];
-				if (track) await this.send('play', track.id);
+				/*
+				 * Цифру шукаємо за ПІДПИСОМ, а не за місцем у масиві. Місце більше
+				 * не означає цифру: трек «лише приймач» займає свою на приймачі й
+				 * сюди не приходить, тож у списку пульта цифри йдуть із пропусками.
+				 * Пропущена цифра не робить нічого — і це правильно: пульт не мусить
+				 * запускати те, чого йому не показали.
+				 */
+				const id = trackForDigit(this.tracks, this.keyLabels, action.index);
+				if (id) await this.send('play', id);
 				break;
 			}
 			case 'playPause':

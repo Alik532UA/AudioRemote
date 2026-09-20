@@ -212,13 +212,27 @@ describe('підпис клавіші в списку', () => {
 		expect(controller.visible[1].id).toBe(second.id);
 	});
 
-	it('прихований трек підпису не має — і не зсуває чужі номери', () => {
+	it('прихований зовсім трек підпису не має — і не зсуває чужі номери', () => {
 		const [first, second, third] = controller.entries;
-		controller.toggleHidden(second.id);
+		controller.setVisibility(second.id, 'none');
 
 		expect(controller.keyLabels[second.id]).toBeUndefined();
 		expect(controller.keyLabels[first.id]).toBe('1');
 		expect(controller.keyLabels[third.id]).toBe('2');
+	});
+
+	it('«лише тут» СВОЮ цифру зберігає — і чужі не зсуває', () => {
+		/*
+		 * У цьому вся різниця між двома видами «приховано»: від пульта ховають
+		 * трек, який запускають саме з цього комп'ютера, тож клавіша мусить
+		 * лишитися на місці.
+		 */
+		const [first, second, third] = controller.entries;
+		controller.setVisibility(second.id, 'player');
+
+		expect(controller.keyLabels[second.id]).toBe('2');
+		expect(controller.keyLabels[first.id]).toBe('1');
+		expect(controller.keyLabels[third.id]).toBe('3');
 	});
 });
 
@@ -412,15 +426,45 @@ describe('власний підпис треку', () => {
 	});
 });
 
-describe('приховані треки', () => {
-	it('не потрапляють у список для пульта й для клавіш', async () => {
+describe('кому показувати трек', () => {
+	const board = async () => {
 		const controller = build(withFiles('Автобус.mp3', 'Криниця.mp3'));
 		await controller.rescan();
+		return controller;
+	};
 
-		controller.toggleHidden(controller.entries[0].id);
+	it('прихований зовсім зникає звідусіль', async () => {
+		const controller = await board();
+		controller.setVisibility(controller.entries[0].id, 'none');
 
 		expect(controller.hiddenCount).toBe(1);
 		expect(controller.visible.map((entry) => entry.title)).toEqual(['Криниця']);
+		expect(controller.forRemote.map((entry) => entry.title)).toEqual(['Криниця']);
+		expect(controller.hiddenTracks.map((entry) => entry.title)).toEqual(['Автобус']);
+	});
+
+	it('«лише тут» лишається у списку приймача й зникає лише з пульта', async () => {
+		const controller = await board();
+		controller.setVisibility(controller.entries[0].id, 'player');
+
+		expect(controller.visible.map((entry) => entry.title)).toEqual(['Автобус', 'Криниця']);
+		expect(controller.forRemote.map((entry) => entry.title)).toEqual(['Криниця']);
+		expect(controller.hiddenCount).toBe(0);
+		expect(controller.playerOnlyCount).toBe(1);
+	});
+
+	it('рішення переживає перечитування папки', async () => {
+		const source = withFiles('Автобус.mp3', 'Криниця.mp3');
+		const first = build(source);
+		await first.rescan();
+		first.setVisibility(first.entries[0].id, 'player');
+
+		// Записується відкладено — чекаємо, як це робить сама сторінка.
+		await new Promise((resolve) => setTimeout(resolve, 700));
+
+		const second = build(source);
+		await second.rescan();
+		expect(second.entries[0].visibility).toBe('player');
 	});
 });
 

@@ -36,6 +36,31 @@ export const CONFIG_FILE = 'audioremote.json';
 /** Версія формату. Несумісна зміна — нове число й окрема гілка читання. */
 const SCHEMA = 1;
 
+/**
+ * КОГО ТРЕК СТОСУЄТЬСЯ — три стани, а не прапорець.
+ *
+ * Прапорця «приховано» вистачало, доки приховати означало «ніде». Але в залі
+ * потрібне третє: трек, який запускає ЛИШЕ той, хто стоїть за комп'ютером, —
+ * гімн, службовий сигнал, сирена. Він мусить лишатися в списку приймача й під
+ * своєю клавішею, і не мусить бути ні видимим, ні досяжним з телефона в чужих
+ * руках.
+ *
+ * `player` — не «напівприховано». Це інша межа: не видимість, а хто має право
+ * запустити.
+ */
+export type TrackVisibility =
+	/** Видно скрізь: і в списку приймача, і на пульті. */
+	| 'all'
+	/** Лише приймач: у списку є, клавіша діє, пульт його не бачить і не запустить. */
+	| 'player'
+	/** Ніде. Ні в списку, ні під клавішею, ні на пульті. */
+	| 'none';
+
+export const TRACK_VISIBILITIES: readonly TrackVisibility[] = ['all', 'player', 'none'];
+
+const isVisibility = (value: unknown): value is TrackVisibility =>
+	typeof value === 'string' && (TRACK_VISIBILITIES as readonly string[]).includes(value);
+
 export interface TrackSetting {
 	/** Шлях усередині теки — те саме, що `SourceTrack.path`. */
 	path: string;
@@ -56,8 +81,13 @@ export interface TrackSetting {
 	 * `Digit<число>`, щоб розкладка, зроблена вчора, не загубилася.
 	 */
 	hotkey?: string;
-	/** Прихований від пульта. */
-	hidden?: boolean;
+	/**
+	 * Кого трек стосується. Відсутнє — `all`.
+	 *
+	 * Старий прапорець `hidden: true` читається як `none`: доти стан був один
+	 * («сховано»), і означав він «ніде».
+	 */
+	visibility?: TrackVisibility;
 	/**
 	 * Запуск за зовнішнім API. Відсутній — трек запускають руками.
 	 *
@@ -98,8 +128,20 @@ function toSetting(value: unknown): TrackSetting | null {
 			: {}),
 		...(typeof record.color === 'string' ? { color: record.color } : {}),
 		...(hotkey && /^[A-Za-z0-9]{1,20}$/.test(hotkey) ? { hotkey } : {}),
-		...(record.hidden === true ? { hidden: true } : {})
+		...(visibilityOf(record) === 'all' ? {} : { visibility: visibilityOf(record) })
 	};
+}
+
+/**
+ * Видимість із запису у файлі.
+ *
+ * Старий `hidden: true` означав «ніде» — саме так він і читається. Інакше
+ * файл, зроблений учора, після оновлення показав би в залі треки, які людина
+ * свідомо сховала.
+ */
+function visibilityOf(record: Record<string, unknown>): TrackVisibility {
+	if (isVisibility(record.visibility)) return record.visibility;
+	return record.hidden === true ? 'none' : 'all';
 }
 
 /**

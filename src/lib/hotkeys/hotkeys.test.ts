@@ -9,6 +9,7 @@ import {
 	labelForCode,
 	RESERVED_CODES,
 	SEEK_STEP_MS,
+	trackForDigit,
 	VOLUME_STEP
 } from './hotkeys';
 
@@ -212,5 +213,28 @@ describe('labelForCode', () => {
 		 * разом із нею, і підпис на екрані почав би брехати.
 		 */
 		expect(labelForCode('KeyQ')).toBe('Q');
+	});
+});
+
+describe('цифра на пульті, коли підписи порахував приймач', () => {
+	/*
+	 * Список пульта коротший: трек «лише приймач» сюди не приїжджає, а свою
+	 * цифру на приймачі зберігає. Отже цифри тут ідуть із пропуском — і саме
+	 * пропуск ламав би пошук за індексом.
+	 */
+	const tracks = [{ id: 'a' }, { id: 'c' }];
+	const labels = { a: '1', c: '3' };
+
+	it('цифра веде до СВОГО треку, а не до сусіда за місцем', () => {
+		expect(trackForDigit(tracks, labels, 2)).toBe('c');
+	});
+
+	it('перша цифра лишається першим треком', () => {
+		expect(trackForDigit(tracks, labels, 0)).toBe('a');
+	});
+
+	it('пропущена цифра не робить нічого', () => {
+		// Двійка лишилася на приймачі — пульт не мусить запускати те, чого не бачить.
+		expect(trackForDigit(tracks, labels, 1)).toBeNull();
 	});
 });

@@ -7,7 +7,7 @@
 	import type { BoardTrack } from '$lib/player/controller.svelte';
 	import type { PlayerController } from '$lib/player/controller.svelte';
 	import TriggerEditor from './TriggerEditor.svelte';
-	import Switch from '$lib/components/ui/Switch.svelte';
+	import VisibilityPicker from './VisibilityPicker.svelte';
 
 	interface Props {
 		track: BoardTrack;
@@ -241,17 +241,10 @@
 					</div>
 				</div>
 
-				<!--
-					Перемикач, а не кнопка. Кнопка з написом, що стрибає між «Приховати» і
-					«Показати», ніколи не каже, у якому стані трек СТОЇТЬ: щоб дізнатися,
-					треба прочитати напис і подумки його інвертувати.
-				-->
-				<Switch
-					checked={track.hidden}
-					label={t('player.hidden')}
-					title={track.hidden ? t('player.show') : t('player.hide')}
-					testid="toggle-hidden"
-					onchange={() => controller.toggleHidden(track.id)}
+				<VisibilityPicker
+					value={track.visibility}
+					trackId={track.id}
+					onchange={(next) => controller.setVisibility(track.id, next)}
 				/>
 			</section>
 
