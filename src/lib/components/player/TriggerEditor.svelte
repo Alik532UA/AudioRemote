@@ -81,181 +81,240 @@
 	}
 </script>
 
-<div class="stack">
-	<p class="muted">{t('trigger.lead')}</p>
+<!--
+	ДВІ ПАНЕЛІ Й СПІЛЬНИЙ НИЗ, а не один довгий список.
 
-	<Switch
-		checked={draft.on}
-		label={t('trigger.on')}
-		testid="trigger-on"
-		onchange={(next) => (draft.on = next)}
-	/>
+	`display: contents` на обгортці: панелі стають комірками сітки ВІКНА, поруч
+	з панеллю самого треку. Власна сітка тут дала б колонки всередині колонки —
+	поля розʼїхалися б із сусідніми, і вікно читалося б як два різні вікна.
+-->
+<div class="trigger">
+	<section class="pane">
+		<h3 class="pane__title">{t('trigger.paneSource')}</h3>
 
-	<div class="field">
-		<Switch
-			checked={draft.onChange}
-			label={t('trigger.onChange')}
-			testid="trigger-onchange"
-			onchange={(next) => (draft.onChange = next)}
-		/>
-		<p class="muted">{t('trigger.onChangeHint')}</p>
-	</div>
+		<!--
+			Пояснення стоїть у коротшій колонці, і це не випадковість: у спільному
+			низі воно розтягувало вікно вниз рівно тоді, коли сусідня колонка вже
+			була найвищою. Тут воно займає порожнє місце, якого й так вистачало.
+		-->
+		<p class="muted">{t('trigger.lead')}</p>
 
-	<div class="field">
-		<label class="field__label" for="trigger-url">{t('trigger.url')}</label>
-		<input
-			id="trigger-url"
-			class="input mono"
-			type="url"
-			inputmode="url"
-			placeholder="https://"
-			bind:value={draft.url}
-			data-testid="trigger-url"
-		/>
-	</div>
-
-	<div class="field">
-		<label class="field__label" for="trigger-every">{t('trigger.every')}</label>
-		<input
-			id="trigger-every"
-			class="input mono"
-			type="number"
-			min={MIN_INTERVAL_SEC}
-			max="3600"
-			bind:value={draft.everySec}
-			data-testid="trigger-every"
-		/>
-	</div>
-
-	<div class="field">
-		<label class="field__label" for="trigger-headers">{t('trigger.headers')}</label>
-		<textarea
-			id="trigger-headers"
-			class="input mono area"
-			rows="2"
-			spellcheck="false"
-			placeholder="Authorization: Bearer …"
-			bind:value={headersText}
-			data-testid="trigger-headers"
-		></textarea>
-		<p class="muted">{t('trigger.headersHint')}</p>
-	</div>
-
-	<div class="field">
-		<label class="field__label" for="trigger-path">{t('trigger.path')}</label>
-		<input
-			id="trigger-path"
-			class="input mono"
-			type="text"
-			spellcheck="false"
-			bind:value={draft.path}
-			data-testid="trigger-path"
-		/>
-		<p class="muted">{t('trigger.pathHint')}</p>
-	</div>
-
-	<div class="field">
-		<span class="field__label" id="trigger-test-label">{t('trigger.test')}</span>
-		<div class="picker" role="radiogroup" aria-labelledby="trigger-test-label">
-			{#each TRIGGER_TESTS as test (test)}
-				<button
-					class="picker__item"
-					type="button"
-					role="radio"
-					aria-checked={draft.test === test}
-					onclick={() => (draft.test = test)}
-					data-testid="trigger-test-{test}"
-				>
-					{t(`trigger.${test}`)}
-				</button>
-			{/each}
-		</div>
-	</div>
-
-	{#if draft.test !== 'truthy'}
 		<div class="field">
-			<label class="field__label" for="trigger-value">{t('trigger.value')}</label>
+			<label class="field__label" for="trigger-url">{t('trigger.url')}</label>
 			<input
-				id="trigger-value"
-				class="input"
-				type="text"
-				bind:value={draft.value}
-				data-testid="trigger-value"
+				id="trigger-url"
+				class="input mono"
+				type="url"
+				inputmode="url"
+				placeholder="https://"
+				bind:value={draft.url}
+				data-testid="trigger-url"
 			/>
 		</div>
-	{/if}
+
+		<div class="field">
+			<label class="field__label" for="trigger-every">{t('trigger.every')}</label>
+			<input
+				id="trigger-every"
+				class="input mono"
+				type="number"
+				min={MIN_INTERVAL_SEC}
+				max="3600"
+				bind:value={draft.everySec}
+				data-testid="trigger-every"
+			/>
+		</div>
+
+		<div class="field">
+			<label class="field__label" for="trigger-headers">{t('trigger.headers')}</label>
+			<textarea
+				id="trigger-headers"
+				class="input mono area"
+				rows="2"
+				spellcheck="false"
+				placeholder="Authorization: Bearer …"
+				bind:value={headersText}
+				data-testid="trigger-headers"
+			></textarea>
+			<p class="muted">{t('trigger.headersHint')}</p>
+		</div>
+	</section>
+
+	<section class="pane">
+		<h3 class="pane__title">{t('trigger.paneWhen')}</h3>
+
+		<Switch
+			checked={draft.on}
+			label={t('trigger.on')}
+			testid="trigger-on"
+			onchange={(next) => (draft.on = next)}
+		/>
+
+		<div class="field">
+			<Switch
+				checked={draft.onChange}
+				label={t('trigger.onChange')}
+				testid="trigger-onchange"
+				onchange={(next) => (draft.onChange = next)}
+			/>
+			<p class="muted">{t('trigger.onChangeHint')}</p>
+		</div>
+
+		<div class="field">
+			<label class="field__label" for="trigger-path">{t('trigger.path')}</label>
+			<input
+				id="trigger-path"
+				class="input mono"
+				type="text"
+				spellcheck="false"
+				bind:value={draft.path}
+				data-testid="trigger-path"
+			/>
+			<p class="muted">{t('trigger.pathHint')}</p>
+		</div>
+
+		<div class="field">
+			<span class="field__label" id="trigger-test-label">{t('trigger.test')}</span>
+			<div class="picker" role="radiogroup" aria-labelledby="trigger-test-label">
+				{#each TRIGGER_TESTS as test (test)}
+					<button
+						class="picker__item"
+						type="button"
+						role="radio"
+						aria-checked={draft.test === test}
+						onclick={() => (draft.test = test)}
+						data-testid="trigger-test-{test}"
+					>
+						{t(`trigger.${test}`)}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		{#if draft.test !== 'truthy'}
+			<div class="field">
+				<label class="field__label" for="trigger-value">{t('trigger.value')}</label>
+				<input
+					id="trigger-value"
+					class="input"
+					type="text"
+					bind:value={draft.value}
+					data-testid="trigger-value"
+				/>
+			</div>
+		{/if}
+	</section>
 
 	<!--
-		Стан останнього опитування видно тут, бо найчастіша причина «не працює» —
-		не наш код, а заборона чужого сервера пускати браузер. Мовчання в цьому
-		місці виглядало б як зламаний застосунок.
+		Пояснення, стан і кнопки — на всю ширину під колонками.
+
+		Вони стосуються ОБОХ панелей: пояснення однакове для адреси й умови, стан
+		останнього опитування залежить від них разом, а «Зберегти» зберігає все.
+		У колонці вони виглядали б як власність тієї колонки.
 	-->
-	<p class="note" class:note--warn={health?.error} data-testid="trigger-health">
-		{#if health?.error}
-			<IconWarning size={18} aria-hidden="true" />
+	<footer class="foot">
+		<div class="foot__text">
 			<!--
-				Текст добирається ТУТ, а не в опитувачі: там він застиг би мовою, яка
-				була на момент помилки, і не змінився б від перемикання мови.
+				Стан останнього опитування видно тут, бо найчастіша причина «не працює» —
+				не наш код, а заборона чужого сервера пускати браузер. Мовчання в цьому
+				місці виглядало б як зламаний застосунок.
 			-->
-			<span>
-				{#if health.error.code === 'http'}
-					{t('trigger.errHttp', { detail: health.error.detail })}
-				{:else if health.error.code === 'policy'}
-					{t('trigger.errPolicy')}
+			<p class="note" class:note--warn={health?.error} data-testid="trigger-health">
+				{#if health?.error}
+					<IconWarning size={18} aria-hidden="true" />
+					<!--
+						Текст добирається ТУТ, а не в опитувачі: там він застиг би мовою, яка
+						була на момент помилки, і не змінився б від перемикання мови.
+					-->
+					<span>
+						{#if health.error.code === 'http'}
+							{t('trigger.errHttp', { detail: health.error.detail })}
+						{:else if health.error.code === 'policy'}
+							{t('trigger.errPolicy')}
+						{:else}
+							{t('trigger.errNetwork')}
+						{/if}
+					</span>
+				{:else if health}
+					<span>
+						{t('trigger.lastOk', { value: health.value })}
+						· {t('trigger.fires', { count: health.fires })}
+						<!--
+							Коли адресу слухає не один трек, це варто сказати: «опитано щойно»
+							на треку, який сам нічого не питав, інакше виглядало б помилкою.
+						-->
+						{#if health.shared > 1}
+							·
+							{plural(
+								{ one: 'trigger.sharedOne', few: 'trigger.sharedFew', other: 'trigger.sharedMany' },
+								health.shared
+							)}
+						{/if}
+					</span>
 				{:else}
-					{t('trigger.errNetwork')}
+					<span>{t('trigger.never')}</span>
 				{/if}
-			</span>
-		{:else if health}
-			<span>
-				{t('trigger.lastOk', { value: health.value })}
-				· {t('trigger.fires', { count: health.fires })}
-				<!--
-					Коли адресу слухає не один трек, це варто сказати: «опитано щойно»
-					на треку, який сам нічого не питав, інакше виглядало б помилкою.
-				-->
-				{#if health.shared > 1}
-					·
-					{plural(
-						{ one: 'trigger.sharedOne', few: 'trigger.sharedFew', other: 'trigger.sharedMany' },
-						health.shared
-					)}
+			</p>
+		</div>
+
+		<div class="row">
+			<button class="btn btn--primary" type="button" onclick={save} data-testid="trigger-save">
+				{#if saved}
+					<IconCheck size={18} aria-hidden="true" />
+					{t('settings.saved')}
+				{:else}
+					{t('trigger.save')}
 				{/if}
-			</span>
-		{:else}
-			<span>{t('trigger.never')}</span>
-		{/if}
-	</p>
-
-	<div class="row">
-		<button class="btn btn--primary" type="button" onclick={save} data-testid="trigger-save">
-			{#if saved}
-				<IconCheck size={18} aria-hidden="true" />
-				{t('settings.saved')}
-			{:else}
-				{t('trigger.save')}
-			{/if}
-		</button>
-
-		{#if controller.triggerFor(trackId).url}
-			<button
-				class="btn btn--danger"
-				type="button"
-				onclick={() => {
-					controller.setTrigger(trackId, null);
-					draft = emptyTrigger();
-					headersText = '';
-				}}
-				data-testid="trigger-clear"
-			>
-				<IconTrash size={18} aria-hidden="true" />
-				{t('trigger.clear')}
 			</button>
-		{/if}
-	</div>
+
+			{#if controller.triggerFor(trackId).url}
+				<button
+					class="btn btn--danger"
+					type="button"
+					onclick={() => {
+						controller.setTrigger(trackId, null);
+						draft = emptyTrigger();
+						headersText = '';
+					}}
+					data-testid="trigger-clear"
+				>
+					<IconTrash size={18} aria-hidden="true" />
+					{t('trigger.clear')}
+				</button>
+			{/if}
+		</div>
+	</footer>
 </div>
 
 <style>
+	/*
+	 * Обгортки для сітки не існує: її панелі — прямі комірки сітки вікна.
+	 * Інакше редактор був би однією коміркою, і три колонки перетворилися б на
+	 * дві з вкладеним стовпцем усередині другої.
+	 */
+	.trigger {
+		display: contents;
+	}
+
+	/* Низ іде під усіма колонками, скільки б їх не було. */
+	.foot {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		justify-content: space-between;
+		gap: var(--gap);
+		grid-column: 1 / -1;
+	}
+
+	.foot__text {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap-xs);
+		/* Текст займає рядок, але не витісняє кнопки на власний. */
+		flex: 1 1 22rem;
+		min-width: 0;
+	}
+
 	.area {
 		min-height: calc(var(--tap) * 1.4);
 		resize: vertical;
@@ -275,31 +334,37 @@
 		color: var(--warn);
 	}
 
-	/* Той самий перемикач списком, що й у налаштуваннях: один вибір — одна рамка. */
+	/*
+	 * Умови ПО ДВІ В РЯД, а не стовпчиком.
+	 *
+	 * Шість пунктів стовпчиком — це 264px, і рівно на них колонка переростала
+	 * вікно: зʼявлялася прокрутка там, де поруч стояли дві порожні третини
+	 * панелі. Пари ще й чесніші за зміст: кожна умова стоїть поруч зі своїм
+	 * запереченням.
+	 *
+	 * Проміжок в один піксель на тлі рамки — це і є лінії між пунктами: власні
+	 * рамки комірок подвоювалися б на стиках.
+	 */
 	.picker {
-		display: flex;
-		flex-direction: column;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+		gap: 1px;
 		overflow: hidden;
 		border: 1px solid var(--border);
 		border-radius: var(--radius);
-		background: var(--bg-surface-raised);
+		background: var(--border);
 	}
 
 	.picker__item {
 		min-height: var(--tap);
-		padding: 0 var(--gap);
+		padding: var(--gap-sm) var(--gap);
 		border: 0;
-		border-top: 1px solid var(--border);
-		background: none;
+		background: var(--bg-surface-raised);
 		color: var(--text-primary);
 		cursor: pointer;
 		font: inherit;
 		font-size: 0.9rem;
 		text-align: start;
-	}
-
-	.picker__item:first-child {
-		border-top: 0;
 	}
 
 	.picker__item:hover,

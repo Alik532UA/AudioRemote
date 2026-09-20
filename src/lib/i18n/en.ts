@@ -186,9 +186,12 @@ export const en: Record<TranslationKey, string> = {
 	'track.open': 'Track settings',
 	'track.displayName': 'Display name',
 	'track.trigger': 'Start from an API',
+	'track.paneMain': 'Track',
 	'trigger.lead':
 		'The app polls the address itself and starts the track when the condition BECOMES true. The other server must allow browser requests — otherwise an error shows below, and that is their decision, not ours.',
 	'trigger.on': 'Poll it',
+	'trigger.paneSource': 'Where to read from',
+	'trigger.paneWhen': 'When to fire',
 	'trigger.onChange': 'Only when the condition changed',
 	'trigger.onChangeHint':
 		'An alert lasts a long time, and the condition holds throughout. Turned off means “every time it holds” — the track will restart on every poll.',
