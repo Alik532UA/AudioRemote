@@ -25,7 +25,9 @@
 	import { narrow } from '$lib/services/narrow.svelte';
 
 	let controller = $state<RemoteController | null>(null);
-	let volume = $state(80);
+	// Те саме число, що й типова гучність приймача: доки той не оголосив свою,
+	// повзунок не має показувати чуже значення.
+	let volume = $state(70);
 	/** Чи тягне людина повзунок зараз: доки тягне, значення з бази не перебиває. */
 	let draggingVolume = $state(false);
 	/** Палець на смузі перемотки: доти позиція з приймача її не смикає. */
