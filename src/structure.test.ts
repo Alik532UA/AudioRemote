@@ -1,8 +1,9 @@
 // @vitest-environment node
 // Перевірка лише читає файли — DOM їй не потрібен.
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { walk } from './gates/fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 
 /**
  * ІНВАРІАНТИ СТРУКТУРИ (PROJECT-STRUCTURE-v9 § 4, § 7, `PS-REACHABILITY`,
@@ -22,18 +23,6 @@ import { dirname, join, resolve } from 'node:path';
  */
 
 const ROOT = process.cwd().split('\\').join('/');
-const IGNORED_DIRS = new Set(['node_modules', '.svelte-kit', 'build', 'dev-dist', 'target', 'gen']);
-
-function walk(dir: string, out: string[] = []): string[] {
-	for (const entry of readdirSync(dir)) {
-		if (IGNORED_DIRS.has(entry)) continue;
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) walk(full, out);
-		else out.push(full.split('\\').join('/'));
-	}
-	return out;
-}
-
 const read = (file: string): string => readFileSync(file, 'utf8');
 const isTest = (file: string): boolean => /\.(test|spec)\.ts$/.test(file);
 
@@ -49,6 +38,15 @@ const sources = all.filter((f) => /\.(ts|svelte)$/.test(f) && !isTest(f) && !f.e
  * розділення коду й даних).
  */
 const DATA_FILE = /^src\/lib\/(i18n\/(uk|en)\.ts|board\/words\.ts)$/;
+
+/**
+ * Помічники самих перевірок.
+ *
+ * Це не код застосунку: у збірку `src/gates/` не їде, і шляху з маршрутів до
+ * нього немає й бути не повинно. Категорія названа тут, а поводження з нею —
+ * нижче, в описі «кожен помічник гейтів справді комусь потрібен».
+ */
+const GATE_HELPER = /^src\/gates\//;
 
 describe('структура проєкту (PROJECT-STRUCTURE-v9)', () => {
 	it('перевірка жива: джерела знайдено', () => {
@@ -128,12 +126,35 @@ describe('досяжність модулів (§ 4.3.1, PS-REACHABILITY)', () =
 	});
 
 	it('кожен модуль досяжний з маршруту', () => {
-		const orphans = sources.filter((file) => !reachable.has(file));
+		const orphans = sources.filter((file) => !reachable.has(file) && !GATE_HELPER.test(file));
 		expect(
 			orphans,
 			'модуль не досяжний із жодного маршруту — він не виконується, ' +
 				`але читається як зроблена робота:\n${orphans.join('\n')}`
 		).toEqual([]);
+	});
+
+	it('кожен помічник гейтів справді комусь потрібен', () => {
+		/*
+		 * ЗАМІНА ВИНЯТКУ, А НЕ ПОСЛАБЛЕННЯ.
+		 *
+		 * `src/gates/` недосяжний із маршрутів, і це правильно: він не їде у
+		 * збірку, його кличуть самі перевірки. Але «сюди не дивимося» зробило б
+		 * теку місцем, де сирота живе вічно. Тому питання просто інше: чи імпортує
+		 * цей файл бодай один гейт. Перестали кликати — червоніє так само, як
+		 * червонів би сирота.
+		 */
+		const helpers = sources.filter((file) => GATE_HELPER.test(file));
+		expect(helpers.length, 'теки помічників немає — перевіряти нічого').toBeGreaterThan(0);
+
+		const gates = all.filter(isTest).map(read).join('\n');
+		const unused = helpers.filter(
+			(file) => !gates.includes(`./${file.replace(/^src\//, '').replace(/\.ts$/, '')}'`)
+		);
+
+		expect(unused, `помічник гейтів, якого не імпортує жоден гейт:\n${unused.join('\n')}`).toEqual(
+			[]
+		);
 	});
 });
 

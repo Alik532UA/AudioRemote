@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { walk } from './gates/fs';
+import { readFileSync } from 'node:fs';
 
 /**
  * ЖИВА ПІДПИСКА, ЯКУ НІХТО НЕ КЛИЧЕ, І СЛУХАЧ, ЯКОГО НІХТО НЕ ЗНІМАЄ
@@ -33,18 +33,6 @@ import { join } from 'node:path';
  * кінця життя вкладки, називається тут поіменно — інакше виняток мовчазно
  * поширився б на всі.
  */
-
-const IGNORED_DIRS = new Set(['node_modules', '.svelte-kit', 'build', 'dev-dist']);
-
-function walk(dir: string, out: string[] = []): string[] {
-	for (const entry of readdirSync(dir)) {
-		if (IGNORED_DIRS.has(entry)) continue;
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) walk(full, out);
-		else out.push(full.split('\\').join('/'));
-	}
-	return out;
-}
 
 const read = (file: string): string => readFileSync(file, 'utf8');
 const isTest = (file: string): boolean => /\.(test|spec)\.ts$/.test(file);

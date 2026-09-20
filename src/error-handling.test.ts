@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { walk } from './gates/fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
@@ -22,15 +23,6 @@ import { join } from 'node:path';
  */
 
 const ROOT = process.cwd();
-
-function walk(dir: string, out: string[] = []): string[] {
-	for (const entry of readdirSync(dir)) {
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) walk(full, out);
-		else out.push(full.split('\\').join('/'));
-	}
-	return out;
-}
 
 const layout = readFileSync(join(ROOT, 'src/routes/+layout.svelte'), 'utf8');
 

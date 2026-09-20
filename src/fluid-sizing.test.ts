@@ -1,8 +1,8 @@
 // @vitest-environment node
 // Перевірка лише читає файли — DOM їй не потрібен.
 import { describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { walk } from './gates/fs';
+import { readFileSync } from 'node:fs';
 
 /**
  * РОЗМІР ВІД ЕКРАНА, А НЕ ВІД ВМІСТУ (FLUID-SIZING-v9 § 1.1, § 2, § 7A).
@@ -42,18 +42,6 @@ import { join } from 'node:path';
  *
  * Зворотний експеримент — в описі коміту, що приніс файл.
  */
-
-const IGNORED_DIRS = new Set(['node_modules', '.svelte-kit', 'build', 'dev-dist']);
-
-function walk(dir: string, out: string[] = []): string[] {
-	for (const entry of readdirSync(dir)) {
-		if (IGNORED_DIRS.has(entry)) continue;
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) walk(full, out);
-		else out.push(full.split('\\').join('/'));
-	}
-	return out;
-}
 
 /**
  * Коментарі замінюються ПРОБІЛАМИ, а не вирізаються.
