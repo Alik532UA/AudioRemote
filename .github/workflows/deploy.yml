@@ -46,7 +46,55 @@ jobs:
       - name: Правила бази на емуляторі
         run: npm run check:rules
 
+  # ПРАВИЛА ВИКЛАДАЮТЬСЯ В БОЙОВУ БАЗУ — і саме цього тут бракувало.
+  #
+  # Джоб `rules` вище лише ПЕРЕВІРЯЄ їх на емуляторі. Виглядає це як «правила в
+  # порядку», але в бойовій базі лишаються ті, які востаннє вставили руками в
+  # консолі. Між пушем і тим вставлянням код уже пише поле, про яке правило не
+  # знає, а `$other: false` відкидає незнане поле разом з УСІМ записом: дошка
+  # тихо перестає оголошуватися, і пульт пише «на плеєрі ще не обрано папку».
+  # Так сталося тричі — з полем `key`, потім з `icon` і `auto`.
+  #
+  # Викладається ПЕРЕД збіркою (`build-and-deploy` чекає на цей джоб): нові
+  # правила сумісні зі старим кодом, а старі з новим — ні.
+  #
+  # Потрібен секрет `FIREBASE_SERVICE_ACCOUNT` — JSON сервісного акаунта з
+  # роллю «Firebase Realtime Database Admin». Без нього крок ПРОПУСКАЄТЬСЯ з
+  # попередженням, а не валить деплой: дошка має лишатися розгортаною й тому,
+  # хто форкнув репозиторій і не має доступу до чужої бази.
+  publish-rules:
+    needs: rules
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    # Секрет читається В ENV, а не в `if` кроку: так умову видно однаково й у
+    # форку, де секрету немає зовсім.
+    env:
+      SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Секрета немає — правила лишаються як є
+        if: ${{ env.SERVICE_ACCOUNT == '' }}
+        run: |
+          echo "::warning title=Правила не викладені::Немає секрету FIREBASE_SERVICE_ACCOUNT, тож правила в базі лишилися старі. Вставте свіжий database.rules.json у Firebase Console руками, інакше база відкине бібліотеку з новими полями."
+
+      - name: Викласти правила
+        if: ${{ env.SERVICE_ACCOUNT != '' }}
+        run: |
+          printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"             npx --yes firebase-tools@15 deploy --only database             --project "${FIREBASE_PROJECT:-audioremote}" --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
+
   build-and-deploy:
+    # Правила йдуть ПЕРШИМИ: нові сумісні зі старим кодом, старі з новим — ні.
+    needs: publish-rules
     runs-on: ubuntu-latest
     permissions:
       contents: write
