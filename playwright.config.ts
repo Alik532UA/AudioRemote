@@ -154,8 +154,13 @@ export default defineConfig({
 			 * Чи ТОЙ це емулятор, питає `board.setup.ts`: чужий, піднятий лише з
 			 * `--only database`, виглядає як робочий, поки не дійде до входу.
 			 */
-			command:
-				'node scripts/firebase-cli.mjs emulators:start --project demo-audioremote --only database,auth',
+			/*
+			 * Команда НЕ дублюється, а береться зі скрипта проєкту: `npm run
+			 * emulators` — це те саме, що розробник запускає руками щодня. Копія
+			 * тут розійшлася б із оригіналом тихо (інший `--only`, інший проєкт),
+			 * і набір би говорив не з тією базою.
+			 */
+			command: 'npm run emulators',
 			port: DB_PORT,
 			reuseExistingServer: !process.env.CI,
 			timeout: 180_000
