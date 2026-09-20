@@ -1,15 +1,15 @@
 import { mark } from '$lib/services/breadcrumbs';
 import {
+	groupTriggers,
 	matches,
-	MIN_INTERVAL_SEC,
 	readPath,
 	shouldFire,
-	triggerReady,
-	type TrackTrigger
+	type TrackTrigger,
+	type TriggerGroup
 } from './trigger';
 
 /**
- * ОПИТУВАЧ: тримає по одному таймеру на кожен увімкнений тригер.
+ * ОПИТУВАЧ: один таймер і один запит на АДРЕСУ, скільки б треків її не слухало.
  *
  * ## Рішення «запускати чи ні» живе НЕ тут
  *
@@ -19,7 +19,11 @@ import {
  * поточним не порівнювався. Умову «виконується» видавали за подію «щойно
  * почала виконуватися», і сирена починалася спочатку щопівхвилини.
  *
- * Опитувач тепер робить рівно три речі: питає, читає, запам'ятовує.
+ * Розкладка «хто з ким в одному запиті» теж не тут — вона в `groupTriggers`,
+ * і з тієї ж причини: її можна перевірити списком, не піднімаючи ні браузера,
+ * ні мережі.
+ *
+ * Опитувач тепер робить рівно три речі: питає, роздає відповідь, запам'ятовує.
  *
  * ## Чому помилки видно — і чому не словом браузера
  *
@@ -60,14 +64,17 @@ export interface TriggerHealth {
 	 * починалася спочатку.
 	 */
 	fires: number;
+	/**
+	 * Скільки треків користуються ЦИМ ЖЕ запитом, разом із цим.
+	 *
+	 * Показується, коли більше одного: інакше «опитано щойно» на треку, який
+	 * сам нічого не питав, виглядало б як збіг.
+	 */
+	shared: number;
 }
 
-interface Watched {
-	trackId: string;
-	trigger: TrackTrigger;
+interface Group extends TriggerGroup {
 	timer: ReturnType<typeof setInterval>;
-	/** Попередній результат умови. `null` — ще не питали жодного разу. */
-	was: boolean | null;
 }
 
 class TriggerWatcher {
@@ -75,11 +82,20 @@ class TriggerWatcher {
 	health = $state<Record<string, TriggerHealth>>({});
 
 	/*
-	 * Звичайний обʼєкт, а не `Map` і не `SvelteMap`: це облік таймерів, а не
+	 * Звичайні обʼєкти, а не `Map` і не `SvelteMap`: це облік таймерів, а не
 	 * стан екрана. Реактивна колекція тут обіцяла б спостереження, якого ніхто
 	 * не веде, — у розмітку з цього не йде нічого, туди йде лише `health`.
 	 */
-	private watched: Record<string, Watched> = {};
+	private groups: Record<string, Group> = {};
+	/**
+	 * Попередній результат умови, окремо від груп.
+	 *
+	 * Ключ — трек РАЗОМ із його тригером: змінили умову — ключ інший — тригер
+	 * зведений наново, і це правильно. А от правка сусіднього треку не мусить
+	 * скидати пам'ять цьому, хоч вони й в одній групі: інакше збереження чужих
+	 * налаштувань посеред тривоги проковтнуло б її перехід.
+	 */
+	private was: Record<string, boolean | null> = {};
 	private fire: ((trackId: string) => void) | null = null;
 	/** Остання адреса, яку заблокувала наша ж політика, і коли це було. */
 	private blocked: { uri: string; at: number } | null = null;
@@ -94,32 +110,33 @@ class TriggerWatcher {
 	 * Привести опитування у відповідність до списку треків.
 	 *
 	 * Викликається на кожну зміну налаштувань: простіше й надійніше перебудувати
-	 * те, що змінилося, ніж вести окремий облік, хто коли додався.
+	 * те, що змінилося, ніж вести окремий облік, хто коли додався. Група, у якій
+	 * не змінилося нічого, лишається зі своїм таймером — інакше кожне збереження
+	 * зсувало б такт опитування на нуль.
 	 */
 	sync(entries: readonly { id: string; trigger?: TrackTrigger | null }[]): void {
-		const shouldWatch: Record<string, TrackTrigger> = {};
-		for (const entry of entries) {
-			if (entry.trigger && triggerReady(entry.trigger)) shouldWatch[entry.id] = entry.trigger;
+		const planned = groupTriggers(entries);
+		const wanted: Record<string, TriggerGroup> = {};
+		for (const group of planned) wanted[group.key] = group;
+
+		for (const [key, group] of Object.entries(this.groups)) {
+			const next = wanted[key];
+			if (next && sameGroup(next, group)) {
+				delete wanted[key];
+				continue;
+			}
+			clearInterval(group.timer);
+			delete this.groups[key];
 		}
 
-		// Зайві — прибрати разом із таймером.
-		for (const [id, watched] of Object.entries(this.watched)) {
-			const next = shouldWatch[id];
-			if (next && sameTrigger(next, watched.trigger)) continue;
-			clearInterval(watched.timer);
-			delete this.watched[id];
-		}
-
-		for (const [id, trigger] of Object.entries(shouldWatch)) {
-			if (this.watched[id]) continue;
-			this.start(id, trigger);
-		}
+		for (const group of Object.values(wanted)) this.start(group);
 	}
 
 	/** Зупинити все. Кличеться, коли сторінка приймача закривається. */
 	stop(): void {
-		for (const watched of Object.values(this.watched)) clearInterval(watched.timer);
-		this.watched = {};
+		for (const group of Object.values(this.groups)) clearInterval(group.timer);
+		this.groups = {};
+		this.was = {};
 		this.health = {};
 	}
 
@@ -138,14 +155,13 @@ class TriggerWatcher {
 		});
 	}
 
-	private start(trackId: string, trigger: TrackTrigger): void {
+	private start(plan: TriggerGroup): void {
 		this.listen();
-		const everyMs = Math.max(MIN_INTERVAL_SEC, trigger.everySec) * 1000;
-		const timer = setInterval(() => void this.poll(trackId), everyMs);
-		this.watched[trackId] = { trackId, trigger, timer, was: null };
+		const timer = setInterval(() => void this.poll(plan.key), plan.everySec * 1000);
+		this.groups[plan.key] = { ...plan, timer };
 		// Перше опитування одразу: чекати півхвилини, щоб дізнатися, чи взагалі
 		// працює адреса, — це півхвилини незнання в того, хто щойно її ввів.
-		void this.poll(trackId);
+		void this.poll(plan.key);
 	}
 
 	/**
@@ -169,51 +185,68 @@ class TriggerWatcher {
 		return { code: 'network' };
 	}
 
-	private async poll(trackId: string): Promise<void> {
-		const watched = this.watched[trackId];
-		if (!watched) return;
+	private async poll(key: string): Promise<void> {
+		const group = this.groups[key];
+		if (!group) return;
 
-		const { trigger } = watched;
 		try {
-			const response = await fetch(trigger.url.trim(), {
-				headers: trigger.headers,
+			const response = await fetch(group.url, {
+				headers: group.headers,
 				// Кеш тут шкідливий: питаємо саме тому, що відповідь міняється.
 				cache: 'no-store'
 			});
 			if (!response.ok) throw new HttpError(String(response.status));
 
 			const data: unknown = await response.json();
-			const value = readPath(data, trigger.path.trim());
-			const now = matches(value, trigger.test, trigger.value);
-
-			const fire = shouldFire(watched.was, now, trigger.onChange);
-			watched.was = now;
-
-			const fires = (this.health[trackId]?.fires ?? 0) + (fire ? 1 : 0);
-			this.health = {
-				...this.health,
-				[trackId]: { at: Date.now(), value: brief(value), error: null, fires }
-			};
-
-			if (fire && this.fire) {
-				mark(`trigger:fire ${trackId}`);
-				this.fire(trackId);
-			}
+			// Відповідь одна, умови різні: кожен учасник читає свій шлях сам.
+			for (const member of group.members) this.settle(group, member, data);
 		} catch (error) {
 			/*
 			 * Помилка не зупиняє опитування: мережа падає й піднімається, а тригер
 			 * на те й тригер, щоб чекати. Але вона ЗБЕРІГАЄТЬСЯ — інакше «не
-			 * працює» не має жодного пояснення.
+			 * працює» не має жодного пояснення. І бачать її всі учасники групи:
+			 * запит був спільний, тож і невдача спільна.
 			 */
-			this.health = {
-				...this.health,
-				[trackId]: {
-					at: Date.now(),
+			const fault = await this.fault(error, group.url);
+			const at = Date.now();
+			const next = { ...this.health };
+			for (const member of group.members) {
+				next[member.trackId] = {
+					at,
 					value: '',
-					error: await this.fault(error, trigger.url.trim()),
-					fires: this.health[trackId]?.fires ?? 0
-				}
-			};
+					error: fault,
+					fires: this.health[member.trackId]?.fires ?? 0,
+					shared: group.members.length
+				};
+			}
+			this.health = next;
+		}
+	}
+
+	/** Що ця відповідь означає для одного учасника групи. */
+	private settle(group: Group, member: TriggerGroup['members'][number], data: unknown): void {
+		const { trackId, trigger } = member;
+		const value = readPath(data, trigger.path.trim());
+		const now = matches(value, trigger.test, trigger.value);
+
+		const memory = `${trackId}|${JSON.stringify(trigger)}`;
+		const fire = shouldFire(this.was[memory] ?? null, now, trigger.onChange);
+		this.was[memory] = now;
+
+		this.health = {
+			...this.health,
+			[trackId]: {
+				at: Date.now(),
+				value: brief(value),
+				error: null,
+				fires: (this.health[trackId]?.fires ?? 0) + (fire ? 1 : 0),
+				shared: group.members.length
+			}
+		};
+
+		if (fire && this.fire) {
+			mark(`trigger:fire ${trackId}`);
+			this.fire(trackId);
 		}
 	}
 }
@@ -221,9 +254,16 @@ class TriggerWatcher {
 /** Відповідь була, але не та: код відповіді варто показати як є. */
 class HttpError extends Error {}
 
-/** Однакові тригери не перезапускають таймер: інакше кожне збереження скидало б лічильник. */
-const sameTrigger = (left: TrackTrigger, right: TrackTrigger): boolean =>
-	JSON.stringify(left) === JSON.stringify(right);
+/**
+ * Чи це та сама група.
+ *
+ * Порівнюється склад і такт, а не лише адреса: доданий до групи трек мусить
+ * почати опитуватися, а незмінна група — не втратити свій таймер, бо інакше
+ * будь-яке збереження налаштувань било б у чужий сервер позачерговим запитом.
+ */
+const sameGroup = (left: TriggerGroup, right: TriggerGroup): boolean =>
+	left.everySec === right.everySec &&
+	JSON.stringify(left.members) === JSON.stringify(right.members);
 
 /** Коротко про прочитане: у вікні для цього один рядок. */
 const brief = (value: unknown): string => {

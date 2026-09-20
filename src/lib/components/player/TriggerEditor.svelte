@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { IconCheck, IconTrash, IconWarning } from '$lib/config/icons';
-	import { t } from '$lib/i18n/i18n.svelte';
+	import { plural, t } from '$lib/i18n/i18n.svelte';
 	import {
 		emptyTrigger,
 		MIN_INTERVAL_SEC,
@@ -210,6 +210,17 @@
 			<span>
 				{t('trigger.lastOk', { value: health.value })}
 				· {t('trigger.fires', { count: health.fires })}
+				<!--
+					Коли адресу слухає не один трек, це варто сказати: «опитано щойно»
+					на треку, який сам нічого не питав, інакше виглядало б помилкою.
+				-->
+				{#if health.shared > 1}
+					·
+					{plural(
+						{ one: 'trigger.sharedOne', few: 'trigger.sharedFew', other: 'trigger.sharedMany' },
+						health.shared
+					)}
+				{/if}
 			</span>
 		{:else}
 			<span>{t('trigger.never')}</span>

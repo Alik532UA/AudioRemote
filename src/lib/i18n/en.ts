@@ -193,6 +193,9 @@ export const en: Record<TranslationKey, string> = {
 	'trigger.onChangeHint':
 		'An alert lasts a long time, and the condition holds throughout. Turned off means “every time it holds” — the track will restart on every poll.',
 	'trigger.fires': 'Fired times: {count}',
+	'trigger.sharedOne': 'One request shared by {count} track',
+	'trigger.sharedFew': 'One request shared by {count} tracks',
+	'trigger.sharedMany': 'One request shared by {count} tracks',
 	'trigger.url': 'Request address',
 	'trigger.every': 'Ask every, seconds',
 	'trigger.headers': 'Headers — one per line, “Name: value”',

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { matches, readPath, shouldFire, triggerReady, emptyTrigger } from './trigger';
+import {
+	groupTriggers,
+	matches,
+	MIN_INTERVAL_SEC,
+	readPath,
+	shouldFire,
+	triggerReady,
+	emptyTrigger
+} from './trigger';
 
 describe('читання значення з відповіді', () => {
 	const data = {
@@ -167,5 +175,91 @@ describe('чи опитувати', () => {
 		for (const url of ['example.org', 'ftp://a', 'javascript:alert(1)']) {
 			expect(triggerReady({ ...emptyTrigger(), on: true, url })).toBe(false);
 		}
+	});
+});
+
+describe('один запит на адресу', () => {
+	const on = (patch: Partial<ReturnType<typeof emptyTrigger>> = {}) => ({
+		...emptyTrigger(),
+		on: true,
+		url: 'https://alerts.example/api',
+		...patch
+	});
+
+	it('треки з однієї адреси йдуть одним запитом', () => {
+		/*
+		 * Заради цього все й робилося: сто треків на одному джерелі — це сто
+		 * запитів на такт, а чужий сервер починає віддавати 429 після другого.
+		 */
+		const groups = groupTriggers([
+			{ id: 'a', trigger: on({ path: 'alerts' }) },
+			{ id: 'b', trigger: on({ path: 'meta.count' }) },
+			{ id: 'c', trigger: on({ path: 'alerts', test: 'falsy' }) }
+		]);
+
+		expect(groups).toHaveLength(1);
+		expect(groups[0].members.map((m) => m.trackId)).toEqual(['a', 'b', 'c']);
+	});
+
+	it('різні заголовки — різні запити', () => {
+		// Ключ доступу в заголовку робить запит іншим, хоч адреса та сама.
+		const groups = groupTriggers([
+			{ id: 'a', trigger: on({ headers: { Authorization: 'Bearer 1' } }) },
+			{ id: 'b', trigger: on({ headers: { Authorization: 'Bearer 2' } }) }
+		]);
+		expect(groups).toHaveLength(2);
+	});
+
+	it('порядок набору заголовків на групування не впливає', () => {
+		const groups = groupTriggers([
+			{ id: 'a', trigger: on({ headers: { A: '1', B: '2' } }) },
+			{ id: 'b', trigger: on({ headers: { B: '2', A: '1' } }) }
+		]);
+		expect(groups).toHaveLength(1);
+	});
+
+	it('такт групи — найчастіший із замовлених', () => {
+		// Той, хто просив питати частіше, просив не дарма; решті зайве опитування
+		// нічого не коштує — відповідь уже є.
+		const groups = groupTriggers([
+			{ id: 'a', trigger: on({ everySec: 60 }) },
+			{ id: 'b', trigger: on({ everySec: 15 }) }
+		]);
+		expect(groups[0].everySec).toBe(15);
+	});
+
+	it('надто частий такт підтягується до дозволеного', () => {
+		const groups = groupTriggers([{ id: 'a', trigger: on({ everySec: 1 }) }]);
+		expect(groups[0].everySec).toBe(MIN_INTERVAL_SEC);
+	});
+
+	it('вимкнені й безадресні не створюють груп', () => {
+		const groups = groupTriggers([
+			{ id: 'a', trigger: { ...emptyTrigger(), url: 'https://alerts.example/api' } },
+			{ id: 'b', trigger: on({ url: 'не адреса' }) },
+			{ id: 'c', trigger: null },
+			{ id: 'd' }
+		]);
+		expect(groups).toEqual([]);
+	});
+
+	it('пробіли в адресі не роблять другої групи', () => {
+		const groups = groupTriggers([
+			{ id: 'a', trigger: on({ url: ' https://alerts.example/api ' }) },
+			{ id: 'b', trigger: on() }
+		]);
+		expect(groups).toHaveLength(1);
+	});
+
+	it('порядок груп сталий — інакше кожне збереження перезапускало б таймери', () => {
+		const first = groupTriggers([
+			{ id: 'a', trigger: on({ url: 'https://b.example/api' }) },
+			{ id: 'b', trigger: on({ url: 'https://a.example/api' }) }
+		]);
+		const second = groupTriggers([
+			{ id: 'b', trigger: on({ url: 'https://a.example/api' }) },
+			{ id: 'a', trigger: on({ url: 'https://b.example/api' }) }
+		]);
+		expect(first.map((g) => g.key)).toEqual(second.map((g) => g.key));
 	});
 });

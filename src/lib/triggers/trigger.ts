@@ -182,6 +182,71 @@ export function shouldFire(before: boolean | null, now: boolean, onChange: boole
 	return onChange ? !before && now : now;
 }
 
+/**
+ * ОДИН ЗАПИТ НА АДРЕСУ, А НЕ НА ТРЕК.
+ *
+ * Доти кожен трек мав власний таймер і питав сам за себе. На десяти треках із
+ * однієї адреси це десять однакових запитів, на ста — сто; при опитуванні раз
+ * на тридцять секунд виходить понад три запити на секунду, а `ubilling`,
+ * наприклад, віддає 429 уже після двох. Тобто складна дошка ламала б сама себе
+ * — і чужий сервер заразом.
+ *
+ * Тут треки збираються в групи за парою (адреса, заголовки): відповідь
+ * береться раз, а умову кожен перевіряє свою. Групування, а не кеш із міткою
+ * часу: кеш лишає кожному його власний такт, і два треки, що прокинулися
+ * одночасно, обидва побачать порожній кеш і обидва підуть у мережу. Спільний
+ * таймер такої гонки не має за побудовою.
+ *
+ * Такт групи — НАЙМЕНШИЙ серед її учасників: той, хто просив частіше, просив
+ * не дарма, а зайві опитування для решти нічого не коштують — відповідь уже є.
+ */
+export interface TriggerGroup {
+	/** Адреса плюс заголовки: різні заголовки — різний запит. */
+	key: string;
+	url: string;
+	headers: Record<string, string>;
+	everySec: number;
+	members: { trackId: string; trigger: TrackTrigger }[];
+}
+
+/** Заголовки в сталому порядку: інакше ключ залежав би від порядку набору. */
+const headerKey = (headers: Record<string, string>): string =>
+	JSON.stringify(Object.entries(headers).sort(([left], [right]) => left.localeCompare(right)));
+
+export function groupTriggers(
+	entries: readonly { id: string; trigger?: TrackTrigger | null }[]
+): TriggerGroup[] {
+	const groups = new Map<string, TriggerGroup>();
+
+	for (const entry of entries) {
+		const trigger = entry.trigger;
+		if (!trigger || !triggerReady(trigger)) continue;
+
+		const url = trigger.url.trim();
+		const key = `${url}|${headerKey(trigger.headers)}`;
+		const everySec = Math.max(MIN_INTERVAL_SEC, Math.round(trigger.everySec) || MIN_INTERVAL_SEC);
+
+		const group = groups.get(key);
+		if (group) {
+			group.everySec = Math.min(group.everySec, everySec);
+			group.members.push({ trackId: entry.id, trigger });
+			continue;
+		}
+
+		groups.set(key, {
+			key,
+			url,
+			headers: trigger.headers,
+			everySec,
+			members: [{ trackId: entry.id, trigger }]
+		});
+	}
+
+	// Сталий порядок: за ним порівнюють плани, і випадковий порядок давав би
+	// перезапуск таймерів на кожному збереженні.
+	return [...groups.values()].sort((left, right) => left.key.localeCompare(right.key));
+}
+
 /** Чи має сенс опитувати: без адреси тригер нічого не означає. */
 export const triggerReady = (trigger: TrackTrigger): boolean =>
 	trigger.on && /^https?:\/\/\S+$/i.test(trigger.url.trim());
