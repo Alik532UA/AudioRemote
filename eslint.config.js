@@ -51,23 +51,24 @@ export default ts.config(
 			globals: { ...globals.browser, ...globals.node, __APP_VERSION__: 'readonly' },
 			parserOptions: {
 				/*
-				 * `allowDefaultProject` -- для файлів поза `tsconfig.json`
-				 * (`svelte.config.js`, `eslint.config.js`). Без нього
-				 * typescript-eslint падає на них із «was not found by the
-				 * project service», і це виглядає як зламаний конфіг, а не як
-				 * файл поза проєктом.
-				 */
-				/*
-				 * МЕЖА «типового проєкту» піднята з типових восьми, і це не
-				 * оптимізація. Восьмий скрипт у `scripts/` валить ВЕСЬ прогін
-				 * одним рядком «Too many files (>8) have matched the default
-				 * project» — причому названий у ньому файл (`svelte.config.js`)
-				 * до справи не має стосунку, тож виглядає це як зламаний конфіг.
-				 * Тут ці файли дрібні (гейти й службові скрипти), і платня за
-				 * межу — частки секунди.
+				 * `allowDefaultProject` — для файлів поза `tsconfig.json`
+				 * (`eslint.config.js`, скрипти в `scripts/`). Без нього
+				 * typescript-eslint падає на них із «was not found by the project
+				 * service», і це виглядає як зламаний конфіг, а не як файл поза
+				 * проєктом.
+				 *
+				 * `svelte.config.js` у переліку НЕМАЄ навмисно: його імпортує
+				 * перевірка хешів CSP, тобто він уже входить у проєкт tsconfig.
+				 * Файл, названий в обох місцях, відкидається з «included by
+				 * allowDefaultProject but also by the project».
+				 *
+				 * МЕЖА піднята з типових восьми: восьмий скрипт у `scripts/`
+				 * валить ВЕСЬ прогін одним рядком «Too many files (>8) have
+				 * matched the default project», причому названий у ньому файл до
+				 * справи не причетний. Файли тут дрібні, і платня — частки секунди.
 				 */
 				projectService: {
-					allowDefaultProject: ['*.js', 'scripts/*.mjs'],
+					allowDefaultProject: ['eslint.config.js', 'scripts/*.mjs'],
 					maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20
 				},
 				extraFileExtensions: ['.svelte']

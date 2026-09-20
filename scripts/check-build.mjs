@@ -10,8 +10,10 @@
  *
  * Запуск: BASE_PATH=/AudioRemote npm run build && npm run check:build
  */
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { asBrowserSees } from '../svelte.config.js';
 
 const BUILD = 'build';
 const base = process.env.BASE_PATH ?? '/AudioRemote';
@@ -131,6 +133,31 @@ if (shell) {
 	expect("CSP не має 'unsafe-inline' у script-src", !/script-src[^;]*unsafe-inline/.test(csp));
 	expect('CSP має хеші інлайн-скриптів', /script-src[^;]*sha256-/.test(csp));
 	expect('object-src заборонено', /object-src\s+'none'/.test(csp));
+
+	/*
+	 * ХЕШІ ЗВІРЯЮТЬСЯ, А НЕ ПЕРЕЛІЧУЮТЬСЯ.
+	 *
+	 * Присутність слова `sha256-` у політиці доводить лише те, що хеш хтось
+	 * поклав. Чи це хеш ТОГО скрипта, який лежить на сторінці, — питання окреме,
+	 * і саме на ньому ламається перший кадр: скрипт теми блокується цілком, а
+	 * видно з цього лише мигання теми (SECURITY-v9 § 6.3, `SEC-CSP-HASH-EOL`).
+	 *
+	 * Текст проводиться через `asBrowserSees` — ту саму функцію, якою рахує
+	 * `svelte.config.js`. Інакше вердикт цього гейта залежав би від того, з
+	 * якими переносами рядків лежить `build/` на цій машині, а `build/` не
+	 * відстежується git, тож `.gitattributes` до нього не дістає.
+	 */
+	const declared = new Set(csp.match(/sha256-[A-Za-z0-9+/=]+/g) ?? []);
+	const inline = [...shell.matchAll(/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g)];
+	const unhashed = inline
+		.map((match) => createHash('sha256').update(asBrowserSees(match[1])).digest('base64'))
+		.filter((digest) => !declared.has(`sha256-${digest}`));
+
+	expect(
+		'кожен інлайн-скрипт має свій хеш у політиці',
+		unhashed.length === 0,
+		unhashed.map((digest) => `браузер вимагатиме sha256-${digest}`).join('; ')
+	);
 }
 
 // --- Підсумок --------------------------------------------------------------

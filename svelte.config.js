@@ -43,9 +43,26 @@ function inlineScriptHashes(templatePath) {
 	return inline.map(
 		(match) =>
 			/** @type {`sha256-${string}`} */ (
-				`sha256-${createHash('sha256').update(match[1].replace(/\r\n?/g, '\n')).digest('base64')}`
+				`sha256-${createHash('sha256').update(asBrowserSees(match[1])).digest('base64')}`
 			)
 	);
+}
+
+/**
+ * Текст скрипта таким, яким його бачить браузер.
+ *
+ * Розбір HTML нормалізує `\r\n` і одиночний `\r` у `\n` ще до появи DOM
+ * («preprocessing the input stream» у HTML Standard), і хешує браузер уже
+ * нормалізований текстовий вузол. Тому будь-хто, хто рахує тут хеш — і цей
+ * конфіг, і гейт над `build/`, — мусить проводити текст через ЦЮ САМУ функцію.
+ * Доки кожен нормалізував (або не нормалізував) по-своєму, вердикт гейта
+ * залежав від того, на якій машині лежить файл.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function asBrowserSees(text) {
+	return text.replace(/\r\n?/g, '\n');
 }
 
 const appHtmlHashes = inlineScriptHashes('src/app.html');
