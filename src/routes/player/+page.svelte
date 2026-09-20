@@ -319,6 +319,7 @@
 								<input
 									class="bar__range"
 									type="range"
+									aria-label={t('player.seek')}
 									min="0"
 									max={Math.max(1000, engine.durationMs)}
 									step="250"

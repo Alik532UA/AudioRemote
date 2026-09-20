@@ -162,6 +162,7 @@ export const uk = {
 	'player.configReadonly':
 		'Папку видано лише на читання, тож порядок, кольори й клавіші не збережуться. Оберіть папку ще раз і дозвольте запис.',
 	'player.volume': 'Гучність',
+	'player.seek': 'Перемотка',
 	'player.connect': 'Підключити пульт',
 	'player.connectHow': 'Як підключити пульт',
 	'player.connectQuick': 'Одним посиланням',
@@ -233,6 +234,8 @@ export const uk = {
 	'week.fri': 'Пт',
 	'week.sat': 'Сб',
 	'week.sun': 'Нд',
+	'week.from': 'Початок, {day}',
+	'week.to': 'Кінець, {day}',
 	'trigger.onChange': 'Лише коли умова змінилася',
 	'trigger.onChangeHint':
 		'Тривога триває довго, і умова весь цей час виконується. Вимкнене означає «щоразу, поки виконується» — трек починатиметься спочатку на кожному опитуванні.',
@@ -281,6 +284,7 @@ export const uk = {
 	'remote.stop': 'Зупинити',
 	'remote.next': 'Наступний',
 	'remote.volume': 'Гучність',
+	'remote.seek': 'Перемотка',
 	'remote.noAck': 'Плеєр не відповів. Перевірте, чи відкрита дошка там, де грає.',
 	'remote.connecting': 'Зʼєднуємося…',
 	'remote.emptyLibrary': 'На плеєрі ще не обрано папку з музикою.',

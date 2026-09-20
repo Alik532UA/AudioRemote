@@ -187,11 +187,15 @@ describe('сироти в static/ (§ 2.1, PS-STATIC-ORPHANS)', () => {
  * обидві тримають розкладку, діалоги й гарячі клавіші однієї ролі.
  */
 const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
-	'src/routes/player/+page.svelte': 884,
-	'src/routes/remote/+page.svelte': 861,
+	// Три стелі нижче піднімалися рівно раз — на рядок `aria-label` у повзунках
+	// перемотки й полях розкладу. Підняття стелі законне лише так: зі своєю
+	// причиною в описі коміту. Без причини ратчет перестає бути ратчетом за
+	// один коміт.
+	'src/routes/player/+page.svelte': 885,
+	'src/routes/remote/+page.svelte': 862,
 	'src/lib/player/controller.svelte.ts': 541,
 	'src/lib/components/settings/SettingsPanel.svelte': 518,
-	'src/lib/components/player/TriggerEditor.svelte': 417,
+	'src/lib/components/player/TriggerEditor.svelte': 419,
 	'src/lib/components/player/TrackDialog.svelte': 326,
 	'src/lib/audio/engine.svelte.ts': 314
 };

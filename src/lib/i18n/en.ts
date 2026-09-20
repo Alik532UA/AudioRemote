@@ -159,6 +159,7 @@ export const en: Record<TranslationKey, string> = {
 	'player.configReadonly':
 		'The folder was granted read-only, so order, colours and keys will not be saved. Choose the folder again and allow writing.',
 	'player.volume': 'Volume',
+	'player.seek': 'Seek',
 	'player.connect': 'Connect a remote',
 	'player.connectHow': 'How to connect a remote',
 	'player.connectQuick': 'One link',
@@ -230,6 +231,8 @@ export const en: Record<TranslationKey, string> = {
 	'week.fri': 'Fri',
 	'week.sat': 'Sat',
 	'week.sun': 'Sun',
+	'week.from': 'Start, {day}',
+	'week.to': 'End, {day}',
 	'trigger.onChange': 'Only when the condition changed',
 	'trigger.onChangeHint':
 		'An alert lasts a long time, and the condition holds throughout. Turned off means “every time it holds” — the track will restart on every poll.',
@@ -278,6 +281,7 @@ export const en: Record<TranslationKey, string> = {
 	'remote.stop': 'Stop',
 	'remote.next': 'Next',
 	'remote.volume': 'Volume',
+	'remote.seek': 'Seek',
 	'remote.noAck': 'The player did not answer. Check that the board is open where it plays.',
 	'remote.connecting': 'Connecting…',
 	'remote.emptyLibrary': 'No music folder has been chosen on the player yet.',

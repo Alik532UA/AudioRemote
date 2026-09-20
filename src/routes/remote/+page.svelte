@@ -367,6 +367,7 @@
 								<input
 									class="bar__range"
 									type="range"
+									aria-label={t('remote.seek')}
 									min="0"
 									max={Math.max(1000, controller.durationMs)}
 									step="250"

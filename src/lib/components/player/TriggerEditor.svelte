@@ -259,6 +259,7 @@
 							<input
 								class="input week__time"
 								type="time"
+								aria-label={t('week.from', { day: t(DAYS[index]) })}
 								value={day.from}
 								disabled={!day.on}
 								oninput={(event) => (day.from = event.currentTarget.value)}
@@ -268,6 +269,7 @@
 							<input
 								class="input week__time"
 								type="time"
+								aria-label={t('week.to', { day: t(DAYS[index]) })}
 								value={day.to}
 								disabled={!day.on}
 								oninput={(event) => (day.to = event.currentTarget.value)}
