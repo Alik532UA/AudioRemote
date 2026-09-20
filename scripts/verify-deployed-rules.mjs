@@ -118,12 +118,25 @@ if (existsSync('firestore.rules')) {
 			const rs = await fetch(`https://firebaserules.googleapis.com/v1/${release.rulesetName}`, {
 				headers: { Authorization: `Bearer ${t}` }
 			});
-			const files = (await rs.json()).source?.files ?? [];
+			const ruleset = await rs.json();
+			const files = ruleset.source?.files ?? [];
+			/*
+			 * Дата береться з RULESET, а не з release.
+			 *
+			 * `release.createTime` — це коли вперше створили сам ВКАЗІВНИК на
+			 * правила, а не коли виклали цей текст. Він не міняється ніколи, тож
+			 * у щойно виконаному деплої звіт писав би дату кількарічної давності
+			 * — і зелений прогін повідомляв би неправду. Виміряно на `MindStep`:
+			 * правила щойно поїхали, а в журналі стояло «викладено 2025-12-10».
+			 *
+			 * У ruleset `createTime` означає саме те, що треба: коли завантажили
+			 * ЦЕЙ текст.
+			 */
 			compare(
 				'Firestore',
 				files.map((f) => f.content).join('\n'),
 				'firestore.rules',
-				`, викладено ${release.createTime}`
+				`, цей текст викладено ${ruleset.createTime ?? release.updateTime ?? '(дата невідома)'}`
 			);
 		}
 	}

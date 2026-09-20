@@ -197,3 +197,53 @@ test('пульт помічає, що плеєр пішов', async ({ browser }
 
 	await guest.close();
 });
+
+test('шапка-картка стоїть в один лівий край', async ({ browser }) => {
+	/*
+	 * ВИРІВНЮВАННЯ — ЦЕ ТЕ, ЧОГО НЕ ВИДНО НІЗВІДКИ, КРІМ БРАУЗЕРА.
+	 *
+	 * Шапка — гнучкий рядок із переносом: назва ліворуч, лічильник і кнопка
+	 * праворуч. Коли обидва блоки не влазять, другий переноситься — і доти він
+	 * стискався до ширини найширшої дитини, сідав ліворуч, а `align-items: end`
+	 * вирівнював його вміст по правому краю ЦІЄЇ коробки, тобто по межі, якої
+	 * на екрані немає.
+	 *
+	 * Виходило три різні ліві краї в одній картці, і залежало це від довжини
+	 * назви дошки: «Плеєр» не вміщався в рядок рівно на вісім пікселів. Ні
+	 * типи, ні регулярка над CSS такого не бачать: кожне правило окремо
+	 * правильне, а разом вони дають розкладку, яку видно лише на екрані.
+	 */
+	/*
+	 * Назва КОРОТКА навмисно: з нею обидва блоки в рядок вміщаються, тобто
+	 * переносу немає й «випадково правильного» вирівнювання теж. Картка мусить
+	 * стояти стовпцем не тому, що щось не влізло, а тому, що вона вузька
+	 * завжди. Довга назва перевіряла б лише перенос.
+	 */
+	const ctx = await browser.newContext();
+	const player = await ctx.newPage();
+	await createBoard(player, 'Зал');
+
+	const head = player.getByTestId('board-head');
+	await expect(head, 'це не картковий варіант шапки — перевірка дивиться не туди').toHaveClass(
+		/card/
+	);
+
+	const headBox = (await head.boundingBox())!;
+	const title = (await head.locator('h1').boundingBox())!;
+	const counter = (await player
+		.getByText(uk['player.listeners'].replace('{count}', '0'))
+		.boundingBox())!;
+	const button = (await player.getByTestId('open-remote').boundingBox())!;
+
+	expect(Math.round(counter.x), 'лічильник має свій лівий край').toBe(Math.round(title.x));
+	expect(Math.round(button.x), 'кнопка має свій лівий край').toBe(Math.round(title.x));
+
+	// І праворуч так само: відступ кнопки від краю картки дорівнює лівому.
+	const padLeft = title.x - headBox.x;
+	const padRight = headBox.x + headBox.width - (button.x + button.width);
+	expect(Math.round(padRight), 'кнопка не доходить до правого краю картки').toBe(
+		Math.round(padLeft)
+	);
+
+	await ctx.close();
+});

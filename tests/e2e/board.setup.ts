@@ -33,22 +33,32 @@ const AUTH = process.env.E2E_AUTH_URL ?? 'http://127.0.0.1:9119';
 const NS = 'demo-audioremote-default-rtdb';
 
 /**
- * Код відповіді або `null`, якщо порт навіть не прийняв зʼєднання.
+ * Код відповіді або `null`, якщо порт так і не відповів.
  *
- * `request.get` на мертвий порт КИДАЄ, а не повертає нуль, і тоді прогін
- * показує `ECONNREFUSED 127.0.0.1:9119` замість пояснення, що це означає.
- * Саме таке повідомлення цей файл і покликаний замінити.
+ * Дві речі разом. По-перше, `request.get` на мертвий порт КИДАЄ, а не повертає
+ * нуль, і тоді прогін показує `ECONNREFUSED 127.0.0.1:9119` замість пояснення,
+ * що це означає, — саме таке повідомлення цей файл і покликаний замінити.
+ *
+ * По-друге, ВІДПОВІДЬ ЧЕКАЄТЬСЯ, а не питається один раз. Обидві перевірки
+ * біжать тоді, коли Playwright щойно підняв два сервери, і машина в цю мить
+ * зайнята: одноразове питання вже одного разу дало «емулятор мовчить» на
+ * живому емуляторі. Перевірка, що стереже від плутанини, сама зробила б
+ * висновок навмання.
  */
-async function status(request: APIRequestContext, url: string): Promise<number | null> {
-	try {
-		return (await request.get(url, { failOnStatusCode: false, timeout: 5000 })).status();
-	} catch {
-		return null;
+async function reach(request: APIRequestContext, url: string): Promise<number | null> {
+	const until = Date.now() + 30_000;
+	for (;;) {
+		try {
+			return (await request.get(url, { failOnStatusCode: false, timeout: 5000 })).status();
+		} catch {
+			if (Date.now() > until) return null;
+			await new Promise((wake) => setTimeout(wake, 500));
+		}
 	}
 }
 
 setup('база емулятора відповідає, і правила в ній діють', async ({ request }) => {
-	const code = await status(request, `${DB}/.json?ns=${NS}`);
+	const code = await reach(request, `${DB}/.json?ns=${NS}`);
 
 	expect(code, `база емулятора мовчить на ${DB} — підніміть її: npm run emulators`).not.toBeNull();
 
@@ -60,7 +70,7 @@ setup('база емулятора відповідає, і правила в н
 });
 
 setup('емулятор входу відповідає', async ({ request }) => {
-	const code = await status(request, `${AUTH}/`);
+	const code = await reach(request, `${AUTH}/`);
 
 	expect(
 		code,
