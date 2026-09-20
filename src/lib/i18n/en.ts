@@ -167,6 +167,7 @@ export const en: Record<TranslationKey, string> = {
 		'The link carries no password — only the board address. But that address OPENS the board: whoever gets the link is inside.',
 	'player.connectLink': 'Link',
 	'player.connectCopyLink': 'Copy the link',
+	'player.connectAuto': 'Open this board right away next time',
 	'player.connectManual': 'Or by hand',
 	'player.connectQrHint': 'Point the phone camera at it.',
 	'player.connectSecrets': 'Values',
@@ -262,6 +263,7 @@ export const en: Record<TranslationKey, string> = {
 	'remote.volume': 'Volume',
 	'remote.sending': 'Sending…',
 	'remote.noAck': 'The computer did not answer. Check that the tab is open.',
+	'remote.connecting': 'Connecting…',
 	'remote.emptyLibrary': 'No music folder has been chosen on the computer yet.',
 
 	'error.network': 'No connection to the database. Check the internet.',

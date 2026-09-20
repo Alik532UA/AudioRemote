@@ -170,6 +170,7 @@ export const uk = {
 		'Пароля в посиланні немає — лише адреса дошки. Але вона ВІДКРИВАЄ дошку: хто отримав посилання, той усередині.',
 	'player.connectLink': 'Посилання',
 	'player.connectCopyLink': 'Скопіювати посилання',
+	'player.connectAuto': 'Далі відкривати цю дошку одразу',
 	'player.connectManual': 'Або вручну',
 	'player.connectQrHint': 'Наведіть камеру телефона.',
 	'player.connectSecrets': 'Значення',
@@ -265,6 +266,7 @@ export const uk = {
 	'remote.volume': 'Гучність',
 	'remote.sending': 'Надсилаємо…',
 	'remote.noAck': 'Комп’ютер не відповів. Перевірте, чи відкрита вкладка.',
+	'remote.connecting': 'Зʼєднуємося…',
 	'remote.emptyLibrary': 'На комп’ютері ще не обрано папку з музикою.',
 
 	'error.network': 'Немає зв’язку з базою. Перевірте інтернет.',

@@ -35,6 +35,22 @@ export class RemoteController {
 	state = $state<PlayerState | null>(null);
 	playerOnline = $state(false);
 
+	/**
+	 * ЧИ БАЗА ВЖЕ ВІДПОВІЛА — окремо від того, що вона відповіла.
+	 *
+	 * `playerOnline` дорівнює `false` і тоді, коли приймач працює, а перший
+	 * знімок присутності ще в дорозі; `library` так само порожня, доки не
+	 * приїхала. Доти пульт устигав показати «вкладку на комп'ютері закрито» й
+	 * «ще не обрано папку» — дві страшні фрази про те, чого він просто ще не
+	 * знає. За мить усе відкривалося правильно, і людина лишалася з відчуттям,
+	 * що застосунок ледь не зламався.
+	 *
+	 * Та сама пара, що й `armKnown` у рушії: висновок робиться лише тоді, коли
+	 * є з чого.
+	 */
+	presenceKnown = $state(false);
+	libraryKnown = $state(false);
+
 	/** Команда в дорозі — щоб кнопки не приймали друге натискання наосліп. */
 	sending = $state(false);
 	/** Ключ перекладу останньої невдачі. */
@@ -106,10 +122,18 @@ export class RemoteController {
 	async start(): Promise<() => void> {
 		this.track(await trackPresence(this.board.key, 'remote'));
 		this.track(await watchInfo(this.board.key, (info) => (this.info = info)));
-		this.track(await watchLibrary(this.board.key, (library) => (this.library = library)));
+		this.track(
+			await watchLibrary(this.board.key, (library) => {
+				this.library = library;
+				this.libraryKnown = true;
+			})
+		);
 		this.track(await watchState(this.board.key, (state) => (this.state = state)));
 		this.track(
-			await watchPresence(this.board.key, (present) => (this.playerOnline = hasPlayer(present)))
+			await watchPresence(this.board.key, (present) => {
+				this.playerOnline = hasPlayer(present);
+				this.presenceKnown = true;
+			})
 		);
 
 		/*

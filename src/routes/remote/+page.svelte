@@ -179,12 +179,16 @@
 					{@render boardHead()}
 				{/if}
 
-				{#if !controller.playerOnline}
+				<!--
+					`presenceKnown` — щоб не лякати завчасно. Доки перший знімок
+					присутності не приїхав, «офлайн» означає лише «ще не знаємо».
+				-->
+				{#if controller.presenceKnown && !controller.playerOnline}
 					<p class="note note--warn card" data-testid="offline-hint">
 						<IconWarning size={18} aria-hidden="true" />
 						<span>{t('remote.offlineHint')}</span>
 					</p>
-				{:else if !armed}
+				{:else if controller.state !== null && !armed}
 					<!--
 						ІНШИЙ ТЕКСТ, А НЕ ТОЙ САМИЙ. «Вкладку закрито» й «звук не ввімкнено»
 						виглядають однаково — обидва означають «не працює», — але дії різні:
@@ -408,7 +412,10 @@
 			<!-- ─── Список ────────────────────────────────────────────────── -->
 			<div class="board__col board__col--list">
 				<section class="card stack">
-					{#if controller.tracks.length === 0}
+					{#if !controller.libraryKnown}
+						<!-- Ще не знаємо. Тиха фраза замість висновку, якого нема з чого зробити. -->
+						<p class="muted">{t('remote.connecting')}</p>
+					{:else if controller.tracks.length === 0}
 						<p class="muted">{t('remote.emptyLibrary')}</p>
 					{:else}
 						<!--
