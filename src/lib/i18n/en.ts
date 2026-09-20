@@ -82,6 +82,12 @@ export const en: Record<TranslationKey, string> = {
 		'Written to browser storage, so it survives a crash. Copy and send it if something went wrong.',
 	'settings.trailEmpty': 'Empty.',
 	'settings.fixedTitle': 'Fixed board',
+	'settings.folderTitle': 'Music folder',
+	'settings.folderLead':
+		'The app opens it on start. Paste the path from the file manager or pick it with the button.',
+	'settings.folderLabel': 'Path to the folder',
+	'settings.folderPick': 'Pick a folder',
+	'settings.folderMissing': 'No such folder, or the app cannot read it.',
 	'settings.fixedLead':
 		'Put a board ID and password here that will not change. “Create” will then open THE SAME board every time, so there is nothing new to read out to colleagues.',
 	'settings.fixedId': 'Fixed board ID',

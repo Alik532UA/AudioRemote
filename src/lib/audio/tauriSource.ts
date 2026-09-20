@@ -76,6 +76,41 @@ const mimeOf = (name: string): string => {
 	return 'audio/webm';
 };
 
+/** Який шлях запам'ятано. Порожньо — папки ще не обирали. */
+export const rememberedFolder = (): string => readItem(FOLDER_KEY) ?? '';
+
+/**
+ * ЗАПАМ'ЯТАТИ ПАПКУ ЗА ШЛЯХОМ — те саме, що робить діалог, але без діалогу.
+ *
+ * Потрібне для налаштувань: шлях зручніше вставити з провідника, ніж шукати
+ * клацанням, а на чужому комп'ютері його ще й диктують. Діалог лишається —
+ * просто він тепер не єдиний шлях.
+ *
+ * Перевіряються ОБИДВІ речі, і друга неочевидна: мало впевнитися, що папка
+ * існує, — застосунку ще треба дати право її читати. Без цього шлях
+ * зберігався б, а список лишався порожнім, і виглядало б це як «не бачить
+ * моїх файлів».
+ */
+export async function rememberFolder(path: string): Promise<boolean> {
+	const trimmed = path.trim();
+	if (!runningInTauri() || trimmed.length === 0) return false;
+
+	try {
+		const { invoke } = await import('@tauri-apps/api/core');
+		await invoke('allow_folder', { path: trimmed });
+
+		const { exists } = await import('@tauri-apps/plugin-fs');
+		if (!(await exists(trimmed))) return false;
+
+		writeItem(FOLDER_KEY, trimmed);
+		mark(`folder:set ${trimmed.slice(0, 60)}`);
+		return true;
+	} catch (error) {
+		mark(`folder:set-failed ${String(error).slice(0, 60)}`);
+		return false;
+	}
+}
+
 export class TauriFolderSource implements AudioSource {
 	readonly supported = runningInTauri();
 
