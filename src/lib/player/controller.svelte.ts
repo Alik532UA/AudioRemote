@@ -75,6 +75,8 @@ export class PlayerController {
 
 	/** Чи належить дошка САМЕ ЦЬОМУ браузеру. */
 	owned = $state(true);
+	/** Доки це `false`, `owned` ще нічого не означає — база не відповіла. */
+	private ownershipKnown = false;
 	remotes = $state(0);
 
 	/** `false` — теку видали лише на читання, налаштування не збережуться. */
@@ -201,13 +203,36 @@ export class PlayerController {
 			if (grace) clearTimeout(grace);
 		});
 
+		/*
+		 * ПАПКА ЧИТАЄТЬСЯ ДО БАЗИ, І ЦЕ НЕ ПРО ШВИДКІСТЬ.
+		 *
+		 * Доти першим стояло звернення до бази, і все місцеве — папка, треки,
+		 * порядок — чекало на нього. Коли бази немає, воно не повертається
+		 * ніколи: читання лягає в чергу SDK і чекає сокета, якого не буде. Отже
+		 * рядок нижче не виконувався, `sourceStatus` лишався `none`, і сторінка
+		 * пропонувала «обрати папку» — хоч папка була записана, дозвіл на неї
+		 * живий, а файли на місці.
+		 *
+		 * Інтернету для гри не потрібно. Комп'ютер із колонками мусить грати й
+		 * тоді, коли мережа впала посеред заняття; без бази втрачається рівно
+		 * одне — пульт, і про це сказано вголос вище.
+		 */
+		this.sourceStatus = await this.source.status();
+		this.folderName = this.source.label;
+		if (this.sourceStatus === 'ready') await this.rescan();
+
 		const info: BoardInfo = await ensureBoard(this.board.key, this.board.name);
 		const { uid } = await import('$lib/net/firebase').then((module) => module.connect());
 		this.owned = info.ownerUid === uid;
 
-		this.sourceStatus = await this.source.status();
-		this.folderName = this.source.label;
-		if (this.sourceStatus === 'ready') await this.rescan();
+		/*
+		 * Аж тепер відомо, чия це дошка, — і аж тепер можна оголошувати. Доти
+		 * `publish()` мовчки виходить: другий комп'ютер із тією самою парою не
+		 * має права переписати бібліотеку господаря лише тому, що встиг
+		 * прочитати свою папку раніше.
+		 */
+		this.ownershipKnown = true;
+		await this.publish();
 
 		this.track(await trackPresence(this.board.key, 'player'));
 		this.track(
@@ -457,7 +482,7 @@ export class PlayerController {
 	 * різні треки (та сама причина, з якої колись з'явився `order`).
 	 */
 	private async publish(): Promise<void> {
-		if (!this.owned || this.stopped) return;
+		if (!this.ownershipKnown || !this.owned || this.stopped) return;
 
 		const forCloud: Record<string, Track> = {};
 		this.forRemote.forEach((entry, index) => {
