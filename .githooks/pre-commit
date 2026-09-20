@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+#
+# ВЕРСІЯ ПІДНІМАЄТЬСЯ ТУТ — і це єдине місце, де вона піднімається сама.
+#
+# Хук порівнює версію в ЗІБРАНОМУ коміті з версією в HEAD. Різні — значить її
+# щойно підняли руками через `npm version minor|major`, і бампати patch поверх
+# означало б зіпсувати свідоме рішення. Однакові — звичайний коміт, patch + 1.
+#
+# Канон: VERSIONING-v9 § 1.1. Хук живе в `.githooks`, а не в `.husky`: husky
+# тягне залежність заради того, що git уміє сам (`core.hooksPath`), і цей шлях
+# виставляє `npm run prepare`.
+#
+# `--no-verify` вимикає це цілком, і це не привід забороняти прапорець: остаточна
+# версія однаково формується при деплої.
+set -e
+
+staged=$(git show :package.json 2>/dev/null | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).version' 2>/dev/null || echo '')
+head=$(git show HEAD:package.json 2>/dev/null | node -p 'JSON.parse(require("fs").readFileSync(0,"utf8")).version' 2>/dev/null || echo '')
+
+# Порожній `staged` — package.json не в коміті; беремо той, що на диску.
+if [ -z "$staged" ]; then
+	staged=$(node -p 'require("./package.json").version')
+fi
+
+if [ "$staged" = "$head" ]; then
+	node scripts/bump-version.mjs
+else
+	node scripts/bump-version.mjs --sync-only
+fi
+
+git add package.json static/app-version.json

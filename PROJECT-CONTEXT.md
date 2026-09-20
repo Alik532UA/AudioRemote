@@ -26,6 +26,7 @@
 | Продуктовий пакет      | **застосовується** ([`product_criteria/v1`](../sveltekit-canon/product_criteria/v1/README.md)) |
 | Адреса                 | `alik532ua.github.io/AudioRemote/`                                                             |
 | `paths.base`           | з `BASE_PATH`, типово `/AudioRemote`                                                           |
+| Модель версії          | **бамп на коміт** — patch піднімає хук `.githooks/pre-commit` (VERSIONING-v9 § 1.2)            |
 | Гілка розробки         | `main`                                                                                         |
 | Префікс `localStorage` | `audioremote_`                                                                                 |
 | Ключ `sessionStorage`  | `audioremote_active`                                                                           |
