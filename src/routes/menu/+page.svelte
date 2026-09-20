@@ -52,6 +52,59 @@
 	<h1 class="lead">{t('entry.lead')}</h1>
 
 	<!--
+		СПЕРШУ СВОЇ ДОШКИ, ПОТІМ ДВІ КНОПКИ.
+
+		Дошки внизу мали сенс, поки їх не було: перший екран мусив ставити одне
+		питання — «біля комп'ютера ви чи біля пульта». Але в того, хто вже
+		працював, відповідь на нього щодня та сама, і шукати свою дошку під
+		кнопками означало гортати повз питання, на яке відповідь відома.
+	-->
+	{#if saved.length > 0}
+		<section class="card" data-testid="my-boards">
+			<h2 class="mine__title">{t('entry.mine')}</h2>
+			<ul class="mine">
+				{#each saved as board (board.key)}
+					<li class="mine__row">
+						<!--
+							ІДЕНТИФІКАТОР ПИШЕТЬСЯ ОДИН РАЗ.
+							
+							Доти рядок мав і назву, і ідентифікатор окремо — а назви в дошки
+							зазвичай немає, і тоді замість неї підставлявся той самий
+							ідентифікатор. Виходило «YWYQW YWYQW Плеєр»: два однакові слова
+							поспіль, у яких читач шукає різницю, якої немає.
+						-->
+						<button class="mine__open" type="button" onclick={() => reopen(board)}>
+							<!--
+								РОЛЬ ПЕРША, і це відповідає на питання, з яким сюди й
+								приходять: «а це та дошка, де я граю, чи та, де я керую».
+								Ідентифікатор без цього читається однаково в обох випадках.
+							-->
+							<span class="mine__role" class:mine__role--player={board.role === 'player'}>
+								{board.role === 'player' ? t('player.title') : t('remote.title')}
+							</span>
+							{#if board.name}
+								<span class="mine__name">{board.name}</span>
+								<span class="mine__id mono">{board.id}</span>
+							{:else}
+								<span class="mine__name mono">{board.id}</span>
+							{/if}
+						</button>
+						<button
+							class="mine__forget"
+							type="button"
+							title={t('entry.forget')}
+							aria-label={t('entry.forget')}
+							onclick={() => forget(board)}
+						>
+							<IconTrash size={18} aria-hidden="true" />
+						</button>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
+	<!--
 		ДВІ КНОПКИ, І БІЛЬШЕ НІЧОГО НА ПЕРШОМУ ЕКРАНІ.
 
 		Людина, яка вперше відкрила застосунок, стоїть перед одним питанням: вона
@@ -72,46 +125,6 @@
 			<span class="choice__hint">{t('entry.connectHint')}</span>
 		</a>
 	</div>
-
-	{#if saved.length > 0}
-		<section class="card" data-testid="my-boards">
-			<h2 class="mine__title">{t('entry.mine')}</h2>
-			<ul class="mine">
-				{#each saved as board (board.key)}
-					<li class="mine__row">
-						<!--
-							ІДЕНТИФІКАТОР ПИШЕТЬСЯ ОДИН РАЗ.
-							
-							Доти рядок мав і назву, і ідентифікатор окремо — а назви в дошки
-							зазвичай немає, і тоді замість неї підставлявся той самий
-							ідентифікатор. Виходило «YWYQW YWYQW Плеєр»: два однакові слова
-							поспіль, у яких читач шукає різницю, якої немає.
-						-->
-						<button class="mine__open" type="button" onclick={() => reopen(board)}>
-							{#if board.name}
-								<span class="mine__name">{board.name}</span>
-								<span class="mine__id mono">{board.id}</span>
-							{:else}
-								<span class="mine__name mono">{board.id}</span>
-							{/if}
-							<span class="mine__role">
-								{board.role === 'player' ? t('player.title') : t('remote.title')}
-							</span>
-						</button>
-						<button
-							class="mine__forget"
-							type="button"
-							title={t('entry.forget')}
-							aria-label={t('entry.forget')}
-							onclick={() => forget(board)}
-						>
-							<IconTrash size={18} aria-hidden="true" />
-						</button>
-					</li>
-				{/each}
-			</ul>
-		</section>
-	{/if}
 </div>
 
 <style>
@@ -211,7 +224,7 @@
 		display: flex;
 		flex: 1;
 		flex-wrap: wrap;
-		align-items: baseline;
+		align-items: center;
 		gap: var(--gap-sm);
 		min-height: var(--tap);
 		padding: 0 var(--gap-sm);
@@ -246,13 +259,22 @@
 	 * слова.
 	 */
 	.mine__role {
-		margin-inline-start: auto;
-		padding: 2px var(--gap-sm);
-		border-radius: var(--radius-full);
+		flex: none;
+		width: 4.5rem;
+		padding: 4px var(--gap-sm);
+		border-radius: var(--radius-sm);
 		background: var(--bg-sunken);
 		color: var(--text-secondary);
-		font-size: 0.75rem;
+		font-size: 0.85rem;
+		font-weight: 600;
+		text-align: center;
 		white-space: nowrap;
+	}
+
+	/* Плеєр і пульт — різні ролі, і на око вони теж різні. */
+	.mine__role--player {
+		background: var(--accent-soft);
+		color: var(--accent);
 	}
 
 	.mine__forget {
