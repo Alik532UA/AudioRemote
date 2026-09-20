@@ -197,7 +197,11 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	'src/lib/components/settings/SettingsPanel.svelte': 521,
 	'src/lib/components/player/TriggerEditor.svelte': 415,
 	'src/lib/components/player/TrackDialog.svelte': 326,
-	'src/lib/audio/engine.svelte.ts': 329
+	// 329 → 331: по рядку `intent += 1` у `pause()` і `resume()`. Обидві команди
+	// теж кажуть, що має звучати зараз, а лічильник піднімали лише «стоп»,
+	// запуск і вихід — тобто пауза під час читання файлу гасила старий звук, і
+	// новий трек починав грати сам. Коротше, ніж рядком на команду, не виходить.
+	'src/lib/audio/engine.svelte.ts': 331
 };
 
 describe('розмір файлу (§ 7.1, PS-SIZE-RATCHET)', () => {

@@ -23,6 +23,14 @@ import type { AudioSource, SourceTrack } from './source';
  * посилання на елемент і починає грати вже після `destroy()`. Зупинити його
  * нема чим, рушія більше немає.
  *
+ * ## Чому команд тут ЧОТИРИ, а не дві
+ *
+ * Номер наміру мусить рости на кожну команду про те, що має звучати ЗАРАЗ.
+ * Пропущена команда програє запуску, що був у дорозі, мовчки. «Пауза» без
+ * номера гасила старий звук — а новий трек за мить починав грати сам, тобто
+ * пауза ВМИКАЛА музику; «грати» без номера продовжувало поточний трек, і
+ * поверх нього сідав той, який натиснули раніше й передумали.
+ *
  * ## Чому джерело підставне
  *
  * Гонка тут вимірюється саме затримкою читання файлу, і керувати нею можна
@@ -98,6 +106,16 @@ function build() {
 	source.add('a.mp3', 'AAA');
 	source.add('b.mp3', 'BBB');
 
+	/*
+	 * `HTMLMediaElement.play()` У JSDOM НЕ РЕАЛІЗОВАНИЙ ЗОВСІМ: він пише
+	 * «Not implemented» і віддає `undefined`, тоді як браузер віддає проміс.
+	 * `play()` рушія це переживає (`await undefined` працює), а `resume()` —
+	 * ні: він чіпляє `.catch()` просто до результату. Тобто без підстановки
+	 * падала б ПРОБА на межі jsdom, а не рушій.
+	 */
+	vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+	vi.spyOn(HTMLMediaElement.prototype, 'pause').mockReturnValue(undefined);
+
 	revoked = [];
 	vi.stubGlobal('URL', {
 		...URL,
@@ -115,6 +133,7 @@ function build() {
 
 afterEach(() => {
 	vi.unstubAllGlobals();
+	vi.restoreAllMocks();
 });
 
 describe('гонка запусків (engine.svelte.ts)', () => {
@@ -154,6 +173,45 @@ describe('гонка запусків (engine.svelte.ts)', () => {
 		await started;
 
 		expect(engine.trackId, 'після «стоп» трек однаково заграв').toBeNull();
+	});
+
+	it('«пауза» скасовує запуск, що був у дорозі', async () => {
+		const { engine, source } = build();
+
+		// Спершу справді грає «a»: пауза мусить мати що тримати, а новий запуск —
+		// що перебивати. Поки читається «b», у залі звучить саме «a».
+		const first = engine.play('a');
+		source.release('a.mp3');
+		await first;
+
+		const second = engine.play('b');
+		engine.pause();
+		source.release('b.mp3');
+		await second;
+
+		expect(engine.trackId, '«пауза» ввімкнула музику: новий трек однаково заграв').toBe('a');
+		expect(engine.playing).toBe(false);
+		expect(revoked, 'відкликано адресу треку, який лишився на паузі').not.toContain('blob:a.mp3');
+	});
+
+	it('«грати» скасовує запуск, що був у дорозі', async () => {
+		const { engine, source } = build();
+
+		const first = engine.play('a');
+		source.release('a.mp3');
+		await first;
+		engine.pause();
+
+		// Натиснули «b», не дочекалися й повернулися до поточного: останнє слово
+		// за «грати», тобто за «a».
+		const second = engine.play('b');
+		await engine.resume();
+		source.release('b.mp3');
+		await second;
+
+		expect(engine.trackId, '«грати» продовжило не той трек').toBe('a');
+		expect(engine.playing).toBe(true);
+		expect(revoked, 'відкликано адресу треку, який продовжили').not.toContain('blob:a.mp3');
 	});
 
 	it('вихід із дошки скасовує запуск, що був у дорозі', async () => {
