@@ -47,12 +47,26 @@ export async function boardExists(key: string): Promise<boolean> {
 	 */
 	const lookup = get(ref(db, node(key, 'info'))).then((snapshot) => snapshot.exists());
 
-	return Promise.race([
-		lookup,
-		new Promise<never>((_, reject) =>
-			setTimeout(() => reject(new BoardLookupTimeout()), LOOKUP_TIMEOUT_MS)
-		)
-	]);
+	/*
+	 * ТАЙМЕР ГАСИТЬСЯ Й ТОДІ, КОЛИ ВІН ПРОГРАВ.
+	 *
+	 * `Promise.race` не скасовує програвшого — він лише перестає його слухати.
+	 * Без `finally` кожен пошук дошки лишав за собою десятисекундний таймер,
+	 * а пошук повторюють підбором пароля: кожна невдала спроба з форми — ще
+	 * один. Відмови без нагляду це не давало (race підписаний на обидва
+	 * проміси, тож пізнє відхилення перехоплене), тому й не видно було нічого.
+	 */
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			lookup,
+			new Promise<never>((_, reject) => {
+				timer = setTimeout(() => reject(new BoardLookupTimeout()), LOOKUP_TIMEOUT_MS);
+			})
+		]);
+	} finally {
+		clearTimeout(timer);
+	}
 }
 
 /** Скільки чекати на відповідь бази, перш ніж сказати, що її не чути. */

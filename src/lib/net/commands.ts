@@ -126,19 +126,36 @@ export async function waitForAck(base: string, id: string): Promise<Ack | null> 
 
 	return new Promise((resolve) => {
 		let settled = false;
+		/*
+		 * `let`, А НЕ `const` ПІСЛЯ `finish`.
+		 *
+		 * `onValue` має право покликати колбек СИНХРОННО — коли значення вже
+		 * лежить у кеші SDK. Тоді `finish` виконується всередині самого виклику
+		 * `onValue`, тобто до того, як його результат кудись записали: звернення
+		 * до `const stop` у цю мить дає не «ще не підписалися», а
+		 * `ReferenceError` із мертвої зони. Впало б це в колбеку бази, де на
+		 * нього ніхто не чекає, і виглядало б як «пульт не дочекався квитанції».
+		 *
+		 * Сьогодні вузол квитанції щойно створений і в кеші його нема, тож шлях
+		 * не спрацьовує. Це пастка на завтра, а не дефект на сьогодні.
+		 */
+		let stop: (() => void) | null = null;
 		const finish = (ack: Ack | null) => {
 			if (settled) return;
 			settled = true;
-			stop();
+			stop?.();
 			clearTimeout(timer);
 			resolve(ack);
 		};
 
 		const timer = setTimeout(() => finish(null), ACK_TIMEOUT_MS);
-		const stop = onValue(ref(db, `${ackPath(base)}/${id}`), (snapshot) => {
+		stop = onValue(ref(db, `${ackPath(base)}/${id}`), (snapshot) => {
 			const value = snapshot.val() as Ack | null;
 			if (value) finish(value);
 		});
+		// Синхронний колбек уже пройшов повз `stop?.()` — знімаємо підписку тут,
+		// інакше вона лишилася б назавжди саме в тому випадку, який ми й лікуємо.
+		if (settled) stop();
 	});
 }
 
