@@ -723,6 +723,15 @@
 		border-color: var(--accent);
 	}
 
+	/*
+	 * Головне натискання пульта мусить бути відчутним саме на пальці, а `:hover`
+	 * там не спрацьовує. Доти замість відгуку був сірий прямокутник від Android,
+	 * який ми прибрали в `base.css`, — це його заміна, і вона знає наш радіус.
+	 */
+	.tracks__btn:active:not(:disabled) {
+		box-shadow: inset 0 0 0 999px var(--press-veil);
+	}
+
 	.tracks__btn:disabled {
 		opacity: 0.6;
 	}
