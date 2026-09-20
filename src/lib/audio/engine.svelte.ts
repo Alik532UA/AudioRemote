@@ -1,3 +1,4 @@
+import { queueSpot, queueTotal } from './queue';
 import { TrackMissingError, type AudioSource, type SourceTrack } from './source';
 
 /**
@@ -38,6 +39,24 @@ import { TrackMissingError, type AudioSource, type SourceTrack } from './source'
  * для паузи й стопа звучала б як несправність.
  */
 const FADE_MS = 1000;
+
+/**
+ * Як часто рухати позицію під час паузи між повторами.
+ *
+ * Це та сама частота, з якою браузер сам шле `timeupdate` під час звучання, —
+ * приблизно чотири рази на секунду. Частіше немає сенсу: смуга однаково
+ * перемальовується не швидше за кадр, а рідше — і рух стає ступінчастим.
+ */
+const GAP_TICK_MS = 250;
+
+/**
+ * Стеля тривалості, яку приймає база (`state.durationMs`).
+ *
+ * Дев'яносто дев'ять повторів години дають сто годин, а правило відкидає стан із
+ * більшою тривалістю — і відкидає ВЕСЬ стан, не саме поле. Тобто без цієї межі
+ * дошка з довгим треком і великою кількістю повторів осліпила б пульт цілком.
+ */
+const DAY_MS = 86_400_000;
 
 export type EngineErrorKind = 'missing' | 'playback' | 'not-armed';
 
@@ -114,8 +133,47 @@ export class AudioEngine {
 	 * Скидається будь-яким новим наміром людини — інший трек, «стоп». Інакше
 	 * сирена, увімкнена на три рази, доганяла б того, хто її вимкнув.
 	 */
-	private repeat: { left: number; gapMs: number } | null = null;
+	private plays = 1;
+	private gapMs = 0;
+	/** Скільки відтворень уже позаду. Під час першого — нуль. */
+	private done = 0;
+	/** Тривалість самого файлу. Публічна `durationMs` — це ВСЯ черга. */
+	private clipMs = 0;
 	private gapTimer: ReturnType<typeof setTimeout> | null = null;
+	/** Рух позиції під час паузи між повторами. */
+	private gapTick: ReturnType<typeof setInterval> | null = null;
+
+	/** Чи лишилися ще відтворення після поточного. */
+	private get more(): boolean {
+		return this.done < this.plays - 1;
+	}
+
+	/**
+	 * ОДИНИЦЯ ЧЕРГИ — відтворення разом із паузою після нього.
+	 *
+	 * Уся арифметика таймлайна тримається на ній: позиція в черзі — це
+	 * `номер × одиниця + позиція всередині`, а вся тривалість — `разів × клип
+	 * плюс на одну паузу менше`.
+	 */
+	private get unit(): number {
+		return this.clipMs + this.gapMs;
+	}
+
+	/**
+	 * Перерахувати ЗАГАЛЬНУ тривалість.
+	 *
+	 * Смуга показує всю чергу, а не один прохід, і це не косметика: доти пульт
+	 * доводив смугу до кінця на першому ж відтворенні й далі стояв, хоч трек грав
+	 * ще двічі. Тепер і на плеєрі, і на пульті видно, скільки це триватиме
+	 * НАСПРАВДІ.
+	 *
+	 * Доба — стеля: правило бази відкидає стан із більшою тривалістю, а відкинуто
+	 * буде ВЕСЬ стан, не саме поле. Дев'яносто дев'ять повторів години дають сто
+	 * годин, і на такій дошці пульт осліп би цілком.
+	 */
+	private retotal(): void {
+		this.durationMs = Math.min(DAY_MS, queueTotal(this.clipMs, this.gapMs, this.plays));
+	}
 
 	private element: HTMLAudioElement | null = null;
 	private objectUrl: string | null = null;
@@ -181,7 +239,8 @@ export class AudioEngine {
 			 */
 			this.playing = false;
 			this.positionMs = 0;
-			this.durationMs = 0;
+			this.clipMs = 0;
+			this.retotal();
 		}
 	}
 
@@ -236,16 +295,57 @@ export class AudioEngine {
 	/** Зняти паузу між повторами, якщо вона зараз іде. */
 	private cancelGap(): void {
 		if (this.gapTimer !== null) clearTimeout(this.gapTimer);
+		if (this.gapTick !== null) clearInterval(this.gapTick);
 		this.gapTimer = null;
+		this.gapTick = null;
 	}
 
-	/** Перемотати на позицію в мілісекундах. */
+	/** Забути чергу: один раз, без пауз. Позиція при цьому не чіпається. */
+	private forgetQueue(): void {
+		this.cancelGap();
+		this.plays = 1;
+		this.gapMs = 0;
+		this.done = 0;
+		this.retotal();
+	}
+
+	/**
+	 * Перемотати — У КООРДИНАТАХ ЧЕРГИ, а не одного відтворення.
+	 *
+	 * Смуга показує всю чергу, тож і палець на ній говорить про неї: середина
+	 * смуги на треку з трьома повторами — це середина ДРУГОГО відтворення, а не
+	 * середина файлу. Тому позиція розкладається назад на «котре відтворення» й
+	 * «скільки в ньому», а решта черги перераховується від цього місця.
+	 *
+	 * Влучання в ПАУЗУ між повторами притискається до кінця звуку: пауза — це
+	 * тиша, і зупиняти палець посеред неї означало б «нічого не сталося».
+	 */
 	seek(positionMs: number): void {
 		if (!this.element || !this.trackId) return;
-		const limit = this.durationMs > 0 ? this.durationMs : Number.POSITIVE_INFINITY;
-		const clamped = Math.max(0, Math.min(limit, positionMs));
-		this.element.currentTime = clamped / 1000;
-		this.positionMs = Math.round(clamped);
+
+		const total = this.durationMs > 0 ? this.durationMs : Number.POSITIVE_INFINITY;
+		const clamped = Math.max(0, Math.min(total, positionMs));
+
+		if (this.unit <= 0) {
+			this.element.currentTime = clamped / 1000;
+			this.positionMs = Math.round(clamped);
+			return;
+		}
+
+		const { index, innerMs } = queueSpot(clamped, this.clipMs, this.gapMs, this.plays);
+
+		/*
+		 * Перемотка з паузи ПОВЕРТАЄ ЗВУК. Людина тягне смугу тоді, коли хоче
+		 * почути інше місце, а не «почекати ще трохи тиші»: лишити її в паузі
+		 * означало б кнопку, яка не працює.
+		 */
+		const inGap = this.gapTimer !== null;
+		this.cancelGap();
+
+		this.done = index;
+		this.element.currentTime = innerMs / 1000;
+		this.positionMs = Math.round(index * this.unit + innerMs);
+		if (inGap && this.playing) void this.element.play().catch(() => undefined);
 	}
 
 	/** Перемотати на стільки мілісекунд уперед або назад. */
@@ -263,9 +363,10 @@ export class AudioEngine {
 		 * інший трек — від старого не лишається нічого, зокрема й черги повторів.
 		 */
 		this.cancelGap();
-		const plays = Math.max(1, Math.round(plan?.plays ?? 1));
-		this.repeat =
-			plays > 1 ? { left: plays - 1, gapMs: Math.max(0, plan?.gapSec ?? 0) * 1000 } : null;
+		this.plays = Math.max(1, Math.round(plan?.plays ?? 1));
+		this.gapMs = Math.max(0, plan?.gapSec ?? 0) * 1000;
+		this.done = 0;
+		this.retotal();
 
 		const element = this.ensureElement();
 		// З тієї самої причини, що й у `resume`: далі є `await`, а в черзі може
@@ -363,8 +464,7 @@ export class AudioEngine {
 	stop(): void {
 		if (!this.element) return;
 		// «Стоп» означає стоп: черга повторів зникає разом зі звуком.
-		this.cancelGap();
-		this.repeat = null;
+		this.forgetQueue();
 		// Так само, як у паузі: кнопка не чекає кінця згасання.
 		this.playing = false;
 		this.fadeTo(0, () => {
@@ -452,8 +552,7 @@ export class AudioEngine {
 		this.cancelFade();
 		// Без цього пауза між повторами переживала б саму сторінку: таймер
 		// прокинувся б і звернувся до елемента, якого вже немає.
-		this.cancelGap();
-		this.repeat = null;
+		this.forgetQueue();
 		this.element?.pause();
 		this.releaseUrl();
 		this.element?.remove();
@@ -492,26 +591,39 @@ export class AudioEngine {
 			 * `element.ended` на цей момент уже `true` — саме ним пауза між
 			 * повторами й відрізняється від паузи, яку натиснула людина.
 			 */
-			if (element.ended && this.repeat && this.repeat.left > 0) return;
+			if (element.ended && this.more) return;
 			this.playing = false;
 		});
 		element.addEventListener('ended', () => {
-			if (this.repeat && this.repeat.left > 0) {
-				this.repeat.left -= 1;
+			if (this.more) {
+				this.done += 1;
 				/*
-				 * `playing` лишається `true` на всю паузу, і позиція лишається в
-				 * кінці. Інакше пульт на кожній паузі показував би «нічого не грає»
-				 * і кнопку «грати» — тобто пропонував би запустити те, що вже
-				 * запущене й саме продовжиться.
+				 * `playing` лишається `true` на всю паузу. Інакше пульт на кожній
+				 * паузі показував би «нічого не грає» і кнопку «грати» — тобто
+				 * пропонував би запустити те, що вже запущене й саме продовжиться.
+				 *
+				 * Позиція при цьому РУХАЄТЬСЯ, і це головне в загальному таймлайні:
+				 * пауза — така сама частина черги, як і звук. Без цього смуга
+				 * завмирала б на кожному проміжку, а пульт, який рахує позицію від
+				 * останнього оголошення, після паузи показував би час, зміщений на її
+				 * довжину.
 				 */
+				const started = performance.now();
+				const from = (this.done - 1) * this.unit + this.clipMs;
+				this.positionMs = Math.round(from);
+				this.gapTick = setInterval(() => {
+					const gone = Math.min(this.gapMs, performance.now() - started);
+					this.positionMs = Math.round(from + gone);
+				}, GAP_TICK_MS);
+
 				this.gapTimer = setTimeout(() => {
-					this.gapTimer = null;
+					this.cancelGap();
 					const media = this.element;
 					if (!media) return;
 					media.currentTime = 0;
 					media.volume = 0;
 					void media.play().then(() => this.fadeTo(this.targetVolume()));
-				}, this.repeat.gapMs);
+				}, this.gapMs);
 				return;
 			}
 
@@ -526,16 +638,18 @@ export class AudioEngine {
 			 * «стоп» тиснуть між номерами, щоб запустити те саме ще раз. Тут же
 			 * нічого не тиснули: звук закінчився сам.
 			 */
-			this.repeat = null;
+			this.forgetQueue();
 			this.playing = false;
 			this.positionMs = 0;
 			this.trackId = null;
 		});
 		element.addEventListener('timeupdate', () => {
-			this.positionMs = Math.round(element.currentTime * 1000);
+			// Позиція В ЧЕРЗІ: скільки відтворень уже позаду плюс час у поточному.
+			this.positionMs = Math.round(this.done * this.unit + element.currentTime * 1000);
 		});
 		element.addEventListener('durationchange', () => {
-			this.durationMs = Number.isFinite(element.duration) ? Math.round(element.duration * 1000) : 0;
+			this.clipMs = Number.isFinite(element.duration) ? Math.round(element.duration * 1000) : 0;
+			this.retotal();
 		});
 
 		this.element = element;

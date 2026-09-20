@@ -578,19 +578,36 @@ svg {
 	display: flex;
 	align-items: center;
 	gap: var(--gap-sm);
-	margin: calc(var(--gap-lg) * -1) calc(var(--gap-lg) * -1) 0;
+	margin-inline: calc(var(--gap-lg) * -1);
 	padding: var(--gap-sm) var(--gap-lg);
 	border-bottom: 1px solid var(--border);
-	border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 	background: var(--bg-sunken);
 	color: var(--text-secondary);
+}
+
+/*
+ * ДОГОРИ — ЛИШЕ КОЛИ ШАПКА ПЕРША.
+ *
+ * Над нею бувають попередження: немає звʼязку з базою, база не прийняла список
+ * треків. Відʼємний верхній відступ наїжджав на їхній останній рядок і зрізав
+ * його рівно посеред слова — попередження про зламану дошку виглядало як
+ * зламана верстка. Закруглення теж лише тут: посеред картки його нема за чим
+ * робити.
+ */
+.folder:first-child {
+	margin-top: calc(var(--gap-lg) * -1);
+	border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 @media (max-width: 480px) {
 	/* На вузькому екрані картка бере менший падінг — смуга йде за ним. */
 	.folder {
-		margin: calc(var(--gap) * -1) calc(var(--gap) * -1) 0;
+		margin-inline: calc(var(--gap) * -1);
 		padding: var(--gap-sm) var(--gap);
+	}
+
+	.folder:first-child {
+		margin-top: calc(var(--gap) * -1);
 		border-radius: var(--radius) var(--radius) 0 0;
 	}
 }
