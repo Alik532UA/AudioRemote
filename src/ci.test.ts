@@ -217,6 +217,59 @@ describe('CI (CI-CD-AND-TOOLS-v9 § 1)', () => {
 		expect(missing, `workflow кличе скрипти, яких немає: ${missing.join(', ')}`).toEqual([]);
 	});
 
+	/**
+	 * МАЖОР ДІЇ ЗВІРЯЄТЬСЯ З ПЕРЕЛІКОМ ПЕРЕВІРЕНИХ, А НЕ З НОМЕРОМ РЕЛІЗУ
+	 * (`CI-ACTION-RUNTIME`).
+	 *
+	 * Номер релізу дії не каже про її РАНТАЙМ нічого: `upload-artifact@v5` і
+	 * `configure-pages@v5` свого часу стояли на `node20`, тобто свіжий на
+	 * вигляд мажор віз застарілий рантайм. Дізнатися можна лише з `runs.using`
+	 * у `action.yml` того самого мажора.
+	 *
+	 * Коли GitHub вимикає рантайм, дія не падає — вона друкує попередження, яке
+	 * в зеленому прогоні ніхто не читає, і лише потім перестає запускатися. Тому
+	 * тут перелік: мажор, його `runs.using` і ДАТА, коли це прочитано. Новий
+	 * мажор у workflow валить прогін, доки не дописаний сюди разом із заміром —
+	 * тобто бампнути дію не подивившись стає неможливо.
+	 */
+	const VERIFIED_ACTIONS: Readonly<Record<string, string>> = {
+		// Прочитано з action.yml кожного мажора 2026-09-20; усі чотири — node24.
+		'actions/checkout': 'v5',
+		'actions/setup-node': 'v5',
+		'actions/setup-java': 'v5',
+		'peaceiris/actions-gh-pages': 'v4'
+	};
+
+	it('перевірка жива: дії в workflow знайдено', () => {
+		const used = [...all.matchAll(/uses:\s*([\w-]+\/[\w-]+)@/g)];
+		expect(used.length, 'жодного uses: — сканер шукає не там').toBeGreaterThan(3);
+	});
+
+	it('кожна дія стоїть на перевіреному мажорі', () => {
+		const wrong = [...all.matchAll(/uses:\s*([\w-]+\/[\w-]+)@(v\d+)/g)]
+			.filter(([, action, major]) => VERIFIED_ACTIONS[action] !== major)
+			.map(([, action, major]) =>
+				VERIFIED_ACTIONS[action]
+					? `${action}@${major} — перевірено ${VERIFIED_ACTIONS[action]}`
+					: `${action}@${major} — дії немає в переліку перевірених`
+			);
+
+		expect(
+			[...new Set(wrong)],
+			'мажор дії не звірений із runs.using у її action.yml: ' +
+				'номер релізу про рантайм не каже нічого, а вимкнений рантайм спершу ' +
+				`лише попереджає:\n${[...new Set(wrong)].join('\n')}`
+		).toEqual([]);
+	});
+
+	it('у переліку перевірених немає дій, яких у workflow вже немає', () => {
+		// Прострочений рядок читається як доказ, що дію перевіряли, — а її тут
+		// просто немає.
+		const used = new Set([...all.matchAll(/uses:\s*([\w-]+\/[\w-]+)@/g)].map((m) => m[1]));
+		const stale = Object.keys(VERIFIED_ACTIONS).filter((action) => !used.has(action));
+		expect(stale, 'прибрати з VERIFIED_ACTIONS').toEqual([]);
+	});
+
 	it('кожен job має межу часу', () => {
 		// Типове значення GitHub — 360 хвилин (`CI-JOB-TIMEOUT`). Підвислий крок
 		// займає раннер на шість годин і виглядає як «ще йде».
