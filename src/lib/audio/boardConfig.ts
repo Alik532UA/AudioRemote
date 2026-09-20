@@ -1,4 +1,5 @@
 import { mark } from '$lib/services/breadcrumbs';
+import { TRIGGER_TESTS, type TrackTrigger, type TriggerTest } from '$lib/triggers/trigger';
 
 /**
  * НАЛАШТУВАННЯ ДОШКИ ЖИВУТЬ У ФАЙЛІ ПОРУЧ ІЗ МУЗИКОЮ.
@@ -57,6 +58,15 @@ export interface TrackSetting {
 	hotkey?: string;
 	/** Прихований від пульта. */
 	hidden?: boolean;
+	/**
+	 * Запуск за зовнішнім API. Відсутній — трек запускають руками.
+	 *
+	 * Лежить у файлі теки разом з усім іншим, і це означає, що ключ доступу до
+	 * чужого API опиниться у файлі на диску людини. Сказано прямо, бо файл вона
+	 * може відкрити блокнотом: це її комп'ютер і її ключ, але місце треба
+	 * знати.
+	 */
+	trigger?: TrackTrigger;
 }
 
 export interface BoardConfig {
@@ -82,12 +92,46 @@ function toSetting(value: unknown): TrackSetting | null {
 
 	return {
 		path: record.path,
+		...(toTrigger(record.trigger) ? { trigger: toTrigger(record.trigger) as TrackTrigger } : {}),
 		...(typeof record.title === 'string' && record.title.trim().length > 0
 			? { title: record.title.trim().slice(0, 200) }
 			: {}),
 		...(typeof record.color === 'string' ? { color: record.color } : {}),
 		...(hotkey && /^[A-Za-z0-9]{1,20}$/.test(hotkey) ? { hotkey } : {}),
 		...(record.hidden === true ? { hidden: true } : {})
+	};
+}
+
+/**
+ * Тригер із файлу. Будь-яке не те поле — тригера немає.
+ *
+ * Читається строго: файл правлять блокнотом, і половина тригера гірша за
+ * жодного — вона опитувала б чужу адресу з невідомою умовою.
+ */
+function toTrigger(value: unknown): TrackTrigger | null {
+	if (typeof value !== 'object' || value === null) return null;
+	const record = value as Record<string, unknown>;
+	if (typeof record.url !== 'string' || record.url.length === 0) return null;
+
+	const headers: Record<string, string> = {};
+	if (typeof record.headers === 'object' && record.headers !== null) {
+		for (const [name, header] of Object.entries(record.headers)) {
+			if (typeof header === 'string') headers[name] = header;
+		}
+	}
+
+	const test = (TRIGGER_TESTS as readonly string[]).includes(String(record.test))
+		? (record.test as TriggerTest)
+		: 'truthy';
+
+	return {
+		on: record.on === true,
+		url: record.url,
+		everySec: typeof record.everySec === 'number' ? record.everySec : 30,
+		headers,
+		path: typeof record.path === 'string' ? record.path : '',
+		test,
+		value: typeof record.value === 'string' ? record.value : ''
 	};
 }
 

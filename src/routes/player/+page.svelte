@@ -583,7 +583,7 @@
 												title={t('track.open')}
 												aria-label={t('track.open')}
 												onclick={() => (openFor = entry.id)}
-												data-testid="open-{entry.id}"
+												data-testid="track-settings-{entry.id}"
 											>
 												<IconSliders size={16} aria-hidden="true" />
 											</button>

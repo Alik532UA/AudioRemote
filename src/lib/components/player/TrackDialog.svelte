@@ -1,10 +1,12 @@
 <script lang="ts">
-	import { IconClose, IconEye, IconEyeOff, IconKeyboard } from '$lib/config/icons';
+	import { untrack } from 'svelte';
+	import { IconClose, IconEye, IconEyeOff, IconKeyboard, IconZap } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { colorNumber, TRACK_COLORS } from '$lib/config/trackColors';
 	import { isAssignable, labelForCode } from '$lib/hotkeys/hotkeys';
 	import type { BoardTrack } from '$lib/player/controller.svelte';
 	import type { PlayerController } from '$lib/player/controller.svelte';
+	import TriggerEditor from './TriggerEditor.svelte';
 
 	interface Props {
 		track: BoardTrack;
@@ -38,6 +40,14 @@
 	/** Чекаємо натискання клавіші, щоб призначити її треку. */
 	let capturing = $state(false);
 	let rejected = $state<string | null>(null);
+	/**
+	 * Чи розгорнутий запуск за API.
+	 *
+	 * Згорнутий типово: цим користується одиниця з десяти, а місця він займає
+	 * більше за все інше вікно разом узяте. Розгортається сам, якщо тригер уже
+	 * налаштований, — інакше його не було б видно взагалі.
+	 */
+	let triggerOpen = $state(untrack(() => controller.triggerFor(track.id).url.length > 0));
 
 	$effect(() => {
 		node?.showModal();
@@ -179,6 +189,23 @@
 					></button>
 				{/each}
 			</div>
+		</div>
+
+		<div class="field">
+			<button
+				class="btn"
+				type="button"
+				aria-expanded={triggerOpen}
+				onclick={() => (triggerOpen = !triggerOpen)}
+				data-testid="open-trigger"
+			>
+				<IconZap size={18} aria-hidden="true" />
+				{t('track.trigger')}
+			</button>
+
+			{#if triggerOpen}
+				<TriggerEditor trackId={track.id} {controller} />
+			{/if}
 		</div>
 
 		<button

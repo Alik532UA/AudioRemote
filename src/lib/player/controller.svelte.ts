@@ -16,6 +16,8 @@ import {
 	type HotkeyAction
 } from '$lib/hotkeys/hotkeys';
 import { mark } from '$lib/services/breadcrumbs';
+import { emptyTrigger, type TrackTrigger } from '$lib/triggers/trigger';
+import { triggerWatcher } from '$lib/triggers/watcher.svelte';
 
 /** Трек так, як його бачить дошка: файл плюс рішення людини про нього. */
 export interface BoardTrack {
@@ -29,6 +31,8 @@ export interface BoardTrack {
 	/** Код гарячої клавіші (`KeyQ`, `F5`), або `null`. */
 	hotkey: string | null;
 	hidden: boolean;
+	/** Запуск за зовнішнім API. `null` — трек запускають руками. */
+	trigger: TrackTrigger | null;
 }
 
 /** Скільки чекати, перш ніж писати налаштування в теку. */
@@ -143,6 +147,15 @@ export class PlayerController {
 		);
 		this.track(await watchCommands(this.board.key, (command) => this.execute(command)));
 
+		/*
+		 * Опитувач запускається тут, а не в рушії: він стосується ДОШКИ, а не
+		 * звуку, і живе рівно стільки, скільки відкрита сторінка приймача.
+		 * Спрацювання йде тим самим шляхом, що й натискання на трек, — інакше
+		 * тригер обходив би і приховані треки, і оголошення пульту.
+		 */
+		triggerWatcher.onFire((trackId) => void this.playLocal(trackId));
+		this.track(() => triggerWatcher.stop());
+
 		await pruneAcks(this.board.key);
 
 		/*
@@ -236,11 +249,13 @@ export class PlayerController {
 					title: setting?.title ?? track.title,
 					color: setting?.color ?? null,
 					hotkey: setting?.hotkey ?? null,
-					hidden: setting?.hidden === true
+					hidden: setting?.hidden === true,
+					trigger: setting?.trigger ?? null
 				};
 			});
 
 			this.engine.setOrder(this.visible);
+			triggerWatcher.sync(this.entries);
 			await this.publish();
 		} finally {
 			this.scanning = false;
@@ -337,7 +352,8 @@ export class PlayerController {
 				...(entry.title !== entry.fileName ? { title: entry.title } : {}),
 				...(entry.color ? { color: entry.color } : {}),
 				...(entry.hotkey ? { hotkey: entry.hotkey } : {}),
-				...(entry.hidden ? { hidden: true } : {})
+				...(entry.hidden ? { hidden: true } : {}),
+				...(entry.trigger ? { trigger: entry.trigger } : {})
 			}))
 		};
 		this.configWritable = await this.source.writeConfig(config);
@@ -401,6 +417,23 @@ export class PlayerController {
 		} finally {
 			await this.announce();
 		}
+	}
+
+	/**
+	 * Змінити запуск за API. `null` прибирає його зовсім.
+	 *
+	 * Опитувач перебудовується ОДРАЗУ, не чекаючи запису у файл: людина щойно
+	 * ввела адресу й дивиться, чи відповість вона. Півсекунди відкладеного
+	 * запису тут перетворилися б на півсекунди, за які «нічого не сталося».
+	 */
+	setTrigger(trackId: string, trigger: TrackTrigger | null): void {
+		this.update(trackId, (entry) => ({ ...entry, trigger }));
+		triggerWatcher.sync(this.entries);
+	}
+
+	/** Готовий тригер для вікна: наявний або порожній зразок. */
+	triggerFor(trackId: string): TrackTrigger {
+		return this.entries.find((entry) => entry.id === trackId)?.trigger ?? emptyTrigger();
 	}
 
 	/**

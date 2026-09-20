@@ -44,3 +44,4 @@ export { default as IconDown } from '@lucide/svelte/icons/chevron-down';
 export { default as IconSliders } from '@lucide/svelte/icons/sliders-horizontal';
 export { default as IconInfo } from '@lucide/svelte/icons/info';
 export { default as IconClose } from '@lucide/svelte/icons/x';
+export { default as IconZap } from '@lucide/svelte/icons/zap';
