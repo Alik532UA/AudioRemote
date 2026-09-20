@@ -4,6 +4,7 @@
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import CopyButton from '$lib/components/ui/CopyButton.svelte';
 	import QrCode from '$lib/components/ui/QrCode.svelte';
+	import Switch from '$lib/components/ui/Switch.svelte';
 
 	interface Props {
 		id: string;
@@ -79,7 +80,19 @@
 	 * Чого це не робить безпечним: ключ ВІДКРИВАЄ дошку. Хто отримав посилання,
 	 * той усередині — інакше «одне натискання» неможливе за побудовою.
 	 */
-	const link = $derived(`${address}connect#k=${boardKey}&id=${encodeURIComponent(id)}`);
+	/**
+	 * Чи має телефон запам'ятати цю дошку як типову.
+	 *
+	 * Прапорець їде В ПОСИЛАННІ, а не вмикається на телефоні: вирішує той, хто
+	 * посилання дає. Колезі, якого покликали на один вечір, міняти налаштування
+	 * телефона не треба; тому, хто щодня вмикає музику в тому самому залі, —
+	 * навпаки, інакше він щоразу проходить меню.
+	 */
+	let autoStart = $state(true);
+
+	const link = $derived(
+		`${address}connect#k=${boardKey}&id=${encodeURIComponent(id)}${autoStart ? '&start=1' : ''}`
+	);
 
 	const fullText = $derived(
 		[
@@ -177,6 +190,13 @@
 						{t('player.connectCopyLink')}
 					{/if}
 				</button>
+
+				<Switch
+					checked={autoStart}
+					label={t('player.connectAuto')}
+					testid="connect-auto"
+					onchange={(next) => (autoStart = next)}
+				/>
 
 				<p class="muted">{t('player.connectQuickHint')}</p>
 			</section>

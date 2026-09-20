@@ -7,6 +7,7 @@
 	import { normalizeBoardId } from '$lib/board/secret';
 	import { listBoards, rememberBoard } from '$lib/board/myBoards';
 	import { boardSession } from '$lib/board/session.svelte';
+	import { settings } from '$lib/settings/settings.svelte';
 	import { boardExists } from '$lib/net/board';
 	import { describeError } from '$lib/net/describeError';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
@@ -54,7 +55,7 @@
 
 		if (linkedKey && isBoardKey(linkedKey)) {
 			history.replaceState(null, '', window.location.pathname + window.location.search);
-			void openByKey(linkedKey, linkedId ?? '');
+			void openByKey(linkedKey, linkedId ?? '', fromLink.get('start') === '1');
 			return;
 		}
 
@@ -81,7 +82,7 @@
 	 * Перевірка існування дошки лишається та сама — застаріле посилання мусить
 	 * сказати «немає такої дошки», а не відкрити порожній пульт.
 	 */
-	async function openByKey(key: string, linkedId: string) {
+	async function openByKey(key: string, linkedId: string, makeDefault: boolean) {
 		busy = true;
 		failure = null;
 
@@ -94,6 +95,19 @@
 
 			const board = { key, id: normalizeBoardId(linkedId), name: '', role: 'remote' as const };
 			if (remember) rememberBoard(board);
+
+			/*
+			 * «Відкривати одразу» — це запис у налаштування телефона, а не окреме
+			 * сховище: інакше поруч із наявним «що відкривати при запуску» жило б
+			 * друге джерело тієї самої правди, і сторінка налаштувань показувала б
+			 * не те, що відбувається насправді. `last` тут точніше за `fixed`: ця
+			 * дошка щойно стала останньою відкритою, а пароля пульт не має.
+			 */
+			if (makeDefault) {
+				settings.load();
+				settings.save({ startPage: 'remote', startBoard: 'last' });
+			}
+
 			boardSession.open(board);
 			await goto(resolve('/remote'));
 		} catch (error) {
