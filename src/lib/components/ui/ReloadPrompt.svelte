@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { useRegisterSW } from 'virtual:pwa-register/svelte';
 	import { t } from '$lib/i18n/i18n.svelte';
+	import { CHECK_EVERY_MS, createUpdateSchedule } from '$lib/services/updateCheck';
 
 	/**
 	 * ПРОПОЗИЦІЯ ОНОВИТИСЯ — саме пропозиція, а не оновлення.
@@ -14,7 +16,54 @@
 	 * а в `vite.config.ts`: при `skipWaiting` воркер не чекає ніколи, тож
 	 * `needRefresh` не стає `true` жодного разу, і готовий UI стає мертвим кодом.
 	 */
-	const { needRefresh, updateServiceWorker } = useRegisterSW({ immediate: true });
+	/**
+	 * ПИТАТИ ДОВОДИТЬСЯ САМИМ.
+	 *
+	 * Браузер перевіряє воркер лише на навігації, а приймач відкривають зранку
+	 * й не чіпають до вечора — навігації немає жодної. Без цих трьох підписок
+	 * пропозиція оновитися не з'являлася б ніколи, і в залі грала б збірка
+	 * тижневої давнини.
+	 *
+	 * Коли саме питати — вирішує `updateCheck`, і саме там це перевірено
+	 * тестами: повернення до вкладки піднімає і `visibilitychange`, і `focus`,
+	 * тож без спільного проміжку одне переключення вікна дає два запити.
+	 */
+	let timer: ReturnType<typeof setInterval> | null = null;
+	let unwatch: (() => void) | null = null;
+
+	const { needRefresh, updateServiceWorker } = useRegisterSW({
+		immediate: true,
+		onRegisteredSW(_url, registration) {
+			if (!registration) return;
+
+			const schedule = createUpdateSchedule({
+				now: () => Date.now(),
+				online: () => navigator.onLine !== false,
+				// Мережа падає — це не подія для людини: пропозиція просто не
+				// з'явиться, а наступний тік спробує знову.
+				update: () => void registration.update().catch(() => {})
+			});
+
+			timer = setInterval(() => schedule.tick(), CHECK_EVERY_MS);
+
+			const onReturn = () => {
+				if (document.visibilityState === 'visible') schedule.tick();
+			};
+			document.addEventListener('visibilitychange', onReturn);
+			window.addEventListener('focus', onReturn);
+			unwatch = () => {
+				document.removeEventListener('visibilitychange', onReturn);
+				window.removeEventListener('focus', onReturn);
+			};
+		}
+	});
+
+	onDestroy(() => {
+		if (timer !== null) clearInterval(timer);
+		timer = null;
+		unwatch?.();
+		unwatch = null;
+	});
 </script>
 
 {#if $needRefresh}
