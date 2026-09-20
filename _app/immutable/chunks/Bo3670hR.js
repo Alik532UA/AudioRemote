@@ -1,0 +1,2 @@
+import{i as n,j as s,k as a}from"./J41RKPeD.js";class o{#t=n(null);get content(){return s(this.#t)}set content(t){a(this.#t,t,!0)}}const d=new o,h="(max-width: 899px)";class i{#t=n(!1);get matches(){return s(this.#t)}set matches(t){a(this.#t,t,!0)}init(){if(typeof window>"u")return()=>{};const t=window.matchMedia(h);this.matches=t.matches;const e=c=>this.matches=c.matches;return t.addEventListener("change",e),()=>t.removeEventListener("change",e)}}const u=new i;export{d as b,u as n};
+//# sourceMappingURL=Bo3670hR.js.map

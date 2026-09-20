@@ -1,2 +1,0 @@
-import"./GI08SGTR.js";import{s,r as o}from"./CAeBZWo7.js";import{I as n}from"./CzcwOhHZ.js";var p=new Set(["$$slots","$$events","$$legacy"]);function m(e,a){let t=o(a,p);const r={name:"triangle-alert",size:24,node:[["path",{d:"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"}],["path",{d:"M12 9v4"}],["path",{d:"M12 17h.01"}]],aliases:["alert-triangle"]};n(e,s(()=>t,{get icon(){return r}}))}export{m as T};
-//# sourceMappingURL=D1eYZWqe.js.map
