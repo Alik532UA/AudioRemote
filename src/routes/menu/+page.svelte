@@ -79,10 +79,22 @@
 			<ul class="mine">
 				{#each saved as board (board.key)}
 					<li class="mine__row">
+						<!--
+							ІДЕНТИФІКАТОР ПИШЕТЬСЯ ОДИН РАЗ.
+							
+							Доти рядок мав і назву, і ідентифікатор окремо — а назви в дошки
+							зазвичай немає, і тоді замість неї підставлявся той самий
+							ідентифікатор. Виходило «YWYQW YWYQW Плеєр»: два однакові слова
+							поспіль, у яких читач шукає різницю, якої немає.
+						-->
 						<button class="mine__open" type="button" onclick={() => reopen(board)}>
-							<span class="mine__name">{board.name || board.id}</span>
-							<span class="muted mono">{board.id}</span>
-							<span class="muted">
+							{#if board.name}
+								<span class="mine__name">{board.name}</span>
+								<span class="mine__id mono">{board.id}</span>
+							{:else}
+								<span class="mine__name mono">{board.id}</span>
+							{/if}
+							<span class="mine__role">
 								{board.role === 'player' ? t('player.title') : t('remote.title')}
 							</span>
 						</button>
@@ -217,6 +229,30 @@
 
 	.mine__name {
 		font-weight: 600;
+	}
+
+	/* Ідентифікатор поруч із назвою — тихіший: назву шукають очима першою. */
+	.mine__id {
+		color: var(--text-secondary);
+		font-size: 0.9rem;
+	}
+
+	/*
+	 * Роль — значком праворуч, а не третім словом у рядку.
+	 *
+	 * Словом вона читалася як частина назви дошки («Плеєр» після
+	 * ідентифікатора виглядало як її ім'я). Значок відокремлює «що це за
+	 * запис» від «як ця дошка зветься», і робить це без жодного додаткового
+	 * слова.
+	 */
+	.mine__role {
+		margin-inline-start: auto;
+		padding: 2px var(--gap-sm);
+		border-radius: var(--radius-full);
+		background: var(--bg-sunken);
+		color: var(--text-secondary);
+		font-size: 0.75rem;
+		white-space: nowrap;
 	}
 
 	.mine__forget {
