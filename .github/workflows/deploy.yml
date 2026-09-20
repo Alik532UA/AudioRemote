@@ -1,0 +1,120 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# `cancel-in-progress: false` навмисно. Пуш пачкою комітів разом із `true`
+# скасовує всі проміжні прогони, лишаючи останній: прогін, який УПЕРШЕ виконав
+# би щойно доданий гейт, не завершується ніколи. Гейт при цьому виглядає
+# робочим — він просто не виконувався жодного разу.
+concurrency:
+  group: pages-main
+  cancel-in-progress: false
+
+jobs:
+  # ПРАВИЛА ДОСТУПУ — окремим джобом, і не заради швидкості.
+  #
+  # Це єдина межа безпеки онлайн-частини й єдина частина проєкту, стану якої не
+  # видно ні в `src/`, ні у `build/`: правила виконуються на боці Firebase.
+  # Решта гейтів проходить однаково і на правильних правилах, і на «дозволити
+  # все» — тобто дірку в них не побачив би жоден інший крок.
+  rules:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Емулятор Realtime Database — java-процес. Без цього кроку
+      # `emulators:exec` падає з «java not found», і це виглядає як зламані
+      # правила.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - run: npm ci
+
+      - name: Правила бази на емуляторі
+        run: npm run check:rules
+
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Типи
+        run: npm run check
+
+      # `!cancelled()` на кожному гейті: інакше перше падіння ховає решту, і
+      # замість повного списку проблем приходить по одній за прогін.
+      - name: Ідіоми
+        if: ${{ !cancelled() }}
+        run: npm run lint
+
+      - name: Формат
+        if: ${{ !cancelled() }}
+        run: npx prettier --check src
+
+      - name: Юніт-перевірки
+        if: ${{ !cancelled() }}
+        run: npm test
+
+      # БАЗОВИЙ ШЛЯХ ЗАДАЄТЬСЯ ТУТ, А НЕ В КОНФІГУ.
+      #
+      # `svelte.config.js` читає `BASE_PATH` і лише за її відсутності бере
+      # `/AudioRemote`. Переїзд на власний домен коштуватиме зміни цього рядка,
+      # а не пошуку константи по коду.
+      #
+      # Значення Firebase публічні за побудовою — вони лежать у бандлі, і
+      # приховати їх неможливо. У секретах вони не заради таємниці, а щоб
+      # форк не бив у чужу базу.
+      - name: Збірка
+        id: build
+        if: ${{ !cancelled() }}
+        run: npm run build
+        env:
+          BASE_PATH: /AudioRemote
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          # АДРЕСА RTDB — без неї онлайн ламається МОВЧКИ: SDK виводить адресу з
+          # `projectId` і йде на американську `*.firebaseio.com`, якої в цього
+          # проєкту немає, а CSP дозволяє лише `*.firebasedatabase.app`.
+          VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
+
+      # Єдиний гейт, який бачить дефекти, невидимі в `src/`: базовий шлях у
+      # посиланнях, CSP у `<meta>` замість заголовка, маніфест PWA і те, що
+      # зібраний воркер не містить безумовного `skipWaiting()`.
+      - name: Гейт над збіркою
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: npm run check:build
+
+      - name: Збірка не змінює відстежувані файли
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: git diff --exit-code
+
+      - name: Публікація
+        if: ${{ steps.build.outcome == 'success' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build
