@@ -10,7 +10,7 @@
 		withinSchedule,
 		type TrackTrigger
 	} from '$lib/triggers/trigger';
-	import { triggerWatcher } from '$lib/triggers/watcher.svelte';
+	import { FAULT_TEXT, triggerWatcher } from '$lib/triggers/watcher.svelte';
 	import type { BoardEditor } from '$lib/board/editor';
 	import Switch from '$lib/components/ui/Switch.svelte';
 
@@ -333,13 +333,9 @@
 						була на момент помилки, і не змінився б від перемикання мови.
 					-->
 					<span>
-						{#if health.error.code === 'http'}
-							{t('trigger.errHttp', { detail: health.error.detail })}
-						{:else if health.error.code === 'policy'}
-							{t('trigger.errPolicy')}
-						{:else}
-							{t('trigger.errNetwork')}
-						{/if}
+						{t(FAULT_TEXT[health.error.code], {
+							detail: 'detail' in health.error ? health.error.detail : ''
+						})}
 					</span>
 				{:else if health}
 					<span>

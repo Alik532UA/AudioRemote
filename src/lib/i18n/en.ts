@@ -264,6 +264,8 @@ export const en: Record<TranslationKey, string> = {
 	'trigger.errNetwork':
 		'The response could not be read. Usually the server does not allow requests from pages (the Access-Control-Allow-Origin header). That the address opens in its own tab does not contradict this — different rules apply there.',
 	'trigger.errHttp': 'The server answered with code {detail}.',
+	'trigger.errTimeout':
+		'The server did not answer within {detail}s — the request was aborted. It accepts the connection but sends nothing back: try a slower interval or another source.',
 
 	'sound.mute': 'Mute',
 	'sound.unmute': 'Unmute',

@@ -1,4 +1,5 @@
 import { mark } from '$lib/services/breadcrumbs';
+import type { TranslationKey } from '$lib/i18n/i18n.svelte';
 import {
 	groupTriggers,
 	matches,
@@ -48,8 +49,45 @@ export type TriggerFault =
 	| { code: 'policy' }
 	/** Сервер відповів, але не тим. */
 	| { code: 'http'; detail: string }
+	/** Зʼєднання відкрилося, а відповіді не було — обірвали за часом. */
+	| { code: 'timeout'; detail: string }
 	/** Не дійшло: немає дозволу для браузера, немає мережі, немає сервера. */
 	| { code: 'network' };
+
+/**
+ * ОДИН КОД ВІДМОВИ — ОДИН РЯДОК ТУТ.
+ *
+ * Таблиця живе поруч із переліком кодів, а не в розмітці, і тримає її `Record`
+ * за цим переліком: новий код без тексту не дає зібрати проєкт. Доти вибір
+ * стояв ланцюжком `{:else if}`, а останнє `{:else}` мовчки віддавало новому
+ * коду чужий текст — обрив за часом читався б як «сервер не дозволяє запити зі
+ * сторінок», і причину людина шукала б не там.
+ *
+ * Тут лише КЛЮЧ. Сам текст добирає той, хто показує: узятий тут, він застиг би
+ * мовою, яка була на момент помилки, і не змінився б від перемикання мови.
+ */
+export const FAULT_TEXT: Record<TriggerFault['code'], TranslationKey> = {
+	http: 'trigger.errHttp',
+	timeout: 'trigger.errTimeout',
+	policy: 'trigger.errPolicy',
+	network: 'trigger.errNetwork'
+};
+
+/**
+ * СТЕЛЯ ОЧІКУВАННЯ ВІДПОВІДІ.
+ *
+ * `fetch` без межі часу не має її взагалі: сервер, який прийняв зʼєднання й
+ * замовк, тримає запит доти, доки браузер сам не вирішить інакше — тобто
+ * хвилинами. Для опитувача це не «повільно», а тихо зламано: такт іде далі,
+ * наступний запит стає в чергу до того самого хоста (їх там шість), і за ніч
+ * черга з'їдає і памʼять, і саме опитування. А на екрані при цьому стоїть
+ * остання вдала відповідь — нібито все гаразд.
+ *
+ * Межа не більша за такт: інакше запити накладалися б за побудовою. І не
+ * більша за десять секунд — рішення «чи вмикати сирену» старше за десять
+ * секунд нікому не потрібне.
+ */
+const TIMEOUT_CAP_MS = 10_000;
 
 export interface TriggerHealth {
 	/** Коли востаннє питали. `0` — ще не питали. */
@@ -76,6 +114,15 @@ export interface TriggerHealth {
 
 interface Group extends TriggerGroup {
 	timer: ReturnType<typeof setInterval>;
+	/**
+	 * Запит цієї групи вже в дорозі.
+	 *
+	 * Такт, що застав прапорець піднятим, пропускається мовчки: питати вдруге
+	 * те саме, не дочекавшись першої відповіді, — це подвоєне навантаження на
+	 * чужий сервер і два результати на одну памʼять `was`, тобто перехід умови,
+	 * якого не було.
+	 */
+	inFlight: boolean;
 }
 
 class TriggerWatcher {
@@ -159,7 +206,7 @@ class TriggerWatcher {
 	private start(plan: TriggerGroup): void {
 		this.listen();
 		const timer = setInterval(() => void this.poll(plan.key), plan.everySec * 1000);
-		this.groups[plan.key] = { ...plan, timer };
+		this.groups[plan.key] = { ...plan, timer, inFlight: false };
 		// Перше опитування одразу: чекати півхвилини, щоб дізнатися, чи взагалі
 		// працює адреса, — це півхвилини незнання в того, хто щойно її ввів.
 		void this.poll(plan.key);
@@ -169,8 +216,24 @@ class TriggerWatcher {
 	 * Що саме сталося. Порушення політики зараховується, лише якщо воно щойно
 	 * й саме про цю адресу: інакше давня чужа помилка приписалася б новій.
 	 */
-	private async fault(error: unknown, url: string): Promise<TriggerFault> {
+	private async fault(error: unknown, url: string, timeoutMs: number): Promise<TriggerFault> {
 		if (error instanceof HttpError) return { code: 'http', detail: error.message };
+
+		/*
+		 * ВІДПОВІДІ НЕ БУЛО — це окремий випадок, а не «мережева помилка».
+		 *
+		 * Порада на `network` («сервер не дозволяє запити зі сторінок») тут
+		 * неправильна двічі: CORS відмовляє миттєво, а не через десять секунд, і
+		 * шукати причину людина піде не там. Мовчання сервера лікується іншим:
+		 * рідшим тактом або іншим джерелом.
+		 *
+		 * Перевірка ЗА ІМЕНЕМ, а не `instanceof DOMException`: у Node її немає
+		 * серед глобальних під кожною версією, і перевірка типу там мовчки
+		 * віддавала б `false` — тобто таймаут знову звався б мережею.
+		 */
+		if ((error as { name?: string } | null)?.name === 'TimeoutError') {
+			return { code: 'timeout', detail: String(Math.round(timeoutMs / 1000)) };
+		}
 
 		/*
 		 * Пауза тут не для краси: `fetch` відмовляє РАНІШЕ, ніж документ устигає
@@ -210,15 +273,33 @@ class TriggerWatcher {
 			return;
 		}
 
+		// Попередній запит ще не повернувся — цей такт пропускаємо (див. `inFlight`).
+		if (group.inFlight) return;
+
+		const timeoutMs = Math.min(group.everySec * 1000, TIMEOUT_CAP_MS);
+		group.inFlight = true;
+
 		try {
 			const response = await fetch(group.url, {
 				headers: group.headers,
 				// Кеш тут шкідливий: питаємо саме тому, що відповідь міняється.
-				cache: 'no-store'
+				cache: 'no-store',
+				signal: AbortSignal.timeout(timeoutMs)
 			});
 			if (!response.ok) throw new HttpError(String(response.status));
 
 			const data: unknown = await response.json();
+
+			/*
+			 * ВІДПОВІДЬ, ЩО ПРИЙШЛА ПІСЛЯ ЗМІНИ НАЛАШТУВАНЬ, НЕ ЗАСТОСОВУЄТЬСЯ.
+			 *
+			 * Між `await` і цим рядком людина могла зберегти інші умови або зняти
+			 * тригер зовсім — тоді `sync()` уже зняв цю групу й поставив іншу.
+			 * Стара відповідь у такому разі не просто застаріла: вона здатна
+			 * ЗАПУСТИТИ ТРЕК за умовою, якої вже немає, — а трек у залі чути.
+			 */
+			if (this.groups[key] !== group) return;
+
 			// Відповідь одна, умови різні: кожен учасник читає свій шлях сам. Ті,
 			// хто поза своїм розкладом, її просто не бачать.
 			for (const member of awake) this.settle(group, member, data);
@@ -229,7 +310,9 @@ class TriggerWatcher {
 			 * працює» не має жодного пояснення. І бачать її всі учасники групи:
 			 * запит був спільний, тож і невдача спільна.
 			 */
-			const fault = await this.fault(error, group.url);
+			const fault = await this.fault(error, group.url, timeoutMs);
+			if (this.groups[key] !== group) return;
+
 			const at = Date.now();
 			const next = { ...this.health };
 			for (const member of group.members) {
@@ -242,6 +325,10 @@ class TriggerWatcher {
 				};
 			}
 			this.health = next;
+		} finally {
+			// Саме `finally`: інакше запит, що впав, лишив би прапорець піднятим
+			// назавжди — і опитування зупинилося б тихо, без жодного сліду.
+			group.inFlight = false;
 		}
 	}
 
