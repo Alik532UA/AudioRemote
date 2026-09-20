@@ -149,7 +149,14 @@ export class RemoteEditor implements BoardEditor {
 		if (this.timer) clearTimeout(this.timer);
 		this.timer = setTimeout(() => {
 			this.timer = null;
-			void this.send('tracks', JSON.stringify({ rev: this.rev, tracks: this.entries }));
+			/*
+			 * ЗНІМОК, А НЕ САМ `$state`. Список — це Proxy, і на межі серіалізації
+			 * він перестає бути дрібницею (SVELTE-CORE-v9 § 1.6,
+			 * `SC-SNAPSHOT-BOUNDARY`): `structuredClone` на ньому кидає, а той, хто
+			 * збереже отриманий обʼєкт, лишиться з посиланням, що міняється під ним.
+			 */
+			const tracks = $state.snapshot(this.entries);
+			void this.send('tracks', JSON.stringify({ rev: this.rev, tracks }));
 		}, SEND_DELAY_MS);
 	}
 

@@ -431,7 +431,7 @@ export class PlayerController implements BoardEditor {
 			});
 
 			this.engine.setOrder(this.visible);
-			triggerWatcher.sync(this.entries);
+			triggerWatcher.sync(this.snapshot());
 			await this.publish();
 		} finally {
 			this.scanning = false;
@@ -538,6 +538,27 @@ export class PlayerController implements BoardEditor {
 	private update(trackId: string, change: (entry: BoardTrack) => BoardTrack): void {
 		this.entries = this.entries.map((entry) => (entry.id === trackId ? change(entry) : entry));
 		void this.persist();
+	}
+
+	/**
+	 * ТОЙ САМИЙ СПИСОК, АЛЕ ЗВИЧАЙНИМИ ОБʼЄКТАМИ — для всього, що виносить його
+	 * за межі цього класу.
+	 *
+	 * `$state` — це Proxy. Доки він лишається всередині Svelte, це непомітно, а
+	 * на межі серіалізації починає коштувати (SVELTE-CORE-v9 § 1.6,
+	 * `SC-SNAPSHOT-BOUNDARY`):
+	 *
+	 *  * `structuredClone` на проксі кидає `DataCloneError`, тобто запис у
+	 *    IndexedDB чи `postMessage` падає не там, де його писали;
+	 *  * той, хто ЗБЕРІГАЄ отриманий обʼєкт — опитувач тригерів тримає його між
+	 *    тактами таймера, — лишається з посиланням, яке міняється під ним, і
+	 *    порівняння «чи змінилася група» читає нове значення з обох боків.
+	 *
+	 * Знімок віддає звичайні обʼєкти, і обидві межі зникають. У `BoardTrack`
+	 * лише дані, тож глибока копія дешева й нічого не губить.
+	 */
+	private snapshot(): BoardTrack[] {
+		return $state.snapshot(this.entries) as BoardTrack[];
 	}
 
 	/**
@@ -693,7 +714,7 @@ export class PlayerController implements BoardEditor {
 	 */
 	setTrigger(trackId: string, trigger: TrackTrigger | null): void {
 		this.update(trackId, (entry) => ({ ...entry, trigger }));
-		triggerWatcher.sync(this.entries);
+		triggerWatcher.sync(this.snapshot());
 	}
 
 	/** Готовий тригер для вікна: наявний або порожній зразок. */
@@ -750,7 +771,7 @@ export class PlayerController implements BoardEditor {
 		this.adminRev += 1;
 		await publishTracks(this.adminKey, {
 			rev: this.adminRev,
-			json: JSON.stringify(this.entries)
+			json: JSON.stringify(this.snapshot())
 		}).catch(() => undefined);
 	}
 
@@ -791,7 +812,7 @@ export class PlayerController implements BoardEditor {
 			// Ті, про кого адміністратор не сказав нічого, лишаються — у кінці й у
 			// своєму порядку. Зникнути трек може лише разом із файлом.
 			this.entries = [...patched, ...rest];
-			triggerWatcher.sync(this.entries);
+			triggerWatcher.sync(this.snapshot());
 			await this.persist();
 			return null;
 		} catch {
