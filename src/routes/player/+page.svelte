@@ -663,7 +663,13 @@
 			<HiddenDialog {controller} onclose={() => (hiddenOpen = false)} />
 		{/if}
 
-		{#if !engine.armed && !armDismissed}
+		<!--
+			`armKnown` — щоб вікно не блимало. Доки браузер не відповів на
+			беззвучну пробу, невідомо нічого, і показувати прохання ввімкнути те,
+			що вже ввімкнено, не можна: у застосунку воно встигало з'явитися й
+			зникнути за пів секунди.
+		-->
+		{#if engine.armKnown && !engine.armed && !armDismissed}
 			<ArmDialog
 				onarm={() => controller?.arm() ?? Promise.resolve(false)}
 				ondismiss={() => (armDismissed = true)}
