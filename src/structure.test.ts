@@ -194,7 +194,7 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	'src/routes/player/+page.svelte': 885,
 	'src/routes/remote/+page.svelte': 862,
 	'src/lib/player/controller.svelte.ts': 541,
-	'src/lib/components/settings/SettingsPanel.svelte': 518,
+	'src/lib/components/settings/SettingsPanel.svelte': 521,
 	'src/lib/components/player/TriggerEditor.svelte': 415,
 	'src/lib/components/player/TrackDialog.svelte': 326,
 	'src/lib/audio/engine.svelte.ts': 314

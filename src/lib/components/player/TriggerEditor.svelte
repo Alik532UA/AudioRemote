@@ -543,7 +543,7 @@
 	 */
 	.picker {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(132px, 100%), 1fr));
 		gap: 1px;
 		overflow: hidden;
 		border: 1px solid var(--border);

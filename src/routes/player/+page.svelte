@@ -968,7 +968,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
-		max-height: 60vh;
+		max-height: 60dvh;
 		margin: 0;
 		padding: 0;
 		overflow-y: auto;
