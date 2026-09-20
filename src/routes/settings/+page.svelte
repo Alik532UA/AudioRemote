@@ -72,9 +72,15 @@
 		setTimeout(() => (saved = false), 2000);
 	}
 
-	/** Вибір дошки має сенс лише для сторінок, які дошку відкривають. */
+	/**
+	 * Вибір дошки — лише там, де дошку ВІДКРИВАЮТЬ.
+	 *
+	 * «Підключення до дошки» його не має: це форма, і вибирати дошку — її
+	 * власна робота. Налаштування, яке вирішувало б за форму, чим їй
+	 * зайнятися, суперечило б причині, з якої форму відкривають.
+	 */
 	const boardChoiceShown = $derived(
-		settings.startPage === 'remote' || settings.startPage === 'connect'
+		settings.startPage === 'player' || settings.startPage === 'remote'
 	);
 
 	function savePinned() {

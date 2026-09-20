@@ -81,6 +81,50 @@ describe('рішення про запуск', () => {
 	});
 });
 
+describe('названа дошка', () => {
+	const pinned = { id: 'ZAL2', password: 'МУШЛЯ-ОРБІТА-КАВА-7788' };
+
+	it('«моя дошка» з названою парою заходить у неї, а не в останню', () => {
+		/*
+		 * Пару вказали руками саме для цього: комп'ютер у залі щовечора той самий,
+		 * і історія відкриттів тут нічого не вирішує.
+		 */
+		expect(decideStart('player', [board('player', 900)], false, 'fixed', pinned)).toEqual({
+			kind: 'fixedBoard',
+			role: 'player',
+			id: 'ZAL2',
+			password: 'МУШЛЯ-ОРБІТА-КАВА-7788'
+		});
+	});
+
+	it('«віддалена дошка» так само', () => {
+		expect(decideStart('remote', [], false, 'fixed', pinned)).toEqual({
+			kind: 'fixedBoard',
+			role: 'remote',
+			id: 'ZAL2',
+			password: 'МУШЛЯ-ОРБІТА-КАВА-7788'
+		});
+	});
+
+	it('половина пари не рахується — повертаємось до останньої', () => {
+		// Адреса виводиться з пари цілком, тож половина не дає нічого.
+		const half = { id: 'ZAL2', password: '' };
+		const last = board('player', 900);
+		expect(decideStart('player', [last], false, 'fixed', half)).toEqual({
+			kind: 'board',
+			board: last
+		});
+	});
+
+	it('«підключення» цього вибору не має взагалі', () => {
+		// Це форма, і вибирати дошку — її власна робота.
+		expect(decideStart('connect', [], false, 'fixed', pinned)).toEqual({
+			kind: 'page',
+			page: 'connect'
+		});
+	});
+});
+
 describe('розбір збереженого значення', () => {
 	it('усі свої значення приймаються', () => {
 		for (const page of START_PAGES) expect(isStartPage(page)).toBe(true);

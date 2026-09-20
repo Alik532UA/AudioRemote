@@ -29,10 +29,14 @@ export const isStartPage = (value: unknown): value is StartPage =>
 	typeof value === 'string' && (START_PAGES as readonly string[]).includes(value);
 
 /**
- * Яку саме дошку відкривати, коли обрано «пульт» або «підключитися».
+ * Яку саме дошку відкривати, коли обрано «моя дошка» або «віддалена дошка».
  *
  * `last` — ту, з якою працювали востаннє. `fixed` — названу парою в
- * налаштуваннях: так поводиться планшет у залі, який щовечора той самий.
+ * налаштуваннях: так поводиться комп'ютер у залі, який щовечора той самий.
+ *
+ * «Підключення до дошки» цього вибору НЕ має: це форма, і вибирати дошку —
+ * її власна робота. Налаштування, яке вирішувало б за форму, чим їй
+ * зайнятися, суперечило б самій причині, з якої форму відкривають.
  */
 export const START_BOARDS = ['last', 'fixed'] as const;
 
@@ -56,8 +60,8 @@ export type StartDecision =
 	| { kind: 'page'; page: 'create' | 'connect' }
 	/** Стала пара є — відкрити ту саму дошку приймача, не питаючи. */
 	| { kind: 'createFixed' }
-	/** Названа парою дошка пульта — вивести ключ і зайти, не питаючи. */
-	| { kind: 'fixedRemote'; id: string; password: string }
+	/** Названа парою дошка — вивести ключ і зайти, не питаючи. */
+	| { kind: 'fixedBoard'; role: 'player' | 'remote'; id: string; password: string }
 	/** Повернутися в збережену дошку: роль бере з неї самої. */
 	| { kind: 'board'; board: SavedBoard };
 
@@ -86,18 +90,19 @@ export function decideStart(
 			return hasFixedPair ? { kind: 'createFixed' } : { kind: 'page', page: 'create' };
 
 		case 'connect':
-			/*
-			 * Форма лишається формою: «підключитися» — це саме вона. Яку пару в неї
-			 * підставити, вирішує сама сторінка з тих самих налаштувань; сюди це не
-			 * заходить, бо на рішення «куди йти» не впливає.
-			 */
+			// Форма лишається формою: вибирати дошку — її власна робота.
 			return { kind: 'page', page: 'connect' };
 
 		case 'player':
 		case 'remote': {
 			// Названа пара перемагає історію: її вказали руками саме для цього.
-			if (start === 'remote' && startBoard === 'fixed' && pinnedReady) {
-				return { kind: 'fixedRemote', id: pinned.id.trim(), password: pinned.password.trim() };
+			if (startBoard === 'fixed' && pinnedReady) {
+				return {
+					kind: 'fixedBoard',
+					role: start,
+					id: pinned.id.trim(),
+					password: pinned.password.trim()
+				};
 			}
 
 			const board = boards.find((saved) => saved.role === start);

@@ -9,7 +9,6 @@
 	import { boardSession } from '$lib/board/session.svelte';
 	import { boardExists } from '$lib/net/board';
 	import { describeError } from '$lib/net/describeError';
-	import { settings } from '$lib/settings/settings.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 
 	let boardId = $state('');
@@ -23,23 +22,16 @@
 	/**
 	 * ФОРМА ВІДКРИВАЄТЬСЯ НЕ ПОРОЖНЬОЮ.
 	 *
-	 * На телефоні набрати п'ятизначний ідентифікатор і пароль зі словами — це
-	 * півхвилини щовечора заради того самого залу. Названа в налаштуваннях
-	 * дошка підставляється цілком; інакше підставляється хоча б ідентифікатор
-	 * останньої, до якої підключалися.
+	 * На телефоні набрати пʼятизначний ідентифікатор — це півхвилини щовечора
+	 * заради того самого залу, тож підставляється ідентифікатор останньої
+	 * дошки, до якої підключалися.
 	 *
-	 * Пароля збереженої дошки тут немає й бути не може: пульт його не зберігає
-	 * (див. `myBoards`), а з ключа він не відновлюється за побудовою.
+	 * Пароля тут немає й бути не може: пульт його не зберігає (див.
+	 * `myBoards`), а з ключа він не відновлюється за побудовою. Названу в
+	 * налаштуваннях пару сюди теж не беремо — вона належить сторінкам, які
+	 * дошку відкривають, а ця форма її саме шукає.
 	 */
 	onMount(() => {
-		settings.load();
-
-		if (settings.startBoard === 'fixed' && settings.startBoardId.trim()) {
-			boardId = settings.startBoardId;
-			password = settings.startBoardPassword;
-			return;
-		}
-
 		boardId = listBoards().find((board) => board.role === 'remote')?.id ?? '';
 	});
 

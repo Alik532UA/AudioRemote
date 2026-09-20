@@ -56,10 +56,10 @@
 				await to(decision.board.role === 'player' ? '/player' : '/remote');
 				return;
 
-			case 'fixedRemote':
+			case 'fixedBoard':
 				try {
-					await openBoard('remote', decision.id, decision.password);
-					await to('/remote');
+					await openBoard(decision.role, decision.id, decision.password);
+					await to(decision.role === 'player' ? '/player' : '/remote');
 				} catch (error) {
 					mark(`start:failed ${String(error).slice(0, 60)}`);
 					startNotice.reason = 'createFailed';
