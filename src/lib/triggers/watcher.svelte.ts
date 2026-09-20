@@ -15,21 +15,37 @@ import { matches, MIN_INTERVAL_SEC, readPath, triggerReady, type TrackTrigger } 
  * відкрили посеред тривоги, вона почалася без нас, і зустрічати її сиреною
  * означало б лякати зал на порожньому місці.
  *
- * ## Чому помилки видно
+ * ## Чому помилки видно — і чому не словом браузера
  *
- * Найчастіша причина, чому це не працює, — не наш код, а `Access-Control-
- * Allow-Origin`, якого чужий сервер не дає. Мовчазна бездіяльність тут
- * виглядає як зламаний застосунок, тож остання помилка кожного тригера
- * зберігається й показується там, де тригер налаштовують.
+ * Найчастіша причина, чому це не працює, — не наш код. Але браузер на всі
+ * такі випадки каже одне: `TypeError: Failed to fetch`. За цим рядком
+ * ховаються дві РІЗНІ речі з різними діями:
+ *
+ * 1. Чужий сервер не дав `Access-Control-Allow-Origin` — тоді не допоможе
+ *    нічого, крім іншого джерела або власного посередника.
+ * 2. Наша ж політика безпеки не пускає адресу — а це буває на вкладці,
+ *    відкритій до оновлення застосунку, і лікується перезавантаженням.
+ *
+ * Розрізнити їх можна: на другий випадок документ шле подію
+ * `securitypolicyviolation`. Тому вона слухається, і в помилці стоїть код,
+ * а текст добирає вікно налаштувань.
  */
+
+/** Чому запит не вдався. Текст добирає той, хто показує. */
+export type TriggerFault =
+	/** Політика безпеки САМОГО застосунку не пустила адресу. */
+	| { code: 'policy' }
+	/** Сервер відповів, але не тим. */
+	| { code: 'http'; detail: string }
+	/** Не дійшло: немає дозволу для браузера, немає мережі, немає сервера. */
+	| { code: 'network' };
 
 export interface TriggerHealth {
 	/** Коли востаннє питали. `0` — ще не питали. */
 	at: number;
 	/** Що прочитали за шляхом, коротким текстом. */
 	value: string;
-	/** Текст помилки, якщо запит не вдався. */
-	error: string | null;
+	error: TriggerFault | null;
 }
 
 interface Watched {
@@ -51,6 +67,9 @@ class TriggerWatcher {
 	 */
 	private watched: Record<string, Watched> = {};
 	private fire: ((trackId: string) => void) | null = null;
+	/** Остання адреса, яку заблокувала наша ж політика, і коли це було. */
+	private blocked: { uri: string; at: number } | null = null;
+	private listening = false;
 
 	/** Кому казати «спрацювало». Без цього опитувач нічого не робить. */
 	onFire(fire: (trackId: string) => void): void {
@@ -90,13 +109,50 @@ class TriggerWatcher {
 		this.health = {};
 	}
 
+	/**
+	 * Слухач порушень політики. Ставиться один раз і назавжди.
+	 *
+	 * Це єдиний спосіб відрізнити «нас не пустила власна політика» від «чужий
+	 * сервер не дав дозволу»: `fetch` в обох випадках кидає той самий
+	 * `TypeError`, і жодної іншої підказки в ньому немає.
+	 */
+	private listen(): void {
+		if (this.listening || typeof document === 'undefined') return;
+		this.listening = true;
+		document.addEventListener('securitypolicyviolation', (event) => {
+			this.blocked = { uri: event.blockedURI, at: Date.now() };
+		});
+	}
+
 	private start(trackId: string, trigger: TrackTrigger): void {
+		this.listen();
 		const everyMs = Math.max(MIN_INTERVAL_SEC, trigger.everySec) * 1000;
 		const timer = setInterval(() => void this.poll(trackId), everyMs);
 		this.watched[trackId] = { trackId, trigger, timer, was: null };
 		// Перше опитування одразу: чекати півхвилини, щоб дізнатися, чи взагалі
 		// працює адреса, — це півхвилини незнання в того, хто щойно її ввів.
 		void this.poll(trackId);
+	}
+
+	/**
+	 * Що саме сталося. Порушення політики зараховується, лише якщо воно щойно
+	 * й саме про цю адресу: інакше давня чужа помилка приписалася б новій.
+	 */
+	private async fault(error: unknown, url: string): Promise<TriggerFault> {
+		if (error instanceof HttpError) return { code: 'http', detail: error.message };
+
+		/*
+		 * Пауза тут не для краси: `fetch` відмовляє РАНІШЕ, ніж документ устигає
+		 * розіслати `securitypolicyviolation`. Класифікувати одразу означало б
+		 * щоразу називати заборону політики мережевою помилкою — тобто радити
+		 * шукати інше джерело там, де досить перезавантажити сторінку.
+		 */
+		await new Promise((done) => setTimeout(done, 100));
+
+		const recent = this.blocked && Date.now() - this.blocked.at < 5000;
+		if (recent && url.startsWith(this.blocked!.uri.replace(/\/$/, ''))) return { code: 'policy' };
+
+		return { code: 'network' };
 	}
 
 	private async poll(trackId: string): Promise<void> {
@@ -110,7 +166,7 @@ class TriggerWatcher {
 				// Кеш тут шкідливий: питаємо саме тому, що відповідь міняється.
 				cache: 'no-store'
 			});
-			if (!response.ok) throw new Error(`HTTP ${response.status}`);
+			if (!response.ok) throw new HttpError(String(response.status));
 
 			const data: unknown = await response.json();
 			const value = readPath(data, trigger.path.trim());
@@ -135,11 +191,14 @@ class TriggerWatcher {
 			 */
 			this.health = {
 				...this.health,
-				[trackId]: { at: Date.now(), value: '', error: describe(error) }
+				[trackId]: { at: Date.now(), value: '', error: await this.fault(error, trigger.url.trim()) }
 			};
 		}
 	}
 }
+
+/** Відповідь була, але не та: код відповіді варто показати як є. */
+class HttpError extends Error {}
 
 /** Однакові тригери не перезапускають таймер: інакше кожне збереження скидало б лічильник. */
 const sameTrigger = (left: TrackTrigger, right: TrackTrigger): boolean =>
@@ -149,15 +208,6 @@ const sameTrigger = (left: TrackTrigger, right: TrackTrigger): boolean =>
 const brief = (value: unknown): string => {
 	const text = typeof value === 'string' ? value : JSON.stringify(value ?? null);
 	return text.length > 80 ? `${text.slice(0, 80)}…` : text;
-};
-
-/**
- * `TypeError: Failed to fetch` — це майже завжди CORS, і саме так це виглядає
- * з боку сторінки: браузер не каже більше нічого навмисно.
- */
-const describe = (error: unknown): string => {
-	const text = error instanceof Error ? error.message : String(error);
-	return text.length > 120 ? `${text.slice(0, 120)}…` : text;
 };
 
 export const triggerWatcher = new TriggerWatcher();

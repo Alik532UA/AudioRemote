@@ -183,7 +183,19 @@
 	<p class="note" class:note--warn={health?.error} data-testid="trigger-health">
 		{#if health?.error}
 			<IconWarning size={18} aria-hidden="true" />
-			<span>{t('trigger.lastError', { error: health.error })}</span>
+			<!--
+				Текст добирається ТУТ, а не в опитувачі: там він застиг би мовою, яка
+				була на момент помилки, і не змінився б від перемикання мови.
+			-->
+			<span>
+				{#if health.error.code === 'http'}
+					{t('trigger.errHttp', { detail: health.error.detail })}
+				{:else if health.error.code === 'policy'}
+					{t('trigger.errPolicy')}
+				{:else}
+					{t('trigger.errNetwork')}
+				{/if}
+			</span>
 		{:else if health}
 			<span>{t('trigger.lastOk', { value: health.value })}</span>
 		{:else}

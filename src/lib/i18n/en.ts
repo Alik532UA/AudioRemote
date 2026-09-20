@@ -205,7 +205,11 @@ export const en: Record<TranslationKey, string> = {
 	'trigger.clear': 'Remove the API start',
 	'trigger.never': 'Not polled yet.',
 	'trigger.lastOk': 'Read: {value}',
-	'trigger.lastError': 'Error: {error}',
+	'trigger.errPolicy':
+		'The app’s own security policy blocked this address. Usually that is a stale tab: reload the page (Ctrl+Shift+R).',
+	'trigger.errNetwork':
+		'The response could not be read. Usually the server does not allow requests from pages (the Access-Control-Allow-Origin header). That the address opens in its own tab does not contradict this — different rules apply there.',
+	'trigger.errHttp': 'The server answered with code {detail}.',
 
 	'sound.mute': 'Mute',
 	'sound.unmute': 'Unmute',
