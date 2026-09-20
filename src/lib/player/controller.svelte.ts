@@ -3,7 +3,13 @@ import { AudioEngine, EngineError } from '$lib/audio/engine.svelte';
 import { LocalFolderSource } from '$lib/audio/localSource';
 import { runningInTauri, TauriFolderSource } from '$lib/audio/tauriSource';
 import type { AudioSource, SourceStatus } from '$lib/audio/source';
-import { emptyConfig, type BoardConfig, type TrackVisibility } from '$lib/audio/boardConfig';
+import {
+	emptyConfig,
+	MAX_GAP_SEC,
+	MAX_PLAYS,
+	type BoardConfig,
+	type TrackVisibility
+} from '$lib/audio/boardConfig';
 import type { ActiveBoard } from '$lib/board/session.svelte';
 import { ensureBoard, publishLibrary, publishState } from '$lib/net/board';
 import type { BoardInfo, Command, Track } from '$lib/net/boardTypes';
@@ -33,6 +39,10 @@ export interface BoardTrack {
 	hotkey: string | null;
 	/** Кого трек стосується. Див. `TrackVisibility`. */
 	visibility: TrackVisibility;
+	/** Скільки разів програти поспіль. `1` — як завжди. */
+	plays: number;
+	/** Пауза між відтвореннями, секунди. */
+	gapSec: number;
 	/** Запуск за зовнішнім API. `null` — трек запускають руками. */
 	trigger: TrackTrigger | null;
 }
@@ -348,6 +358,8 @@ export class PlayerController {
 					color: setting?.color ?? null,
 					hotkey: setting?.hotkey ?? null,
 					visibility: setting?.visibility ?? 'all',
+					plays: setting?.plays ?? 1,
+					gapSec: setting?.gapSec ?? 0,
 					trigger: setting?.trigger ?? null
 				};
 			});
@@ -364,6 +376,33 @@ export class PlayerController {
 
 	setColor(trackId: string, slug: string | null): void {
 		this.update(trackId, (entry) => ({ ...entry, color: slug }));
+	}
+
+	/**
+	 * Скільки разів програти й з якою паузою.
+	 *
+	 * Обидва значення разом, бо пауза без повторів не означає нічого, а повтори
+	 * без паузи — звичайний випадок. Межі беруться з `boardConfig`: файл правлять
+	 * блокнотом, і сто разів поспіль там з'явиться раніше, ніж тут.
+	 */
+	/**
+	 * План повторів для рушія.
+	 *
+	 * Рушій знає лише `SourceTrack` — шлях і назву, — а рішення людини живуть
+	 * тут. Тому план передається на кожен запуск: інакше рушієві довелося б
+	 * тримати копію списку, яка розходилася б після кожного перечитування папки.
+	 */
+	private repeatOf(trackId: string): { plays: number; gapSec: number } {
+		const entry = this.entries.find((track) => track.id === trackId);
+		return { plays: entry?.plays ?? 1, gapSec: entry?.gapSec ?? 0 };
+	}
+
+	setRepeat(trackId: string, plays: number, gapSec: number): void {
+		this.update(trackId, (entry) => ({
+			...entry,
+			plays: Math.max(1, Math.min(MAX_PLAYS, Math.round(plays) || 1)),
+			gapSec: Math.max(0, Math.min(MAX_GAP_SEC, Math.round(gapSec) || 0))
+		}));
 	}
 
 	setVisibility(trackId: string, visibility: TrackVisibility): void {
@@ -463,6 +502,8 @@ export class PlayerController {
 				...(entry.color ? { color: entry.color } : {}),
 				...(entry.hotkey ? { hotkey: entry.hotkey } : {}),
 				...(entry.visibility === 'all' ? {} : { visibility: entry.visibility }),
+				...(entry.plays > 1 ? { plays: entry.plays } : {}),
+				...(entry.gapSec > 0 ? { gapSec: entry.gapSec } : {}),
 				...(entry.trigger ? { trigger: entry.trigger } : {})
 			}))
 		};
@@ -533,7 +574,7 @@ export class PlayerController {
 				this.trouble = { key: 'error.playback', name: '' };
 				return;
 			}
-			await this.engine.play(trackId);
+			await this.engine.play(trackId, this.repeatOf(trackId));
 			this.trouble = null;
 		} catch (error) {
 			this.noteTrouble(error);
@@ -689,7 +730,7 @@ export class PlayerController {
 					if (this.entries.find((entry) => entry.id === id)?.visibility !== 'all') {
 						return 'error.fileGone';
 					}
-					await this.engine.play(id);
+					await this.engine.play(id, this.repeatOf(id));
 					break;
 				}
 				case 'pause':
@@ -703,12 +744,12 @@ export class PlayerController {
 					break;
 				case 'prev': {
 					const prev = this.engine.prevTrackId();
-					if (prev) await this.engine.play(prev);
+					if (prev) await this.engine.play(prev, this.repeatOf(prev));
 					break;
 				}
 				case 'next': {
 					const next = this.engine.nextTrackId();
-					if (next) await this.engine.play(next);
+					if (next) await this.engine.play(next, this.repeatOf(next));
 					break;
 				}
 				case 'volume':

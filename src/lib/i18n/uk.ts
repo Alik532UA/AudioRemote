@@ -207,6 +207,9 @@ export const uk = {
 	'track.settings': 'Налаштування треку',
 	'track.open': 'Налаштування треку',
 	'track.displayName': 'Підпис на екрані',
+	'track.plays': 'Скільки разів програти',
+	'track.gap': 'Пауза між відтвореннями, секунд',
+	'track.gapHint': 'Поки триває пауза, трек вважається таким, що грає: пульт це показує.',
 	'track.trigger': 'Запуск за API',
 	'track.paneMain': 'Трек',
 	'trigger.lead':

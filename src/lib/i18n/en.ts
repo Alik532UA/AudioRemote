@@ -204,6 +204,9 @@ export const en: Record<TranslationKey, string> = {
 	'track.settings': 'Track settings',
 	'track.open': 'Track settings',
 	'track.displayName': 'Display name',
+	'track.plays': 'How many times to play',
+	'track.gap': 'Pause between plays, seconds',
+	'track.gapHint': 'During the pause the track still counts as playing, and the remote shows that.',
 	'track.trigger': 'Start from an API',
 	'track.paneMain': 'Track',
 	'trigger.lead':

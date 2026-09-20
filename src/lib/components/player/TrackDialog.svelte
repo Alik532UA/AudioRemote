@@ -3,6 +3,7 @@
 	import { IconClose, IconKeyboard, IconZap } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { colorNumber, TRACK_COLORS } from '$lib/config/trackColors';
+	import { MAX_GAP_SEC, MAX_PLAYS } from '$lib/audio/boardConfig';
 	import { isAssignable, labelForCode } from '$lib/hotkeys/hotkeys';
 	import type { BoardTrack } from '$lib/player/controller.svelte';
 	import type { PlayerController } from '$lib/player/controller.svelte';
@@ -214,6 +215,46 @@
 						</p>
 					{/if}
 				</div>
+
+				<!--
+					ПОВТОРИ — кількість ВІДТВОРЕНЬ, а не повторів понад одне.
+					«Повторів: 3» читалося б як чотири рази рівно в половини людей.
+
+					Пауза з'являється лише тоді, коли повтори справді є: поле «пауза
+					між відтвореннями» біля одноразового треку не означає нічого.
+				-->
+				<div class="field">
+					<label class="field__label" for="track-plays">{t('track.plays')}</label>
+					<input
+						id="track-plays"
+						class="input mono"
+						type="number"
+						min="1"
+						max={MAX_PLAYS}
+						value={track.plays}
+						data-testid="track-plays"
+						oninput={(event) =>
+							controller.setRepeat(track.id, Number(event.currentTarget.value), track.gapSec)}
+					/>
+				</div>
+
+				{#if track.plays > 1}
+					<div class="field">
+						<label class="field__label" for="track-gap">{t('track.gap')}</label>
+						<input
+							id="track-gap"
+							class="input mono"
+							type="number"
+							min="0"
+							max={MAX_GAP_SEC}
+							value={track.gapSec}
+							data-testid="track-gap"
+							oninput={(event) =>
+								controller.setRepeat(track.id, track.plays, Number(event.currentTarget.value))}
+						/>
+						<p class="muted">{t('track.gapHint')}</p>
+					</div>
+				{/if}
 
 				<div class="field">
 					<span class="field__label">{t('color.pick')}</span>

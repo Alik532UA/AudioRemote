@@ -104,6 +104,19 @@ export class AudioEngine {
 	positionMs = $state(0);
 	durationMs = $state(0);
 
+	/**
+	 * ПОВТОРИ ЦЬОГО САМОГО ТРЕКУ.
+	 *
+	 * `left` — скільки відтворень ще лишилося після поточного, `gapMs` — пауза
+	 * між ними. Живе в рушії, а не в контролері, бо рушій єдиний, хто знає, коли
+	 * трек ЗАКІНЧИВСЯ: подія `ended` приходить сюди.
+	 *
+	 * Скидається будь-яким новим наміром людини — інший трек, «стоп». Інакше
+	 * сирена, увімкнена на три рази, доганяла б того, хто її вимкнув.
+	 */
+	private repeat: { left: number; gapMs: number } | null = null;
+	private gapTimer: ReturnType<typeof setTimeout> | null = null;
+
 	private element: HTMLAudioElement | null = null;
 	private objectUrl: string | null = null;
 	/** Порядок треків — щоб «наступний» мав від чого рахуватися. */
@@ -220,6 +233,12 @@ export class AudioEngine {
 		this.fadeFrame = null;
 	}
 
+	/** Зняти паузу між повторами, якщо вона зараз іде. */
+	private cancelGap(): void {
+		if (this.gapTimer !== null) clearTimeout(this.gapTimer);
+		this.gapTimer = null;
+	}
+
 	/** Перемотати на позицію в мілісекундах. */
 	seek(positionMs: number): void {
 		if (!this.element || !this.trackId) return;
@@ -234,10 +253,19 @@ export class AudioEngine {
 		this.seek(this.positionMs + deltaMs);
 	}
 
-	async play(trackId: string): Promise<void> {
+	async play(trackId: string, plan?: { plays: number; gapSec: number }): Promise<void> {
 		const track = this.order.find((entry) => entry.id === trackId);
 		if (!track) throw new EngineError('missing', trackId);
 		if (!this.armed) throw new EngineError('not-armed', track.title);
+
+		/*
+		 * План повторів ставиться ДО відтворення й затирає попередній: натиснули
+		 * інший трек — від старого не лишається нічого, зокрема й черги повторів.
+		 */
+		this.cancelGap();
+		const plays = Math.max(1, Math.round(plan?.plays ?? 1));
+		this.repeat =
+			plays > 1 ? { left: plays - 1, gapMs: Math.max(0, plan?.gapSec ?? 0) * 1000 } : null;
 
 		const element = this.ensureElement();
 		// З тієї самої причини, що й у `resume`: далі є `await`, а в черзі може
@@ -281,6 +309,12 @@ export class AudioEngine {
 	 */
 	pause(): void {
 		if (!this.element) return;
+		/*
+		 * Пауза посеред ПАУЗИ МІЖ ПОВТОРАМИ теж мусить спинити час. План при
+		 * цьому зберігається: «грати» продовжить із наступного відтворення, бо
+		 * людина натиснула паузу, а не стоп.
+		 */
+		this.cancelGap();
 		this.playing = false;
 		this.fadeTo(0, () => this.element?.pause());
 	}
@@ -328,6 +362,9 @@ export class AudioEngine {
 	 */
 	stop(): void {
 		if (!this.element) return;
+		// «Стоп» означає стоп: черга повторів зникає разом зі звуком.
+		this.cancelGap();
+		this.repeat = null;
 		// Так само, як у паузі: кнопка не чекає кінця згасання.
 		this.playing = false;
 		this.fadeTo(0, () => {
@@ -413,6 +450,10 @@ export class AudioEngine {
 	/** Прибрати за собою: адреса Blob, елемент, слухачі. */
 	destroy(): void {
 		this.cancelFade();
+		// Без цього пауза між повторами переживала б саму сторінку: таймер
+		// прокинувся б і звернувся до елемента, якого вже немає.
+		this.cancelGap();
+		this.repeat = null;
 		this.element?.pause();
 		this.releaseUrl();
 		this.element?.remove();
@@ -440,8 +481,41 @@ export class AudioEngine {
 		 * показував би те саме.
 		 */
 		element.addEventListener('play', () => (this.playing = true));
-		element.addEventListener('pause', () => (this.playing = false));
+		element.addEventListener('pause', () => {
+			/*
+			 * КІНЕЦЬ ТРЕКУ ТЕЖ КИДАЄ `pause` — І КИДАЄ ЙОГО ПЕРЕД `ended`.
+			 *
+			 * Через це «лишити `playing` увімкненим на паузу між повторами» не
+			 * працювало саме собою: до `ended` прапорець уже був збитий отут, і
+			 * плеєр у проміжку показував «нічого не грає». Проба це й упіймала.
+			 *
+			 * `element.ended` на цей момент уже `true` — саме ним пауза між
+			 * повторами й відрізняється від паузи, яку натиснула людина.
+			 */
+			if (element.ended && this.repeat && this.repeat.left > 0) return;
+			this.playing = false;
+		});
 		element.addEventListener('ended', () => {
+			if (this.repeat && this.repeat.left > 0) {
+				this.repeat.left -= 1;
+				/*
+				 * `playing` лишається `true` на всю паузу, і позиція лишається в
+				 * кінці. Інакше пульт на кожній паузі показував би «нічого не грає»
+				 * і кнопку «грати» — тобто пропонував би запустити те, що вже
+				 * запущене й саме продовжиться.
+				 */
+				this.gapTimer = setTimeout(() => {
+					this.gapTimer = null;
+					const media = this.element;
+					if (!media) return;
+					media.currentTime = 0;
+					media.volume = 0;
+					void media.play().then(() => this.fadeTo(this.targetVolume()));
+				}, this.repeat.gapMs);
+				return;
+			}
+
+			this.repeat = null;
 			this.playing = false;
 			this.positionMs = 0;
 		});

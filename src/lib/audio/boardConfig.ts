@@ -87,6 +87,16 @@ export interface TrackSetting {
 	 */
 	hotkey?: string;
 	/**
+	 * Скільки разів програти поспіль. Відсутнє — один.
+	 *
+	 * Рахуємо ВІДТВОРЕННЯ, а не повтори: «3» означає, що трек прозвучить тричі.
+	 * «Повторів: 3» читалося б як чотири рази — і саме так його й зрозуміли б
+	 * рівно в половині випадків.
+	 */
+	plays?: number;
+	/** Пауза між відтвореннями, секунди. Відсутнє — без паузи. */
+	gapSec?: number;
+	/**
 	 * Кого трек стосується. Відсутнє — `all`.
 	 *
 	 * Старий прапорець `hidden: true` читається як `none`: доти стан був один
@@ -133,9 +143,26 @@ function toSetting(value: unknown): TrackSetting | null {
 			: {}),
 		...(typeof record.color === 'string' ? { color: record.color } : {}),
 		...(hotkey && /^[A-Za-z0-9]{1,20}$/.test(hotkey) ? { hotkey } : {}),
+		...(playsOf(record) > 1 ? { plays: playsOf(record) } : {}),
+		...(gapOf(record) > 0 ? { gapSec: gapOf(record) } : {}),
 		...(visibilityOf(record) === 'all' ? {} : { visibility: visibilityOf(record) })
 	};
 }
+
+/** Скільки разів програти. Межі не з обережності: сто разів поспіль — це вже збій. */
+export const MAX_PLAYS = 99;
+/** Найдовша пауза між відтвореннями — година. */
+export const MAX_GAP_SEC = 3600;
+
+const whole = (value: unknown, max: number): number => {
+	if (typeof value !== 'number' || !Number.isFinite(value)) return 0;
+	return Math.min(max, Math.max(0, Math.round(value)));
+};
+
+const playsOf = (record: Record<string, unknown>): number =>
+	Math.max(1, whole(record.plays, MAX_PLAYS));
+
+const gapOf = (record: Record<string, unknown>): number => whole(record.gapSec, MAX_GAP_SEC);
 
 /**
  * Видимість із запису у файлі.
