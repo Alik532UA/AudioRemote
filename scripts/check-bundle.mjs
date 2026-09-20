@@ -16,6 +16,17 @@
  * `_app/immutable/**.js`, на який посилається сторінка, браузер по неї і
  * витягне. Gzip — бо саме так їх віддає хостинг.
  *
+ * ## Чому в число входить і CSS
+ *
+ * Бюджет називає себе «до першої взаємодії», а таблиця стилів рендер БЛОКУЄ:
+ * сторінка не з'явиться, доки вона не приїхала. Доти рахувався самий лише JS,
+ * і 9.5 КБ стилів приймача не входили ні в цей бюджет, ні в будь-який інший.
+ *
+ * Це не дрібниця в межах похибки: зі стилями найважча сторінка важила 119.5 КБ
+ * при стелі 120, тобто заявлений запас у десять кілобайтів насправді дорівнював
+ * половині одного. Гейт звітував «110 зі 120» і був за півкроку від червоного,
+ * не подавши жодного знаку.
+ *
  * ## Чому одне число, а не два
  *
  * Канон вимагає рахувати код і дані окремо там, де в бандл їде реєстр контенту
@@ -23,15 +34,18 @@
  * Тут такого реєстру немає — словники двох мов і перелік слів для паролів
  * важать разом менше за один чанк, а вся «бібліотека» цього застосунку живе на
  * диску того, хто грає, і в бандл не потрапляє за побудовою. Друге число тут
- * було б завжди нульовим, тобто ще одним зеленим доказом ні про що.
+ * було б завжди нульовим, тобто ще одним зеленим доказом ні про що. CSS — інша
+ * річ: це код, і в підсумок він іде разом з рештою, а в друк окремо, щоб було
+ * видно, що саме виросло.
  *
  * ## Звідки взялася стеля
  *
- * Заміряно на день постановки гейта: найважча сторінка — приймач, 109.7 КБ
- * gzip (41 чанк); пульт 94.3; решта 73–78. Стеля 120 — приблизно десять
- * відсотків запасу над найважчою. Канонічний орієнтир 150 КБ тут був би
- * «половиною запасу», тобто ловив би лише катастрофу — а її й так видно
- * (§ 1.1).
+ * Заміряно на день, коли в замір увійшли стилі: найважча сторінка — приймач,
+ * 119.5 КБ gzip (110.0 коду + 9.5 стилів, 47 файлів); пульт 103.5; решта
+ * 79-83. Стеля 132 — приблизно десять відсотків запасу над найважчою, як і
+ * доти. Число зросло зі 120 НЕ ТОМУ, що бюджет послабили: виріс сам замір, а
+ * запас лишився тим самим. Канонічний орієнтир 150 КБ тут був би «половиною
+ * запасу», тобто ловив би лише катастрофу — а її й так видно (§ 1.1).
  *
  * Найдорожче, що цей гейт стереже, — `firebase`. Пакет важить більше за весь
  * інший код разом і приїжджає динамічним імпортом рівно тоді, коли відкривають
@@ -39,11 +53,11 @@
  * двома кнопками на півмегабайта — і в коді це виглядає як звичайний рядок.
  */
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
-/** Стеля в КБ gzip на КОД однієї сторінки. */
-const CODE_KB = 120;
+/** Стеля в КБ gzip на КОД однієї сторінки — скрипти разом зі стилями. */
+const CODE_KB = 132;
 
 const BUILD = process.argv[2] ?? 'build';
 
@@ -65,7 +79,8 @@ const pages = [];
 	}
 })(BUILD);
 
-const ASSET = /_app\/immutable\/[\w-]+\/[\w.$-]+\.js/g;
+const SCRIPT = /_app\/immutable\/[\w-]+\/[\w.$-]+\.js/g;
+const STYLE = /_app\/immutable\/[\w-]+\/[\w.$-]+\.css/g;
 
 const sizes = new Map();
 const kbOf = (asset) => {
@@ -75,13 +90,22 @@ const kbOf = (asset) => {
 	return sizes.get(asset);
 };
 
+/** Усе, на що посилається сторінка за цим шаблоном, без повторів. */
+const linked = (html, pattern) => [...new Set([...html.matchAll(pattern)].map((m) => m[0]))];
+const weigh = (assets) => assets.reduce((sum, asset) => sum + kbOf(asset), 0);
+
 const measured = pages
 	.map((page) => {
-		const assets = [...new Set([...readFileSync(page, 'utf8').matchAll(ASSET)].map((m) => m[0]))];
+		const html = readFileSync(page, 'utf8');
+		const scripts = linked(html, SCRIPT);
+		const styles = linked(html, STYLE);
 		return {
-			page: relative(BUILD, page).split('\\').join('/'),
-			assets: assets.length,
-			kb: assets.reduce((sum, asset) => sum + kbOf(asset), 0)
+			page: relative(BUILD, page).split(sep).join('/'),
+			scripts: scripts.length,
+			styles: styles.length,
+			code: weigh(scripts),
+			style: weigh(styles),
+			kb: weigh(scripts) + weigh(styles)
 		};
 	})
 	.sort((left, right) => right.kb - left.kb);
@@ -95,13 +119,31 @@ if (measured.length === 0) {
 	console.error('жодної сторінки — розкладка збірки змінилася');
 	process.exit(1);
 }
-if (measured.every((entry) => entry.assets === 0)) {
-	console.error('жодна сторінка не посилається на _app/immutable — шаблон ресурсу застарів');
+/*
+ * КОЖНА КАТЕГОРІЯ ПИТАЄТЬСЯ ОКРЕМО Й НА КОЖНІЙ СТОРІНЦІ.
+ *
+ * Доти умова була `every(assets === 0)` — досить однієї сторінки, що збіглася
+ * з шаблоном, і решта могла тихо випасти із заміру. А спільний лічильник
+ * ресурсів ховає ще гірше: зіпсований шаблон СКРИПТІВ лишає стилі на місці,
+ * нуля немає ніде, і гейт зеленим звітує 9.5 КБ замість 119.5. Заміряно
+ * навмисним псуванням шаблону — саме так ця перевірка й зʼявилася.
+ */
+const blind = measured.filter((entry) => entry.scripts === 0 || entry.styles === 0);
+if (blind.length > 0) {
+	for (const entry of blind) {
+		console.error(
+			`шаблон ресурсу застарів: ${entry.page} — ${entry.scripts} скриптів, ${entry.styles} стилів`
+		);
+	}
 	process.exit(1);
 }
 
 for (const entry of measured.slice(0, 3)) {
-	console.log(`${entry.kb.toFixed(1).padStart(7)} КБ gzip  ${entry.assets} чанків  ${entry.page}`);
+	console.log(
+		`${entry.kb.toFixed(1).padStart(7)} КБ gzip  ` +
+			`(${entry.code.toFixed(1)} коду + ${entry.style.toFixed(1)} стилів, ${entry.scripts + entry.styles} файлів)  ` +
+			entry.page
+	);
 }
 
 const over = measured.filter((entry) => entry.kb > CODE_KB);

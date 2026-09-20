@@ -102,7 +102,7 @@ npm run check:rules   # правила бази на емуляторі: 20 до
 ```bash
 MSYS_NO_PATHCONV=1 BASE_PATH=/AudioRemote npm run build
 npm run check:build   # маніфест, воркер, CSP і хеші інлайн-скриптів
-npm run check:bundle  # критичний шлях сторінки в КБ gzip
+npm run check:bundle  # критичний шлях сторінки: скрипти й стилі, КБ gzip
 ```
 
 ## Застосунок для стаціонарного комп'ютера

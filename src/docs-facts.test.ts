@@ -128,6 +128,14 @@ const FACTS: Fact[] = [
 		inDoc: /Ключ `sessionStorage` *\| `([^`]+)`/g
 	},
 	{
+		what: 'стеля бюджету бандла',
+		from: 'scripts/check-bundle.mjs',
+		// Число, яке живе у двох місцях, розходиться там, де його не правлять
+		// разом: гейт лишається суворим, а документ обіцяє запас, якого немає.
+		real: /const CODE_KB = (\d+);/.exec(read('scripts/check-bundle.mjs'))?.[1] ?? '',
+		inDoc: /зі стелею (\d+)/g
+	},
+	{
 		what: 'перелік мов',
 		from: 'src/lib/i18n/i18n.svelte.ts',
 		real: (/const LOCALES = \[([^\]]+)\]/.exec(read('src/lib/i18n/i18n.svelte.ts'))?.[1] ?? '')
