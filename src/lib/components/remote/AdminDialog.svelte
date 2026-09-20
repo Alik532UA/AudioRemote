@@ -44,7 +44,7 @@
 <dialog
 	bind:this={node}
 	class="dialog"
-	data-testid="admin-dialog"
+	data-testid="admin-modal"
 	{onclose}
 	onclick={(event) => {
 		if (event.target === node) node?.close();
@@ -57,7 +57,7 @@
 				type="button"
 				aria-label={t('common.close')}
 				onclick={() => node?.close()}
-				data-testid="admin-dialog-close-btn"
+				data-testid="admin-modal-close-btn"
 			>
 				<IconClose size={20} aria-hidden="true" />
 			</button>

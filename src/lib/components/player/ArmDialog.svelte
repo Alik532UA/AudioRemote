@@ -31,7 +31,7 @@
 	});
 </script>
 
-<dialog bind:this={node} class="arm" data-testid="arm-dialog" onclose={ondismiss}>
+<dialog bind:this={node} class="arm" data-testid="arm-modal" onclose={ondismiss}>
 	<div class="arm__body">
 		<header class="arm__head">
 			<h2 class="arm__title">{t('player.arm')}</h2>
@@ -39,7 +39,7 @@
 				type="button"
 				aria-label={t('common.close')}
 				onclick={() => node?.close()}
-				data-testid="arm-dialog-close-btn"
+				data-testid="arm-modal-close-btn"
 			>
 				<IconClose size={20} aria-hidden="true" />
 			</button>

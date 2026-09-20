@@ -95,7 +95,7 @@
 	bind:this={node}
 	class="dialog"
 	class:dialog--wide={triggerOpen}
-	data-testid="track-dialog"
+	data-testid="track-modal"
 	{onclose}
 	onclick={(event) => {
 		// Клік по самому <dialog> — це клік по затемненню: вміст лежить усередині.
@@ -128,7 +128,7 @@
 				type="button"
 				aria-expanded={triggerOpen}
 				onclick={() => (triggerOpen = !triggerOpen)}
-				data-testid="open-trigger"
+				data-testid="open-trigger-btn"
 			>
 				<IconZap size={18} aria-hidden="true" />
 				{t('track.trigger')}
@@ -140,7 +140,7 @@
 				type="button"
 				aria-label={t('common.close')}
 				onclick={() => node?.close()}
-				data-testid="track-dialog-close-btn"
+				data-testid="track-modal-close-btn"
 			>
 				<IconClose size={20} aria-hidden="true" />
 			</button>

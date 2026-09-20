@@ -42,7 +42,7 @@
 <dialog
 	bind:this={node}
 	class="dialog"
-	data-testid="hidden-dialog"
+	data-testid="hidden-modal"
 	{onclose}
 	onclick={(event) => {
 		// Клік по самому <dialog> — це клік по затемненню: вміст лежить усередині.
@@ -56,7 +56,7 @@
 				type="button"
 				aria-label={t('common.close')}
 				onclick={() => node?.close()}
-				data-testid="hidden-dialog-close-btn"
+				data-testid="hidden-modal-close-btn"
 			>
 				<IconClose size={20} aria-hidden="true" />
 			</button>

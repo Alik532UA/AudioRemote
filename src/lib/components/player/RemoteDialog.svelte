@@ -153,7 +153,7 @@
 <dialog
 	bind:this={node}
 	class="dialog"
-	data-testid="remote-dialog"
+	data-testid="remote-modal"
 	{onclose}
 	onclick={(event) => {
 		// Клік по самому <dialog> — це клік по затемненню: вміст лежить усередині.
@@ -167,7 +167,7 @@
 				type="button"
 				aria-label={t('common.close')}
 				onclick={() => node?.close()}
-				data-testid="remote-dialog-close-btn"
+				data-testid="remote-modal-close-btn"
 			>
 				<IconClose size={20} aria-hidden="true" />
 			</button>

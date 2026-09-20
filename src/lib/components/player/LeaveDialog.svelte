@@ -32,7 +32,7 @@
 <dialog
 	bind:this={node}
 	class="dialog"
-	data-testid="leave-dialog"
+	data-testid="leave-modal"
 	onclose={onstay}
 	onclick={(event) => {
 		// Клік по затемненню — це «лишитися»: вихід підтверджують кнопкою.
