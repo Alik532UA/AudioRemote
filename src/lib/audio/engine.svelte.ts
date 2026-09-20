@@ -177,6 +177,24 @@ export class AudioEngine {
 
 	private element: HTMLAudioElement | null = null;
 	private objectUrl: string | null = null;
+	/**
+	 * НОМЕР ОСТАННЬОГО НАМІРУ. Росте на кожен запуск і на кожен «стоп».
+	 *
+	 * `play()` має всередині `await`: спершу читання файлу з диска, потім сам
+	 * `play()` елемента. За цей час може прийти інший намір — з іншого місця,
+	 * не від тієї самої людини: трек тиснуть і з плеєра, і з пульта мережею, і
+	 * запускає його тригер за зовнішнім API.
+	 *
+	 * Без номера перемагав не останній намір, а той, чий файл відкрився
+	 * ШВИДШЕ. І це не «трек не той»: `releaseUrl()` пізнього запуску відкликає
+	 * адресу Blob, за якою В ЦЮ МИТЬ грає інший трек, тобто обриває звук у залі
+	 * посеред відтворення.
+	 *
+	 * Найгірший випадок — вихід із дошки: `destroy()` знімає елемент, а запуск,
+	 * що був у дорозі, тримає своє посилання на нього й починає грати вже після
+	 * виходу. Зупинити його нема чим — рушія більше немає.
+	 */
+	private intent = 0;
 	/** Порядок треків — щоб «наступний» мав від чого рахуватися. */
 	private order: SourceTrack[] = [];
 	/** Гучність до тиші. `null` — тиші немає. */
@@ -358,6 +376,9 @@ export class AudioEngine {
 		if (!track) throw new EngineError('missing', trackId);
 		if (!this.armed) throw new EngineError('not-armed', track.title);
 
+		/** Цей запуск — останній відомий намір, доки не прийде наступний. */
+		const intent = ++this.intent;
+
 		/*
 		 * План повторів ставиться ДО відтворення й затирає попередній: натиснули
 		 * інший трек — від старого не лишається нічого, зокрема й черги повторів.
@@ -381,6 +402,10 @@ export class AudioEngine {
 			throw error;
 		}
 
+		// Нас випередили, поки читався файл. Елемента не чіпаємо взагалі: там
+		// уже грає чуже, і `releaseUrl()` відкликав би адресу того звуку.
+		if (intent !== this.intent) return;
+
 		this.releaseUrl();
 		this.objectUrl = URL.createObjectURL(file);
 		element.src = this.objectUrl;
@@ -390,8 +415,18 @@ export class AudioEngine {
 		try {
 			await element.play();
 		} catch {
+			/*
+			 * Випередження ПЕРЕВІРЯЄТЬСЯ ПЕРШИМ, і саме тут воно найважливіше:
+			 * `play()` на елементі, чий `src` уже замінив новіший запуск,
+			 * відмовляється з `AbortError`. Це не поломка відтворення, і сказати
+			 * про неї людині означало б показати «не вдалося» на треку, який саме
+			 * цієї миті звучить.
+			 */
+			if (intent !== this.intent) return;
 			throw new EngineError('playback', track.title);
 		}
+
+		if (intent !== this.intent) return;
 
 		this.fadeTo(this.targetVolume());
 
@@ -463,6 +498,13 @@ export class AudioEngine {
 	 */
 	stop(): void {
 		if (!this.element) return;
+		/*
+		 * «Стоп» скасовує й ЗАПУСК, ЩО В ДОРОЗІ. Інакше трек, чий файл ще
+		 * читався з диска, починав грати вже після «стопу» — тобто кнопка
+		 * спрацьовувала «через раз» рівно на великих файлах, на яких вона й
+		 * потрібна.
+		 */
+		this.intent += 1;
 		// «Стоп» означає стоп: черга повторів зникає разом зі звуком.
 		this.forgetQueue();
 		// Так само, як у паузі: кнопка не чекає кінця згасання.
@@ -549,6 +591,9 @@ export class AudioEngine {
 
 	/** Прибрати за собою: адреса Blob, елемент, слухачі. */
 	destroy(): void {
+		// Запуск, що був у дорозі, тримає СВОЄ посилання на елемент і без цього
+		// рядка заграв би вже після виходу з дошки — а зупинити його нічим.
+		this.intent += 1;
 		this.cancelFade();
 		// Без цього пауза між повторами переживала б саму сторінку: таймер
 		// прокинувся б і звернувся до елемента, якого вже немає.
@@ -557,6 +602,7 @@ export class AudioEngine {
 		this.releaseUrl();
 		this.element?.remove();
 		this.element = null;
+		this.forgetSystem();
 		this.armed = false;
 		this.playing = false;
 		this.trackId = null;
@@ -671,5 +717,21 @@ export class AudioEngine {
 		navigator.mediaSession.setActionHandler('play', () => void this.resume());
 		navigator.mediaSession.setActionHandler('pause', () => this.pause());
 		navigator.mediaSession.setActionHandler('stop', () => this.stop());
+	}
+
+	/**
+	 * Забрати назву з екрана блокування разом із дошкою.
+	 *
+	 * Media Session живе в ДОКУМЕНТІ, а не в елементі: знятий елемент її не
+	 * чіпає. Без цього після виходу з дошки система й далі показувала останній
+	 * трек і пропонувала кнопки, які вже нічого не роблять — рушія, на який
+	 * вони посилаються, більше немає.
+	 */
+	private forgetSystem(): void {
+		if (!('mediaSession' in navigator)) return;
+		navigator.mediaSession.metadata = null;
+		for (const action of ['play', 'pause', 'stop'] as const) {
+			navigator.mediaSession.setActionHandler(action, null);
+		}
 	}
 }

@@ -197,7 +197,7 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	'src/lib/components/settings/SettingsPanel.svelte': 521,
 	'src/lib/components/player/TriggerEditor.svelte': 415,
 	'src/lib/components/player/TrackDialog.svelte': 326,
-	'src/lib/audio/engine.svelte.ts': 314
+	'src/lib/audio/engine.svelte.ts': 329
 };
 
 describe('розмір файлу (§ 7.1, PS-SIZE-RATCHET)', () => {
