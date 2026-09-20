@@ -431,7 +431,7 @@
 					{#if controller.dbOffline}
 						<p class="note note--warn" data-testid="db-offline">
 							<IconWarning size={18} aria-hidden="true" />
-							<span>{t('error.dbOffline')}</span>
+							<span>{t('player.dbOffline')}</span>
 						</p>
 					{/if}
 

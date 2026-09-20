@@ -33,7 +33,37 @@ const node = (key: string, child?: string) =>
 export async function boardExists(key: string): Promise<boolean> {
 	const { db } = await connect();
 	const { get, ref } = await import('firebase/database');
-	return (await get(ref(db, node(key, 'info')))).exists();
+
+	/*
+	 * МЕЖА ЧАСУ, бо без неї «шукаємо дошку» триває вічність.
+	 *
+	 * Читання в Realtime Database не відмовляє, коли бази немає, — воно лягає в
+	 * чергу SDK і чекає сокета, якого не буде. На телефоні це виглядає як
+	 * кнопка, що назавжди застрягла на «Шукаємо дошку»: ні відповіді, ні
+	 * помилки, ні підказки, що робити.
+	 *
+	 * Десять секунд — це вже точно не «повільна мережа»: сама відповідь важить
+	 * байти, а метро й поїзд мають право бути повільними.
+	 */
+	const lookup = get(ref(db, node(key, 'info'))).then((snapshot) => snapshot.exists());
+
+	return Promise.race([
+		lookup,
+		new Promise<never>((_, reject) =>
+			setTimeout(() => reject(new BoardLookupTimeout()), LOOKUP_TIMEOUT_MS)
+		)
+	]);
+}
+
+/** Скільки чекати на відповідь бази, перш ніж сказати, що її не чути. */
+const LOOKUP_TIMEOUT_MS = 10_000;
+
+/** База не відповіла вчасно. Це НЕ «дошки немає» — це «бази немає». */
+export class BoardLookupTimeout extends Error {
+	constructor() {
+		super('база не відповіла');
+		this.name = 'BoardLookupTimeout';
+	}
 }
 
 /**

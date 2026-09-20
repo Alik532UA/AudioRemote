@@ -1,5 +1,6 @@
 import { InsecureContextError } from '$lib/board/boardPath';
 import type { TranslationKey } from '$lib/i18n/i18n.svelte';
+import { BoardLookupTimeout } from './board';
 import { ConfigMissingError, ConnectionDownError } from './firebase';
 
 /**
@@ -18,6 +19,7 @@ import { ConfigMissingError, ConnectionDownError } from './firebase';
  * | бракує змінних | налаштувати проєкт |
  * | сторінка не по https | відкрити з localhost або з бойової адреси |
  * | правила відмовили | правила не викладені |
+ * | база не відповіла | база не створена або немає мережі |
  * | мережа | перевірити інтернет |
  *
  * Усе інше лишається «щось пішло не так» — і це чесно: якщо ми не знаємо, що
@@ -27,6 +29,7 @@ export function describeError(error: unknown): TranslationKey {
 	if (error instanceof ConnectionDownError) {
 		return error.emulator ? 'error.emulatorDown' : 'error.network';
 	}
+	if (error instanceof BoardLookupTimeout) return 'error.dbOffline';
 	if (error instanceof ConfigMissingError) return 'error.configMissing';
 	if (error instanceof InsecureContextError) return 'player.insecure';
 
