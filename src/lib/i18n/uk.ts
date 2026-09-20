@@ -161,6 +161,8 @@ export const uk = {
 	'player.connectStep1': 'Відкрийте на телефоні цю саму адресу.',
 	'player.connectStep2': 'Натисніть «Підключитися».',
 	'player.connectStep3': 'Введіть ідентифікатор і пароль звідси.',
+	'player.connectAddress': 'Адреса',
+	'player.connectCopyAll': 'Скопіювати все',
 	'player.tips': 'Підказки',
 	'player.deckExpand': 'Розгорнути керування',
 	'player.deckCollapse': 'Згорнути керування',

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { IconEye, IconEyeOff } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 
@@ -8,6 +9,14 @@
 		label: string;
 		autocomplete?: 'current-password' | 'new-password' | 'off';
 		readonly?: boolean;
+		/**
+		 * Ще одна дія в самому полі, поруч із оком.
+		 *
+		 * Поруч із полем її поставити не можна: під полем завжди є рядок
+		 * підказок (Caps Lock, розкладка), і кнопка, вирівняна по низу, з'їжджає
+		 * під нього. Усередині вона стоїть там, де на неї й дивляться.
+		 */
+		action?: Snippet;
 	}
 
 	let {
@@ -15,7 +24,8 @@
 		id,
 		label,
 		autocomplete = 'current-password',
-		readonly = false
+		readonly = false,
+		action
 	}: Props = $props();
 
 	let revealed = $state(false);
@@ -67,6 +77,7 @@
 			onkeydown={checkCaps}
 			onkeyup={checkCaps}
 		/>
+		{@render action?.()}
 		<button
 			type="button"
 			class="field__toggle"

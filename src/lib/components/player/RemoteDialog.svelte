@@ -2,6 +2,7 @@
 	import { IconCheck, IconClose, IconCopy } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
+	import CopyButton from '$lib/components/ui/CopyButton.svelte';
 
 	interface Props {
 		id: string;
@@ -43,17 +44,35 @@
 		node?.showModal();
 	});
 
-	async function copyBoth() {
+	/**
+	 * ПОВНА ІНСТРУКЦІЯ, а не два рядки.
+	 *
+	 * Копіювали це, щоб переслати колезі — і колега отримував ідентифікатор із
+	 * паролем без жодного слова про те, куди їх вводити. Тепер у буфер іде те
+	 * саме, що на екрані: кроки, адреса й обидва значення.
+	 *
+	 * Текст збирається з ТИХ САМИХ рядків словника, що й вікно, — інакше
+	 * переклад розійшовся б із тим, що читає людина.
+	 */
+	const fullText = $derived(
+		[
+			t('player.connectHow'),
+			`1. ${t('player.connectStep1')} ${address}`,
+			`2. ${t('player.connectStep2')}`,
+			`3. ${t('player.connectStep3')}`,
+			'',
+			`${t('create.idLabel')}: ${id}`,
+			`${t('create.passwordLabel')}: ${password}`
+		].join(String.fromCharCode(10))
+	);
+
+	async function copyAll() {
 		try {
-			await navigator.clipboard.writeText(
-				[`${t('create.idLabel')}: ${id}`, `${t('create.passwordLabel')}: ${password}`].join(
-					String.fromCharCode(10)
-				)
-			);
+			await navigator.clipboard.writeText(fullText);
 			copied = true;
 			setTimeout(() => (copied = false), 2000);
 		} catch {
-			// Буфер заборонений політикою — обидва рядки й так на екрані.
+			// Буфер заборонений політикою — усе потрібне й так на екрані.
 		}
 	}
 </script>
@@ -84,35 +103,60 @@
 		<section>
 			<h3 class="dialog__sub">{t('player.connectHow')}</h3>
 			<ol class="steps">
-				<li>
-					{t('player.connectStep1')}
-					<span class="mono steps__address">{address}</span>
-				</li>
+				<li>{t('player.connectStep1')}</li>
 				<li>{t('player.connectStep2')}</li>
 				<li>{t('player.connectStep3')}</li>
 			</ol>
 		</section>
 
+		<!--
+			Три значення — три кнопки. Адресу відкривають у браузері телефона,
+			ідентифікатор і пароль вводять у двох різних полях, а часом треба
+			переслати лише пароль: одна кнопка на все вікно змушувала виділяти
+			текст мишею — і то з поля, де пароль прихований крапками.
+		-->
 		<div class="field">
-			<span class="field__label">{t('create.idLabel')}</span>
-			<output class="secret mono" data-testid="dialog-id">{id}</output>
+			<span class="field__label">{t('player.connectAddress')}</span>
+			<div class="line">
+				<output class="mono line__value line__value--address" data-testid="dialog-address">
+					{address}
+				</output>
+				<CopyButton value={address} label={t('player.connectAddress')} testid="copy-address" />
+			</div>
 		</div>
 
+		<div class="field">
+			<span class="field__label">{t('create.idLabel')}</span>
+			<div class="line">
+				<output class="secret mono line__value" data-testid="dialog-id">{id}</output>
+				<CopyButton value={id} label={t('create.idLabel')} testid="copy-id" />
+			</div>
+		</div>
+
+		<!--
+			Кнопка пароля — ВСЕРЕДИНІ поля, поруч із оком. Поруч із полем вона
+			з'їжджала б під рядок підказок (Caps Lock, розкладка), який там є
+			завжди, навіть порожній.
+		-->
 		<PasswordField
 			id="player-password"
 			label={t('create.passwordLabel')}
 			value={password}
 			autocomplete="off"
 			readonly
-		/>
+		>
+			{#snippet action()}
+				<CopyButton value={password} label={t('create.passwordLabel')} testid="copy-password" />
+			{/snippet}
+		</PasswordField>
 
-		<button class="btn" type="button" onclick={copyBoth} data-testid="copy-secret">
+		<button class="btn" type="button" onclick={copyAll} data-testid="copy-secret">
 			{#if copied}
 				<IconCheck size={18} aria-hidden="true" />
 				{t('common.copied')}
 			{:else}
 				<IconCopy size={18} aria-hidden="true" />
-				{t('common.copy')}
+				{t('player.connectCopyAll')}
 			{/if}
 		</button>
 	</div>
@@ -166,8 +210,22 @@
 		font-size: 0.9rem;
 	}
 
-	.steps__address {
-		display: block;
+	/*
+		Значення й кнопка в один рядок. Кнопка не стискається — скорочуватися має
+		довга адреса, а не дія біля неї.
+	*/
+	.line {
+		display: flex;
+		align-items: end;
+		gap: var(--gap-sm);
+	}
+
+	.line__value {
+		flex: 1 1 auto;
+		min-width: 0;
+	}
+
+	.line__value--address {
 		word-break: break-all;
 		color: var(--accent);
 	}

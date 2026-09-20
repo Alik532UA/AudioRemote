@@ -158,6 +158,8 @@ export const en: Record<TranslationKey, string> = {
 	'player.connectStep1': 'Open this same address on the phone.',
 	'player.connectStep2': 'Tap “Connect”.',
 	'player.connectStep3': 'Enter the board id and password from here.',
+	'player.connectAddress': 'Address',
+	'player.connectCopyAll': 'Copy everything',
 	'player.tips': 'Tips',
 	'player.deckExpand': 'Expand the controls',
 	'player.deckCollapse': 'Collapse the controls',
