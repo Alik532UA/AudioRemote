@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import {
 		IconDown,
@@ -28,18 +28,60 @@
 	import { titleLines } from '$lib/audio/source';
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 	import HiddenDialog from '$lib/components/player/HiddenDialog.svelte';
+	import LeaveDialog from '$lib/components/player/LeaveDialog.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import ArmDialog from '$lib/components/player/ArmDialog.svelte';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
 	import { settings } from '$lib/settings/settings.svelte';
+	import { runningInTauri } from '$lib/audio/tauriSource';
 
 	let controller = $state<PlayerController | null>(null);
 	let fatal = $state<string | null>(null);
 	/** Для якого треку відкрите вікно налаштувань. `null` — для жодного. */
 	let openFor = $state<string | null>(null);
 	let hiddenOpen = $state(false);
+
+	/**
+	 * ВИХІД ЗІ СТОРІНКИ КОШТУЄ ТЕКИ — але лише в браузері.
+	 *
+	 * Дозвіл на папку живе рівно доти, доки живе ця сторінка: пішли — і
+	 * повернення означає «оберіть папку заново», хоч людина нічого не міняла.
+	 * У застосунку на комп'ютері шлях пам'ятається, тож попереджати нема про що.
+	 *
+	 * Перехід скасовується й повторюється після відповіді: `beforeNavigate` не
+	 * вміє чекати на людину, а питати її треба саме тут — після виходу
+	 * пояснення вже нічого не змінює.
+	 */
+	let leaveTo = $state<string | null>(null);
+	let leaveConfirmed = false;
+
+	/**
+	 * Повторити перехід, який щойно скасували.
+	 *
+	 * Адреса приходить від самого SvelteKit (`navigation.to.url`), тобто вже
+	 * зібрана з базовим шляхом. Проганяти її крізь `resolve()` вдруге не можна:
+	 * той чекає маршрут, а не готове посилання, і додав би базу ще раз.
+	 */
+	function leaveNow() {
+		leaveConfirmed = true;
+		const target = leaveTo;
+		leaveTo = null;
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		if (target) void goto(target);
+	}
+
+	beforeNavigate((navigation) => {
+		if (leaveConfirmed || runningInTauri()) return;
+		if (controller?.sourceStatus !== 'ready') return;
+		// Закриття вкладки сюди не входить: своє вікно там показати неможливо, а
+		// системне «ви впевнені?» на кожне закриття — це вже причіпка.
+		if (!navigation.to) return;
+
+		navigation.cancel();
+		leaveTo = navigation.to.url.href;
+	});
 	/** Чи відкрите вікно «як підключити пульт». */
 	let remoteOpen = $state(false);
 	/** Вікно «увімкнути звук» закрили, не вмикаючи. Більше не питаємо. */
@@ -659,6 +701,10 @@
 				</section>
 			</div>
 		</div>
+		{#if leaveTo}
+			<LeaveDialog onleave={leaveNow} onstay={() => (leaveTo = null)} />
+		{/if}
+
 		{#if hiddenOpen && controller}
 			<HiddenDialog {controller} onclose={() => (hiddenOpen = false)} />
 		{/if}

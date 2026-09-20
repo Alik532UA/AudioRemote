@@ -177,6 +177,11 @@ export const uk = {
 	'player.connectLink': 'Посилання',
 	'player.connectCopyLink': 'Скопіювати посилання',
 	'player.connectAuto': 'Далі відкривати цю дошку одразу',
+	'player.leaveTitle': 'Вийти з дошки?',
+	'player.leaveText':
+		'Браузер не дає запам’ятати папку з музикою: після повернення її доведеться обрати заново. Музика теж зупиниться.',
+	'player.leaveStay': 'Лишитися',
+	'player.leaveGo': 'Все одно вийти',
 	'player.connectManual': 'Або вручну',
 	'player.connectQrHint': 'Наведіть камеру телефона.',
 	'player.connectSecrets': 'Значення',

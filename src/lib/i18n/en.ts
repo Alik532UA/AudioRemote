@@ -174,6 +174,11 @@ export const en: Record<TranslationKey, string> = {
 	'player.connectLink': 'Link',
 	'player.connectCopyLink': 'Copy the link',
 	'player.connectAuto': 'Open this board right away next time',
+	'player.leaveTitle': 'Leave the board?',
+	'player.leaveText':
+		'The browser cannot remember the music folder: you will have to pick it again. The music stops too.',
+	'player.leaveStay': 'Stay',
+	'player.leaveGo': 'Leave anyway',
 	'player.connectManual': 'Or by hand',
 	'player.connectQrHint': 'Point the phone camera at it.',
 	'player.connectSecrets': 'Values',
