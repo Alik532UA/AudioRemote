@@ -200,7 +200,46 @@
 	</header>
 
 	<main class="page">
-		{@render children()}
+		<!--
+			МЕЖА ПОМИЛКИ НАВКОЛО СТОРІНКИ, А НЕ НАВКОЛО ВСЬОГО.
+
+			Вона стоїть усередині оболонки навмисно: шапка з «назад», меню й
+			налаштуваннями лишається на екрані, тож із поламаної сторінки є куди
+			піти. Межа навколо `<div class="shell">` дала б той самий білий
+			аркуш, лише з написом.
+
+			Ловить помилки РЕНДЕРУ й `$effect` усередині межі. Обробники подій і
+			асинхронний код поза рендером сюди не потрапляють — там свої
+			`try/catch` (ERROR-HANDLING-v9 § 2.3).
+
+			`reset()` показує вміст заново. Для більшості поломок — тих, що
+			прийшли з одного невдалого стану, — цього досить, а для решти поруч
+			стоїть вихід у меню.
+		-->
+		<svelte:boundary onerror={(error) => mark(`crash ${String(error).slice(0, 80)}`)}>
+			{@render children()}
+
+			{#snippet failed(_error, reset)}
+				<div class="crash" role="alert" data-testid="page-crash">
+					<h1 class="crash__title">{t('error.crashTitle')}</h1>
+					<p class="crash__hint">{t('error.crashHint')}</p>
+
+					<div class="crash__actions">
+						<button
+							class="btn btn--primary"
+							type="button"
+							onclick={reset}
+							data-testid="crash-retry"
+						>
+							{t('error.retry')}
+						</button>
+						<a class="btn" href={resolve('/menu')} data-testid="crash-to-menu"
+							>{t('error.toMenu')}</a
+						>
+					</div>
+				</div>
+			{/snippet}
+		</svelte:boundary>
 	</main>
 </div>
 
@@ -348,5 +387,33 @@
 		.shell__settings {
 			transition: none;
 		}
+	}
+
+	/* Поламана сторінка: вміст межі помилки. */
+	.crash {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--gap);
+		padding: var(--gap-lg) var(--gap);
+		text-align: center;
+	}
+
+	.crash__title {
+		margin: 0;
+		font-size: 1.3rem;
+	}
+
+	.crash__hint {
+		margin: 0;
+		max-width: 60ch;
+		color: var(--text-secondary);
+	}
+
+	.crash__actions {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: var(--gap-sm);
 	}
 </style>

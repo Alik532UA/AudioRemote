@@ -322,5 +322,11 @@ export const en: Record<TranslationKey, string> = {
 		'The database refused the track list, so remotes see an empty board. Most likely its rules are out of date: publish the current database.rules.json. Sound here keeps working.',
 	'player.dbOffline':
 		'No connection to the database. The remote will not see this board, and everything you do now stays on this device.',
+	'error.crashTitle': 'This page broke',
+	'error.notFound': 'No such page',
+	'error.crashHint':
+		'This is our bug, not something you did. Try showing the page again — if that fails, go back to the menu and open the board anew.',
+	'error.retry': 'Show it again',
+	'error.toMenu': 'To the menu',
 	'error.unknown': 'Something went wrong.'
 };
