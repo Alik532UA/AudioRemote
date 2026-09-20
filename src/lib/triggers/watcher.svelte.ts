@@ -4,6 +4,7 @@ import {
 	matches,
 	readPath,
 	shouldFire,
+	withinSchedule,
 	type TrackTrigger,
 	type TriggerGroup
 } from './trigger';
@@ -189,6 +190,26 @@ class TriggerWatcher {
 		const group = this.groups[key];
 		if (!group) return;
 
+		/*
+		 * ПОЗА РОЗКЛАДОМ НЕ ПИТАЄМО ВЗАГАЛІ.
+		 *
+		 * Якщо жодному учаснику групи зараз не дозволено звучати, запит нічого не
+		 * вирішує — а чужий сервер отримує його однаково, цілу ніч, щохвилини.
+		 * Досить одного учасника в його вікні, щоб відповідь знадобилася: решта
+		 * просто не спрацює.
+		 */
+		const awake = group.members.filter((member) => withinSchedule(member.trigger.schedule));
+		if (awake.length === 0) {
+			/*
+			 * І ПАМ'ЯТЬ СКИДАЄТЬСЯ. Інакше перше опитування після відкриття вікна
+			 * порівнялося б із вчорашнім станом: тривога, яка триває з ночі,
+			 * виглядала б як щойно почата, і сирена вмикалася б рівно о восьмій.
+			 * Відкриття вікна — не подія.
+			 */
+			for (const member of group.members) delete this.was[this.memoryKey(member)];
+			return;
+		}
+
 		try {
 			const response = await fetch(group.url, {
 				headers: group.headers,
@@ -198,8 +219,9 @@ class TriggerWatcher {
 			if (!response.ok) throw new HttpError(String(response.status));
 
 			const data: unknown = await response.json();
-			// Відповідь одна, умови різні: кожен учасник читає свій шлях сам.
-			for (const member of group.members) this.settle(group, member, data);
+			// Відповідь одна, умови різні: кожен учасник читає свій шлях сам. Ті,
+			// хто поза своїм розкладом, її просто не бачать.
+			for (const member of awake) this.settle(group, member, data);
 		} catch (error) {
 			/*
 			 * Помилка не зупиняє опитування: мережа падає й піднімається, а тригер
@@ -223,13 +245,18 @@ class TriggerWatcher {
 		}
 	}
 
+	/** Ключ пам'яті: трек РАЗОМ із його тригером. Змінили умову — пам'ять чиста. */
+	private memoryKey(member: TriggerGroup['members'][number]): string {
+		return `${member.trackId}|${JSON.stringify(member.trigger)}`;
+	}
+
 	/** Що ця відповідь означає для одного учасника групи. */
 	private settle(group: Group, member: TriggerGroup['members'][number], data: unknown): void {
 		const { trackId, trigger } = member;
 		const value = readPath(data, trigger.path.trim());
 		const now = matches(value, trigger.test, trigger.value);
 
-		const memory = `${trackId}|${JSON.stringify(trigger)}`;
+		const memory = this.memoryKey(member);
 		const fire = shouldFire(this.was[memory] ?? null, now, trigger.onChange);
 		this.was[memory] = now;
 

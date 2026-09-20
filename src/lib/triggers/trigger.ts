@@ -65,6 +65,14 @@ export interface TrackTrigger {
 	/** З чим порівнювати. Для `truthy` не потрібне. */
 	value: string;
 	/**
+	 * Тижневий розклад. Відсутній — дозволено цілодобово.
+	 *
+	 * Лежить у самому тригері, а не в налаштуваннях дошки: години в різних
+	 * треків різні. Сирена потрібна, поки в залі люди; гонг на початок заняття —
+	 * лише вранці.
+	 */
+	schedule?: WeekSchedule | null;
+	/**
 	 * Спрацьовувати лише тоді, коли умова ЗМІНИЛАСЯ з «ні» на «так».
 	 *
 	 * Вимкнене означає «щоразу, поки умова виконується»: так поводиться
@@ -77,6 +85,86 @@ export interface TrackTrigger {
 
 /** Рідше за це не питаємо: чужий сервер не мусить страждати від нашої зручності. */
 export const MIN_INTERVAL_SEC = 5;
+
+/**
+ * КОЛИ ТРИГЕРУ ДОЗВОЛЕНО СПРАЦЮВАТИ — тижневий розклад.
+ *
+ * Без нього трек за зовнішнім API грає цілодобово. Для школи це означає сирену
+ * о третій ночі в порожній залі — і, що гірше, у неділю, коли її нема кому
+ * вимкнути. Розклад не вимикає тригер, він каже, коли тому дозволено звучати.
+ *
+ * Тиждень починається з ПОНЕДІЛКА: так його читає людина. `Date.getDay()`
+ * рахує з неділі, і зсув робиться в одному місці — нижче.
+ */
+export interface DayWindow {
+	/** Чи дозволено цього дня взагалі. */
+	on: boolean;
+	/** «ГГ:ХХ» за місцевим часом комп'ютера, який грає. */
+	from: string;
+	to: string;
+}
+
+export type WeekSchedule = DayWindow[];
+
+/** Типовий розклад: щодня з восьмої до дев'ятої вечора. */
+export const defaultSchedule = (): WeekSchedule =>
+	Array.from({ length: 7 }, () => ({ on: true, from: '08:00', to: '21:00' }));
+
+/** «ГГ:ХХ» у хвилини від півночі. Сміття — `null`. */
+const minutesOf = (text: string): number | null => {
+	const found = /^(\d{1,2}):(\d{2})$/.exec(text.trim());
+	if (!found) return null;
+
+	const hours = Number(found[1]);
+	const minutes = Number(found[2]);
+	if (hours > 23 || minutes > 59) return null;
+	return hours * 60 + minutes;
+};
+
+/** Чи потрапляє хвилина в вікно дня. Вікно через північ — окремий випадок. */
+const inWindow = (day: DayWindow, minute: number): boolean => {
+	if (!day.on) return false;
+
+	const from = minutesOf(day.from);
+	const to = minutesOf(day.to);
+	if (from === null || to === null) return false;
+
+	// Звичайне вікно: 08:00–21:00.
+	if (from <= to) return minute >= from && minute < to;
+
+	// Через північ: 22:00–02:00 — початок належить цьому дню, хвіст наступному.
+	return minute >= from;
+};
+
+/**
+ * Чи дозволено спрацювати ЗАРАЗ.
+ *
+ * Розклад відсутній — дозволено завжди: так поводилися всі тригери до появи
+ * цієї можливості, і мовчки змінити це означало б вимкнути чужі сирени.
+ *
+ * Вікно через північ перевіряється ДВІЧІ: у поточному дні (чи вже почалося) і
+ * у вчорашньому (чи ще триває). Без другої перевірки вікно «22:00–02:00»
+ * закінчувалося б опівночі — тобто саме тоді, коли воно потрібне.
+ */
+export function withinSchedule(
+	schedule: WeekSchedule | null | undefined,
+	now: Date = new Date()
+): boolean {
+	if (!schedule || schedule.length !== 7) return true;
+
+	// `getDay()` рахує з неділі, наш тиждень — з понеділка.
+	const today = (now.getDay() + 6) % 7;
+	const minute = now.getHours() * 60 + now.getMinutes();
+
+	if (inWindow(schedule[today], minute)) return true;
+
+	const yesterday = schedule[(today + 6) % 7];
+	const from = minutesOf(yesterday.from);
+	const to = minutesOf(yesterday.to);
+	const overnight = yesterday.on && from !== null && to !== null && from > to;
+
+	return overnight && minute < to;
+}
 
 export const emptyTrigger = (): TrackTrigger => ({
 	on: false,

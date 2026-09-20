@@ -217,6 +217,17 @@ export const en: Record<TranslationKey, string> = {
 	'trigger.on': 'Poll it',
 	'trigger.paneSource': 'Where to read from',
 	'trigger.paneWhen': 'When to fire',
+	'trigger.schedule': 'Only at certain hours',
+	'trigger.scheduleHint':
+		'Outside the schedule the track will not start, and the address is not polled at all. Times follow this computer’s clock.',
+	'trigger.scheduleNow': 'Outside the schedule right now.',
+	'week.mon': 'Mon',
+	'week.tue': 'Tue',
+	'week.wed': 'Wed',
+	'week.thu': 'Thu',
+	'week.fri': 'Fri',
+	'week.sat': 'Sat',
+	'week.sun': 'Sun',
 	'trigger.onChange': 'Only when the condition changed',
 	'trigger.onChangeHint':
 		'An alert lasts a long time, and the condition holds throughout. Turned off means “every time it holds” — the track will restart on every poll.',

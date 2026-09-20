@@ -1,5 +1,10 @@
 import { mark } from '$lib/services/breadcrumbs';
-import { TRIGGER_TESTS, type TrackTrigger, type TriggerTest } from '$lib/triggers/trigger';
+import {
+	TRIGGER_TESTS,
+	type TrackTrigger,
+	type TriggerTest,
+	type WeekSchedule
+} from '$lib/triggers/trigger';
 
 /**
  * НАЛАШТУВАННЯ ДОШКИ ЖИВУТЬ У ФАЙЛІ ПОРУЧ ІЗ МУЗИКОЮ.
@@ -176,8 +181,31 @@ function toTrigger(value: unknown): TrackTrigger | null {
 		value: typeof record.value === 'string' ? record.value : '',
 		// Відсутнє поле — це файл, записаний до появи вибору. Тодішній намір
 		// був саме «лише на зміну», тож типове значення його й повторює.
-		onChange: record.onChange !== false
+		onChange: record.onChange !== false,
+		...(toSchedule(record.schedule) ? { schedule: toSchedule(record.schedule) } : {})
 	};
+}
+
+/**
+ * Розклад із файлу. Не сім днів — розкладу немає, тобто дозволено цілодобово.
+ *
+ * Читається так само строго, як і сам тригер: половина розкладу гірша за його
+ * відсутність. Але «немає» тут означає «як було завжди», а не «нічого не
+ * грає»: файл, записаний до появи розкладу, мусить працювати як і працював.
+ */
+function toSchedule(value: unknown): WeekSchedule | null {
+	if (!Array.isArray(value) || value.length !== 7) return null;
+
+	const days = value.map((entry) => {
+		const day = (entry ?? {}) as Record<string, unknown>;
+		return {
+			on: day.on === true,
+			from: typeof day.from === 'string' ? day.from : '',
+			to: typeof day.to === 'string' ? day.to : ''
+		};
+	});
+
+	return days;
 }
 
 /**

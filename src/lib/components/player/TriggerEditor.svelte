@@ -3,9 +3,11 @@
 	import { IconCheck, IconTrash, IconWarning } from '$lib/config/icons';
 	import { plural, t } from '$lib/i18n/i18n.svelte';
 	import {
+		defaultSchedule,
 		emptyTrigger,
 		MIN_INTERVAL_SEC,
 		TRIGGER_TESTS,
+		withinSchedule,
 		type TrackTrigger
 	} from '$lib/triggers/trigger';
 	import { triggerWatcher } from '$lib/triggers/watcher.svelte';
@@ -68,6 +70,33 @@
 	};
 
 	const health = $derived(triggerWatcher.health[trackId] ?? null);
+
+	/**
+	 * РОЗКЛАД — окремий перемикач, а не сім рядків, які завжди на екрані.
+	 *
+	 * Більшості треків він не потрібен: тривога має звучати тоді, коли вона є.
+	 * Сім рядків із годинами на кожному тригері перетворили б вікно на таблицю,
+	 * у якій головне — адреса й умова — губиться.
+	 */
+	const DAYS = [
+		'week.mon',
+		'week.tue',
+		'week.wed',
+		'week.thu',
+		'week.fri',
+		'week.sat',
+		'week.sun'
+	] as const;
+
+	let scheduleOn = $state(untrack(() => Boolean(draft.schedule)));
+
+	/** Зараз поза розкладом — це стан, а не помилка, і сказати про нього варто. */
+	const asleep = $derived(scheduleOn && !withinSchedule(draft.schedule));
+
+	function toggleSchedule(next: boolean) {
+		scheduleOn = next;
+		draft.schedule = next ? (draft.schedule ?? defaultSchedule()) : null;
+	}
 
 	function save() {
 		controller.setTrigger(trackId, {
@@ -189,6 +218,56 @@
 					</button>
 				{/each}
 			</div>
+		</div>
+
+		<div class="field">
+			<Switch
+				checked={scheduleOn}
+				label={t('trigger.schedule')}
+				testid="trigger-schedule"
+				onchange={toggleSchedule}
+			/>
+
+			{#if scheduleOn && draft.schedule}
+				<ul class="week">
+					{#each draft.schedule as day, index (index)}
+						<li class="week__row">
+							<label class="week__day">
+								<input
+									type="checkbox"
+									checked={day.on}
+									onchange={(event) => (day.on = event.currentTarget.checked)}
+									data-testid="week-on-{index}"
+								/>
+								{t(DAYS[index])}
+							</label>
+							<input
+								class="input week__time"
+								type="time"
+								value={day.from}
+								disabled={!day.on}
+								oninput={(event) => (day.from = event.currentTarget.value)}
+								data-testid="week-from-{index}"
+							/>
+							<span class="muted">–</span>
+							<input
+								class="input week__time"
+								type="time"
+								value={day.to}
+								disabled={!day.on}
+								oninput={(event) => (day.to = event.currentTarget.value)}
+								data-testid="week-to-{index}"
+							/>
+						</li>
+					{/each}
+				</ul>
+				<p class="muted">{t('trigger.scheduleHint')}</p>
+				{#if asleep}
+					<p class="note note--warn" data-testid="schedule-asleep">
+						<span>{t('trigger.scheduleNow')}</span>
+					</p>
+				{/if}
+			{/if}
 		</div>
 
 		{#if draft.test !== 'truthy'}
@@ -313,6 +392,43 @@
 		/* Текст займає рядок, але не витісняє кнопки на власний. */
 		flex: 1 1 22rem;
 		min-width: 0;
+	}
+
+	/*
+	 * Тиждень списком, а не таблицею: сім рядків по три поля — це вже таблиця,
+	 * але їй бракує заголовків, і вирівнювання в ній коштувало б більше, ніж
+	 * дає. Тут кожен рядок сам за себе, а вузька колонка вікна не ламає його.
+	 */
+	.week {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap-xs);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.week__row {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-xs);
+	}
+
+	.week__day {
+		display: flex;
+		flex: none;
+		align-items: center;
+		gap: var(--gap-xs);
+		width: 4.2rem;
+		font-size: 0.85rem;
+		cursor: pointer;
+	}
+
+	.week__time {
+		flex: 1 1 0;
+		min-width: 0;
+		padding-inline: var(--gap-xs);
+		font-size: 0.85rem;
 	}
 
 	.area {
