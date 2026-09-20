@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="uk">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+		<!--
+			Статично, а не з svelte:head: `+layout.ts` вимикає SSR, тож у
+			передрендерений HTML із svelte:head не потрапляє нічого.
+		-->
+		<title>AudioRemote — звук на комп'ютері з телефона</title>
+		<meta
+			name="description"
+			content="Дошка звуків: комп'ютер грає, телефон керує. Файли лишаються на комп'ютері."
+		/>
+
+		<!--
+			NOINDEX, І ЦЕ РІШЕННЯ, А НЕ ЗАБУТИЙ КРОК.
+
+			Це інструмент для працівників школи, а не сайт. Сторінка в індексі
+			не дає нічого нікому, зате приводить сюди людей, яким тут нема чого
+			робити, — і кожен із них створює анонімний акаунт у Firebase.
+			Одним рішенням знімається весь блок SEO: ні canonical, ні sitemap,
+			ні og-розмітки тут немає навмисно (BETA-CHECKLIST-v9 § 4.1).
+			Записано в PROJECT-CONTEXT.md як свідоме відхилення від SEO-v9.
+		-->
+		<meta name="robots" content="noindex, nofollow" />
+
+		<link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+		<link rel="manifest" href="./manifest.webmanifest" />
+		<link rel="apple-touch-icon" href="./icon-180.png" sizes="180x180" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-title" content="AudioRemote" />
+		<meta name="application-name" content="AudioRemote" />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="theme-color" content="#101418" />
+
+		<meta http-equiv="content-security-policy" content="default-src 'self'; worker-src 'self'; connect-src 'self' https: https://*.googleapis.com https://*.firebasedatabase.app wss://*.firebasedatabase.app http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:*; font-src 'self'; img-src 'self' data:; media-src 'self' blob:; object-src 'none'; script-src 'self' 'sha256-bSG1ARsZZUcJORCVpg2OVuf/SKbIOpz7rJTCzC+xdWs=' 'sha256-leh0I/OhGZzdattIgiSKCRwD0BGK1DtalUgLJhsRuIM='; style-src 'self' 'unsafe-inline'; base-uri 'self'; form-action 'self'">
+		<link href="./_app/immutable/entry/start.1t-CN8X6.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/BfbJQhot.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/hRhqCT5P.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/BJiZF27b.js" rel="modulepreload">
+		<link href="./_app/immutable/entry/app.DsGkm7rb.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/PPVm8Dsz.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CL5pRFup.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/D3xvCRp7.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CB8kXQhb.js" rel="modulepreload">
+		<link href="./_app/immutable/nodes/0.XEfZue8U.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CUSHzcf7.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/BZgGrjKp.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CT_4hgq8.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/BehQdJbh.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/Bonjmqh-.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/B4bxdWMR.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CPZNlmg9.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/DD670-tD.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/C0yphBBY.js" rel="modulepreload">
+		<link href="./_app/immutable/nodes/4.DwYZ9Kdc.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/Cb75AGJU.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/DRyCAWfD.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/Mbnt7nJP.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CMt9Nsds.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CzOwma2L.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/BN5456R_.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/ku66MhFd.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CGHB3LUh.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/W9wpqXqi.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/CK9ZJYDy.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/DPFPqKve.js" rel="modulepreload">
+		<link href="./_app/immutable/chunks/J9knm4yJ.js" rel="modulepreload">
+		
+		<link href="./_app/immutable/assets/0.DTuviqKg.css" rel="stylesheet">
+		<link href="./_app/immutable/assets/PasswordField.C8d9YBAc.css" rel="stylesheet">
+		<link href="./_app/immutable/assets/4.C3lbHUVA.css" rel="stylesheet">
+
+		<style>
+			/*
+				Фон першого кадру — `light-dark()`, а не зашитий темний.
+
+				Скрипт нижче ставить `data-theme` лише для ЯВНОГО вибору. Доки
+				вибору немає, схему вирішує CSS — тобто до виконання будь-якого
+				JS. Зашитий темний фон тут означав би темний перший кадр у
+				людини зі світлою системною темою, і тривав би він доти, доки
+				не приїде app.css.
+
+				`color-scheme: light dark` ОБОВ'ЯЗКОВИЙ: без нього `light-dark()`
+				мовчки віддає перший аргумент.
+
+				`light-dark()` тут лише для КОЛЬОРУ. Довжини, тіні й `url()`
+				через неї не проходять — властивість зникає цілком, і жоден
+				гейт про це не скаже.
+
+				СХЕМА ОГОЛОШУЄТЬСЯ ЛИШЕ НА <html>, І ЦЕ НЕ СТИЛЬ ЗАПИСУ.
+
+				`color-scheme` успадковується, а перемикач тем ставить
+				`data-theme` на <html> — тобто правила нижче міняють схему саме
+				йому. Доки той самий рядок стояв і для `body`, у <body> була
+				ВЛАСНА `light dark`, яка перекривала успадковану: <html> ставав
+				світлим, а <body> — той, що малює фон сторінки, — далі питав
+				системну перевагу й лишався темним.
+
+				Симптом рівно такий, який найважче зв'язати з причиною: тема
+				перемикається (атрибут є, сховище записане, кнопка світиться),
+				а сторінка не міняє кольору. Заміряно в браузері 2026-09-19;
+				стереже `src/css-tokens.test.ts`.
+			*/
+			html {
+				color-scheme: light dark;
+				background-color: light-dark(#f4f6f8, #101418);
+			}
+
+			html,
+			body {
+				margin: 0;
+				padding: 0;
+			}
+
+			/*
+				`only light`, а не просто `light`. Android Chrome із темною темою
+				САМОГО браузера перефарбовує кожну сторінку, яку вважає світлою й
+				без власної темної теми (Auto Dark Theme); ознака, за якою він це
+				вирішує, — оголошена схема документа, і голе `light` її й
+				оголошує. `only` — документована відмова, і на `light-dark()`
+				вона не впливає ніяк.
+			*/
+			html[data-theme='light'] {
+				color-scheme: only light;
+			}
+			html[data-theme='dark'] {
+				color-scheme: dark;
+			}
+		</style>
+
+		<script>
+			// Тема до першого кадру. <body> тут ще не існує, тож фон не чіпаємо
+			// зовсім — за нього відповідають правила вище.
+			(function () {
+				try {
+					var theme = localStorage.getItem('audioremote_theme');
+					if (theme === 'light' || theme === 'dark') {
+						document.documentElement.setAttribute('data-theme', theme);
+					}
+				} catch (e) {
+					/* приватний режим — лишається системна перевага */
+				}
+			})();
+		</script>
+	</head>
+
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">
+			<script>
+				{
+					__sveltekit_dzg8ca = {
+						base: new URL(".", location).pathname.slice(0, -1),
+						assets: "/AudioRemote"
+					};
+
+					const element = document.currentScript.parentElement;
+
+					Promise.all([
+						import("./_app/immutable/entry/start.1t-CN8X6.js"),
+						import("./_app/immutable/entry/app.DsGkm7rb.js")
+					]).then(([kit, app]) => {
+						kit.start(app, element);
+					});
+				}
+			</script>
+		</div>
+	</body>
+</html>
