@@ -422,6 +422,19 @@
 					шапка цієї ж картки, а перечитати й змінити папку можна звідти ж.
 				-->
 				<section class="card stack">
+					<!--
+						НАД УСІМ, а не в гілці «папку обрано»: до бази папка стосунку не
+						має. Без бази сторінка виглядає бездоганно — SDK тримає запис у
+						локальній черзі, помилок немає, — і мовчання тут відправляє
+						людину шукати причину в телефоні.
+					-->
+					{#if controller.dbOffline}
+						<p class="note note--warn" data-testid="db-offline">
+							<IconWarning size={18} aria-hidden="true" />
+							<span>{t('error.dbOffline')}</span>
+						</p>
+					{/if}
+
 					{#if !controller.supported}
 						<p class="note note--warn" data-testid="no-support">
 							<IconWarning size={18} aria-hidden="true" />

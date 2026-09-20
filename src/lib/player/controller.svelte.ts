@@ -8,7 +8,7 @@ import type { ActiveBoard } from '$lib/board/session.svelte';
 import { ensureBoard, publishLibrary, publishState } from '$lib/net/board';
 import type { BoardInfo, Command, Track } from '$lib/net/boardTypes';
 import { pruneAcks, watchCommands } from '$lib/net/commands';
-import { countRemotes, trackPresence, watchPresence } from '$lib/net/presence';
+import { countRemotes, trackPresence, watchConnection, watchPresence } from '$lib/net/presence';
 import {
 	builtinFor,
 	isAssignable,
@@ -39,6 +39,9 @@ export interface BoardTrack {
 
 /** Скільки чекати, перш ніж писати налаштування в теку. */
 const SAVE_DELAY_MS = 500;
+
+/** Скільки мовчати, перш ніж казати «бази не чути»: сокет піднімається не миттєво. */
+const OFFLINE_GRACE_MS = 6000;
 
 /**
  * ПРИЙМАЧ: усе, що робить комп'ютер, який грає.
@@ -76,6 +79,12 @@ export class PlayerController {
 
 	/** `false` — теку видали лише на читання, налаштування не збережуться. */
 	configWritable = $state(true);
+
+	/**
+	 * Базу не чути. Показувати це ОБОВ'ЯЗКОВО: без бази сторінка виглядає
+	 * бездоганно (SDK тримає запис у локальній черзі), а пульт не бачить нічого.
+	 */
+	dbOffline = $state(false);
 
 	/** Остання помилка відтворення — ключ перекладу й назва треку. */
 	trouble = $state<{ key: string; name: string } | null>(null);
@@ -165,6 +174,33 @@ export class PlayerController {
 	/** Підняти все. Повертає функцію, яка знімає все назад. */
 	async start(): Promise<() => void> {
 		mark('player:start');
+
+		/*
+		 * ПЕРШИМ ДІЛОМ — СЛУХАТИ ЗВ'ЯЗОК, і саме тому, що нижче все залежить від
+		 * бази. Коли бази немає, `ensureBoard` не повертається взагалі: читання
+		 * лишається в черзі SDK і чекає сокета, якого не буде. Підписка, зроблена
+		 * після нього, не робиться ніколи — тобто мовчить рівно в тому випадку,
+		 * заради якого існує.
+		 *
+		 * Затримка перед скаргою — не пом'якшення, а точність: на старті сокета
+		 * ще немає жодну мить, і попередження, що спалахує на кожному відкритті,
+		 * перестають читати за тиждень.
+		 */
+		let grace: ReturnType<typeof setTimeout> | null = null;
+		this.track(
+			await watchConnection((online) => {
+				if (grace) clearTimeout(grace);
+				if (online) {
+					this.dbOffline = false;
+					return;
+				}
+				grace = setTimeout(() => (this.dbOffline = true), OFFLINE_GRACE_MS);
+			})
+		);
+		this.track(() => {
+			if (grace) clearTimeout(grace);
+		});
+
 		const info: BoardInfo = await ensureBoard(this.board.key, this.board.name);
 		const { uid } = await import('$lib/net/firebase').then((module) => module.connect());
 		this.owned = info.ownerUid === uid;

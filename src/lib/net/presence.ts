@@ -94,3 +94,23 @@ export function hasPlayer(present: PresenceMap): boolean {
 export function countRemotes(present: PresenceMap): number {
 	return entries(present).filter((entry) => entry.role === 'remote').length;
 }
+
+/**
+ * ЧИ ЖИВИЙ СОКЕТ ДО БАЗИ — і чому без цього застосунок бреше.
+ *
+ * SDK Realtime Database терпить обрив: запис лягає в локальну чергу, читання
+ * повертає те, що щойно записали. Для застосунку, який працює з мережею
+ * уривками, це рятівна властивість. Тут вона обертається проти нас: коли бази
+ * немає зовсім — не задеплоєна, не та адреса, впав інтернет — сторінка
+ * приймача виглядає БЕЗДОГАННО. Дошка «створилася», треки «оголосилися»,
+ * жодної помилки в консолі. І тільки телефон з іншого кінця зали не бачить
+ * нічого, і причину шукають у телефоні.
+ *
+ * `.info/connected` — власний шлях SDK, не наші дані: правила на нього не
+ * поширюються, читати його можна завжди.
+ */
+export async function watchConnection(onChange: (online: boolean) => void): Promise<() => void> {
+	const { db } = await connect();
+	const { onValue, ref } = await import('firebase/database');
+	return onValue(ref(db, '.info/connected'), (snapshot) => onChange(snapshot.val() === true));
+}
