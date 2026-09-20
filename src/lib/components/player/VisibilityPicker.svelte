@@ -48,7 +48,12 @@
 	/* Той самий перемикач списком, що й в умові тригера: один вибір — одна рамка. */
 	.picker {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+		/*
+		 * Рівно три колонки, а не `auto-fit`: варіантів теж три, і автопідбір у
+		 * вузькій колонці ставив два — тобто лишав четверту комірку порожньою.
+		 * Підписи тут короткі, вони вміщаються й на телефоні.
+		 */
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		gap: 1px;
 		overflow: hidden;
 		border: 1px solid var(--border);
