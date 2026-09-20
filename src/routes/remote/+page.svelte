@@ -11,6 +11,9 @@
 		IconPlay,
 		IconPrev,
 		IconUp,
+		IconSettings,
+		IconSliders,
+		IconRefresh,
 		IconStop,
 		IconVolume,
 		IconWarning
@@ -18,6 +21,11 @@
 	import { plural, t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { RemoteController } from '$lib/remote/controller.svelte';
+	import { RemoteEditor } from '$lib/remote/editor.svelte';
+	import { deriveAdminKey } from '$lib/board/boardPath';
+	import { channelExists } from '$lib/net/admin';
+	import AdminDialog from '$lib/components/remote/AdminDialog.svelte';
+	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 	import { colorOf } from '$lib/config/trackColors';
 	import { titleLines } from '$lib/audio/source';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
@@ -26,6 +34,62 @@
 	import { createLatch, SEEK_HOLD_MS, SEEK_TOLERANCE_MS, VOLUME_HOLD_MS } from '$lib/remote/latch';
 
 	let controller = $state<RemoteController | null>(null);
+
+	/**
+	 * РЕЖИМ АДМІНІСТРАТОРА — другий контролер поруч, а не прапорець.
+	 *
+	 * `null` означає «звичайний пульт»: списком керує бібліотека, і міняти в ній
+	 * нічого не можна. Щойно пароль підійшов, поруч оживає редактор — із власною
+	 * підпискою на повні налаштування й власним каналом команд.
+	 */
+	let editor = $state<RemoteEditor | null>(null);
+	let adminOpen = $state(false);
+	/** Для якого треку відкрите вікно налаштувань. */
+	let openFor = $state<string | null>(null);
+	/** Прибирання підписки редактора — окремо від підписок пульта. */
+	let stopEditor: (() => void) | null = null;
+
+	/**
+	 * Підняти редактор за відомою адресою каналу.
+	 *
+	 * Адреса могла прийти двома шляхами: щойно введеним паролем або сеансом
+	 * вкладки, що пережив перезавантаження. Різниці тут немає — обидва рази це
+	 * та сама адреса, і саме її існування в базі й було перевіркою пароля.
+	 */
+	async function openEditor(adminKey: string): Promise<void> {
+		stopEditor?.();
+		const instance = new RemoteEditor(adminKey);
+		editor = instance;
+		stopEditor = await instance.start();
+	}
+
+	/** Перевірити пароль і зайти. `false` — не підійшов. */
+	async function enterAdmin(password: string): Promise<boolean> {
+		const board = boardSession.current;
+		if (!board) return false;
+
+		const adminKey = await deriveAdminKey(board.key, password);
+		// Питає БАЗА: канал або є за цією адресою, або його немає.
+		if (!(await channelExists(adminKey))) return false;
+
+		boardSession.open({ ...board, adminKey });
+		await openEditor(adminKey);
+		adminOpen = false;
+		// На телефоні вхід відкривають з-під шестірні, а працює він зі списком
+		// треків — тобто рівно з тим, що аркуш і затуляє.
+		boardPanel.close();
+		return true;
+	}
+
+	/** Вийти з режиму. Пароль при цьому нікуди не дівається — його просто забули. */
+	function leaveAdmin(): void {
+		stopEditor?.();
+		stopEditor = null;
+		editor = null;
+		openFor = null;
+		const board = boardSession.current;
+		if (board) boardSession.open({ ...board, adminKey: undefined });
+	}
 	// Те саме число, що й типова гучність приймача: доки той не оголосив свою,
 	// повзунок не має показувати чуже значення.
 	let volume = $state(70);
@@ -58,6 +122,9 @@
 			dispose = stop;
 		});
 
+		// Режим, у якому були до перезавантаження вкладки, піднімається сам.
+		if (board.adminKey) void openEditor(board.adminKey);
+
 		/*
 		 * Гарячі клавіші є й тут: пультом може бути ноутбук, а не лише телефон.
 		 * На телефоні вони просто не спрацьовують — клавіатури немає, і жодної
@@ -75,6 +142,7 @@
 		return () => {
 			window.removeEventListener('keydown', onKeydown);
 			dispose?.();
+			stopEditor?.();
 			instance.stop();
 		};
 	});
@@ -126,6 +194,15 @@
 	 */
 	let deckOpen = $state<boolean | null>(null);
 
+	/**
+	 * ЩО ПОКАЗУЄ СПИСОК.
+	 *
+	 * Звичайний пульт бере бібліотеку — там лише дозволене до показу. У режимі
+	 * адміністратора джерело інше: повний перелік із каналу, включно з
+	 * прихованими треками, бо повертати сховане теж треба звідкись.
+	 */
+	const rows = $derived(editor ? editor.entries : (controller?.tracks ?? []));
+
 	const armed = $derived(controller?.state?.armed === true);
 	const playing = $derived(controller?.state?.playing === true);
 
@@ -153,10 +230,31 @@
 				<h1 class="head__title">{controller.info?.name || t('remote.title')}</h1>
 				<p class="muted mono">{board.id}</p>
 			</div>
-			<p class="link" class:link--on={controller.playerOnline} data-testid="link-state">
-				<span class="link__dot" aria-hidden="true"></span>
-				{controller.playerOnline ? t('remote.online') : t('remote.offline')}
-			</p>
+			<div class="head__side">
+				<p class="link" class:link--on={controller.playerOnline} data-testid="link-state">
+					<span class="link__dot" aria-hidden="true"></span>
+					{controller.playerOnline ? t('remote.online') : t('remote.offline')}
+				</p>
+
+				<!--
+					ВХІД стоїть у шапці дошки, а не серед кнопок керування: це не дія
+					над звуком, а зміна того, що взагалі можна робити з цією дошкою.
+					ВИХІД — у смузі режиму, поруч із написом «Режим адміністратора»:
+					там його й шукають, і там він видимий на телефоні завжди, тоді як
+					шапка на вузькому екрані живе за шестірнею.
+				-->
+				{#if !editor}
+					<button
+						class="btn btn--sm"
+						type="button"
+						onclick={() => (adminOpen = true)}
+						data-testid="admin-open"
+					>
+						<IconSettings size={18} aria-hidden="true" />
+						{t('admin.title')}
+					</button>
+				{/if}
+			</div>
 		</header>
 	{/if}
 {/snippet}
@@ -412,10 +510,64 @@
 			<!-- ─── Список ────────────────────────────────────────────────── -->
 			<div class="board__col board__col--list">
 				<section class="card stack">
-					{#if !controller.libraryKnown}
+					{#if editor}
+						<!--
+							У режимі адміністратора список інший — і це не косметика.
+							
+							Звичайний пульт бачить бібліотеку: лише те, що дозволено
+							показувати, і без жодних налаштувань. Адміністратор бачить усе,
+							що є в папці, включно з прихованим, — інакше повернути сховане
+							було б нікуди.
+						-->
+						<div class="adminbar" data-testid="admin-bar">
+							<div class="adminbar__text">
+								<strong>{t('admin.mode')}</strong>
+								<span class="muted">{t('admin.modeHint')}</span>
+							</div>
+							<div class="adminbar__acts">
+								<button
+									class="btn btn--sm"
+									type="button"
+									onclick={() => void editor?.rescan()}
+									data-testid="admin-rescan"
+								>
+									<IconRefresh size={18} aria-hidden="true" />
+									{t('admin.rescan')}
+								</button>
+								<button
+									class="btn btn--sm"
+									type="button"
+									onclick={leaveAdmin}
+									data-testid="admin-leave"
+								>
+									{t('admin.leave')}
+								</button>
+							</div>
+						</div>
+
+						{#if editor.trouble}
+							<p class="error" role="alert" data-testid="admin-trouble">
+								{t(editor.trouble as TranslationKey)}
+							</p>
+						{/if}
+
+						{#if !editor.known}
+							<p class="muted">{t('admin.waiting')}</p>
+						{:else if rows.length === 0}
+							<!--
+								Про папку кажемо лише тоді, коли треків немає, — тобто коли
+								питання «а де їх узяти» справді виникло. Постійний рядок над
+								списком був би відповіддю на незадане питання, і на телефоні
+								з'їдав би рядок у того, що справді потрібне.
+							-->
+							<p class="muted">{t('admin.noFolder')}</p>
+						{/if}
+					{/if}
+
+					{#if !controller.libraryKnown && !editor}
 						<!-- Ще не знаємо. Тиха фраза замість висновку, якого нема з чого зробити. -->
 						<p class="muted">{t('remote.connecting')}</p>
-					{:else if controller.tracks.length === 0}
+					{:else if rows.length === 0}
 						<p class="muted">{t('remote.emptyLibrary')}</p>
 					{:else}
 						<!--
@@ -428,25 +580,31 @@
 							<span class="folder__count">
 								{plural(
 									{ one: 'player.tracksOne', few: 'player.tracksFew', other: 'player.tracksMany' },
-									controller.tracks.length
+									rows.length
 								)}
 							</span>
 						</div>
 
 						<ul class="tracks">
-							{#each controller.tracks as track (track.id)}
+							{#each rows as track (track.id)}
 								{@const hex = colorOf(track.color)}
-								{@const key = controller.keyLabels[track.id]}
+								{@const key = (editor ?? controller).keyLabels[track.id]}
 								{@const current = controller.state?.trackId === track.id}
 								{@const sounding = current && playing}
-								<li>
+								<!--
+									Трек, схований від пульта, звідси не запускається — його немає
+									в бібліотеці, і команда «грати» на нього не дійшла б. Тому
+									кнопка вимкнена, а не мовчки безсила.
+								-->
+								{@const shy = 'visibility' in track && track.visibility !== 'all'}
+								<li class="row">
 									<button
 										class="tracks__btn"
 										class:tracks__btn--tinted={hex !== null}
 										class:tracks__btn--playing={controller.state?.trackId === track.id}
 										style={hex ? `--track-color: ${hex}` : undefined}
 										type="button"
-										disabled={controller.sending}
+										disabled={controller.sending || shy}
 										onclick={() =>
 											current
 												? controller?.send(sounding ? 'pause' : 'resume')
@@ -481,6 +639,41 @@
 											{/if}
 										</span>
 									</button>
+
+									{#if editor}
+										<div class="row__tools">
+											<button
+												class="tool"
+												type="button"
+												title={t('player.moveUp')}
+												aria-label={t('player.moveUp')}
+												onclick={() => editor?.move(track.id, -1)}
+												data-testid="admin-up-{track.id}"
+											>
+												<IconUp size={18} aria-hidden="true" />
+											</button>
+											<button
+												class="tool"
+												type="button"
+												title={t('player.moveDown')}
+												aria-label={t('player.moveDown')}
+												onclick={() => editor?.move(track.id, 1)}
+												data-testid="admin-down-{track.id}"
+											>
+												<IconDown size={18} aria-hidden="true" />
+											</button>
+											<button
+												class="tool"
+												type="button"
+												title={t('track.open')}
+												aria-label={t('track.open')}
+												onclick={() => (openFor = track.id)}
+												data-testid="admin-settings-{track.id}"
+											>
+												<IconSliders size={18} aria-hidden="true" />
+											</button>
+										</div>
+									{/if}
 								</li>
 							{/each}
 						</ul>
@@ -488,12 +681,106 @@
 				</section>
 			</div>
 		</div>
+
+		{#if adminOpen}
+			<AdminDialog onenter={enterAdmin} onclose={() => (adminOpen = false)} />
+		{/if}
+
+		{#if openFor && editor}
+			{@const chosen = editor.entries.find((entry) => entry.id === openFor)}
+			{#if chosen}
+				<!--
+					ТЕ САМЕ ВІКНО, ЩО Й НА ПЛЕЄРІ, і в цьому вся суть третьої ролі:
+					адміністратор має бачити не «спрощену версію налаштувань», а рівно
+					те, що бачить людина за комп'ютером. Різне вікно розійшлося б із
+					плеєровим на першому ж новому полі.
+				-->
+				<TrackDialog track={chosen} controller={editor} onclose={() => (openFor = null)} />
+			{/if}
+		{/if}
 	{:else}
 		<p class="muted">{t('common.loading')}</p>
 	{/if}
 </div>
 
 <style>
+	/* Шапка дошки: стан зв'язку й вхід в адміністратори стоять стовпчиком. */
+	.head__side {
+		display: flex;
+		flex-direction: column;
+		align-items: end;
+		gap: var(--gap-xs);
+	}
+
+	/*
+	 * Смуга режиму — помітна, але не тривожна. Це не помилка й не попередження:
+	 * це відповідь на питання «чому в мене тут зʼявилися стрілки й шестірні».
+	 */
+	.adminbar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--gap-sm);
+		padding: var(--gap-sm);
+		border: 1px solid var(--border);
+		border-radius: var(--radius-sm);
+		background: var(--bg-sunken);
+	}
+
+	.adminbar__text {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.adminbar__acts {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--gap-xs);
+	}
+
+	/* Рядок треку в режимі адміністратора: кнопка на всю ширину плюс інструменти. */
+	.row {
+		display: flex;
+		align-items: stretch;
+		gap: var(--gap-xs);
+	}
+
+	.row .tracks__btn {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.row__tools {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+	}
+
+	.tool {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: var(--tap);
+		min-height: var(--tap);
+		padding: 0;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		background: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+	}
+
+	.tool:hover,
+	.tool:focus-visible {
+		border-color: var(--border);
+		color: var(--text-primary);
+	}
+
+	.tool:active {
+		box-shadow: inset 0 0 0 999px var(--press-veil);
+	}
+
 	.link {
 		display: flex;
 		align-items: center;

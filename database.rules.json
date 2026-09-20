@@ -199,6 +199,91 @@
 
 				"$other": { ".validate": false }
 			}
+		},
+
+		// ─── АДМІНСЬКИЙ КАНАЛ ────────────────────────────────────────────────
+		//
+		// Третя роль: пульт, який міняє налаштування дошки так само, як людина за
+		// самим комп'ютером. Другий пароль перевіряється тим самим єдиним
+		// способом, який тут узагалі працює, — він ВХОДИТЬ В АДРЕСУ каналу
+		// (див. `deriveAdminKey`).
+		//
+		// ЧОМУ ОКРЕМА ГІЛКА, А НЕ ВУЗОЛ УСЕРЕДИНІ ДОШКИ. Дозвіл читати стоїть на
+		// boards/$key і поширюється на ВСЕ піддерево — відкликати його глибше
+		// правила не вміють. Тобто канал, покладений усередину, прочитав би
+		// будь-хто з паролем дошки, і другий пароль не означав би нічого.
+		//
+		// Перелічити admin, як і boards, не можна: дозволу на самій гілці немає.
+		"admin": {
+			"$akey": {
+				// Хто знає адресу — той знає адмінський пароль. Це і є вхід.
+				// Звідси ж і перевірка пароля на боці пульта: канал або є, або його
+				// немає, і відповідає на це база, а не наш if.
+				".read": "auth != null",
+
+				// Знести канал (тобто вимкнути адмінський доступ) може лише
+				// господар — І ТІЛЬКИ ЗНЕСТИ, як і саму дошку.
+				".write": "auth != null && !newData.exists() && data.child('info/ownerUid').val() === auth.uid",
+
+				"info": {
+					".write": "auth != null && $akey.matches(/^[0-9a-f]{32}$/) && (data.exists() ? data.child('ownerUid').val() === auth.uid : newData.child('ownerUid').val() === auth.uid)",
+					".validate": "newData.hasChildren(['ownerUid', 'createdAt', 'schema'])",
+					"ownerUid": { ".validate": "newData.isString() && newData.val().length <= 128" },
+					"createdAt": {
+						".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
+					},
+					"schema": { ".validate": "newData.isNumber() && newData.val() >= 1" },
+					"$other": { ".validate": false }
+				},
+
+				// ПОВНІ НАЛАШТУВАННЯ ТРЕКІВ — те, чого немає в `library`.
+				//
+				// У бібліотеку вони не годяться: там їх бачив би кожен пульт, а серед
+				// них є заголовки запиту до чужого API, тобто чужий ключ доступу.
+				// Тут їх бачить лише той, хто знає адресу каналу.
+				//
+				// Одним рядком JSON, а не деревом, і це свідомо: форму налаштувань
+				// (тригер із тижневим розкладом усередині) правила повторювали б
+				// удвічі довше за самі правила, і розходилися б із кодом мовчки. Той,
+				// хто сюди пише, уже довів знання пароля адресою; те, що він написав,
+				// однаково перевіряє плеєр, перш ніж покласти у файл.
+				"tracks": {
+					".write": "auth != null && root.child('admin/' + $akey + '/info/ownerUid').val() === auth.uid",
+					".validate": "newData.hasChildren(['rev', 'json'])",
+					"rev": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+					"json": { ".validate": "newData.isString() && newData.val().length <= 300000" },
+					"$other": { ".validate": false }
+				},
+
+				// Ті самі два правила, що й у команд дошки: «лише створити», і
+				// прибирає виконане господар.
+				"cmd": {
+					"$id": {
+						".write": "auth != null && ((!data.exists() && newData.child('by').val() === auth.uid && root.child('admin/' + $akey + '/info/ownerUid').exists()) || (!newData.exists() && root.child('admin/' + $akey + '/info/ownerUid').val() === auth.uid))",
+						".validate": "newData.hasChildren(['by', 'type', 'at'])",
+						"by": { ".validate": "newData.isString() && newData.val().length <= 128" },
+						"type": { ".validate": "newData.isString() && newData.val().matches(/^(tracks|rescan)$/)" },
+						"value": { ".validate": "newData.isString() && newData.val().length <= 300000" },
+						"at": {
+							".validate": "newData.isNumber() && newData.val() <= now + 5000 && newData.val() > now - 60000"
+						},
+						"$other": { ".validate": false }
+					}
+				},
+
+				"ack": {
+					".write": "auth != null && root.child('admin/' + $akey + '/info/ownerUid').val() === auth.uid",
+					"$id": {
+						".validate": "!newData.exists() || newData.hasChildren(['ok', 'at'])",
+						"ok": { ".validate": "newData.isBoolean()" },
+						"error": { ".validate": "newData.isString() && newData.val().length <= 64" },
+						"at": { ".validate": "newData.isNumber() && newData.val() <= now + 5000" },
+						"$other": { ".validate": false }
+					}
+				},
+
+				"$other": { ".validate": false }
+			}
 		}
 	}
 }

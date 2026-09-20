@@ -23,7 +23,12 @@
 const DB_HOST = process.env.FIREBASE_DATABASE_EMULATOR_HOST ?? '127.0.0.1:9020';
 const AUTH_HOST = process.env.FIREBASE_AUTH_EMULATOR_HOST ?? '127.0.0.1:9119';
 const PROJECT = process.env.GCLOUD_PROJECT ?? 'demo-audioremote';
-const NS = `${PROJECT}-default-rtdb`;
+
+/**
+ * Простір імен бази. `emulators:exec` піднімає її саме таким, а перевизначити
+ * можна змінною — див. перевірку нижче про те, чому чужий простір небезпечний.
+ */
+const NS = process.env.RULES_NS ?? `${PROJECT}-default-rtdb`;
 
 /** Серверний час у REST — той самий, що `serverTimestamp()` у SDK. */
 const SERVER_TIME = { '.sv': 'timestamp' };
@@ -32,6 +37,17 @@ const SERVER_TIME = { '.sv': 'timestamp' };
 const KEY = 'a1b2c3d4e5f60718293a4b5c6d7e8f90';
 const OTHER_KEY = '0f1e2d3c4b5a69788796a5b4c3d2e1f0';
 const GHOST_KEY = 'ffffffffffffffffffffffffffffffff';
+
+/**
+ * Адреси адмінського каналу. Це той самий хеш, лише з іншого матеріалу, тож і
+ * форма в нього та сама — інша форма правило не пропустить.
+ *
+ * Другий ключ потрібен для випадку «господар закриває канал»: після закриття
+ * канал зникає, і всі наступні випадки на ньому міряли б уже не те.
+ */
+const ADMIN_KEY = 'b1c2d3e4f5061728394a5b6c7d8e9f01';
+const CLOSING_ADMIN_KEY = '1a2b3c4d5e6f70819293a4b5c6d7e8f9';
+const GHOST_ADMIN = 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee';
 
 /** @param {string} label */
 async function signIn(label) {
@@ -89,8 +105,53 @@ async function mustNot(label, run) {
 	results.push({ kind: 'must-not', label, pass: denied(status), got: status });
 }
 
+/*
+ * СПЕРШУ ПЕРЕКОНАТИСЯ, ЩО ПРАВИЛА ВЗАГАЛІ ДІЮТЬ.
+ *
+ * Емулятор прив'язує правила до ОДНІЄЇ бази — тієї, що в `firebase.json`. На
+ * будь-який інший простір імен він піднімає порожню базу «дозволити все», і
+ * гейт, спрямований туди, зеленіє повністю: усі сорок «не мусить могти»
+ * проходять, бо не боронить ніщо. Виглядає це як ідеальні правила.
+ *
+ * Тому перше, що робиться, — запис у корінь звичайним токеном. У корені стоїть
+ * `.write: false`, отже єдина правильна відповідь тут — відмова.
+ */
+const gatekeeper = await signIn('перевірка простору');
+if (!denied(await write('_rules_check', 1, gatekeeper.token))) {
+	console.error(
+		`check:rules: правила не застосовані до простору «${NS}» — база відкрита, ` +
+			'перевіряти нема чого.\n' +
+			'  Найімовірніше, емулятор уже піднятий окремо й на іншому просторі.\n' +
+			'  Запускати через `npm run check:rules`, а не цей файл напряму.'
+	);
+	process.exit(2);
+}
+
 const owner = await signIn('господар');
 const stranger = await signIn('сторонній');
+
+/*
+ * ЗАЛИШКИ ВІД ПОПЕРЕДНЬОГО ПРОГОНУ ПРИБИРАЮТЬСЯ ПЕРЕД ПОЧАТКОМ.
+ *
+ * `emulators:exec` піднімає чистий емулятор, тож у CI цього не потрібно. Але
+ * той самий скрипт запускають і проти вже піднятого емулятора — і там дошка з
+ * тим самим ключем уже лежить, записана вчорашнім анонімним uid. Правило
+ * «міняти може лише господар» тоді відмовляє САМЕ ТАК, ЯК МУСИТЬ, а гейт
+ * показує дев'ять червоних рядків і виглядає як зламані правила.
+ *
+ * `auth=owner` — адмінський доступ емулятора; у справжній базі його не існує,
+ * як і самого цього скрипта.
+ */
+for (const path of [
+	`boards/${KEY}`,
+	`boards/${OTHER_KEY}`,
+	`boards/${GHOST_KEY}`,
+	`admin/${ADMIN_KEY}`,
+	`admin/${CLOSING_ADMIN_KEY}`,
+	`admin/${GHOST_ADMIN}`
+]) {
+	await write(path, null, 'owner');
+}
 
 const info = (uid, name = 'Зал 2') => ({
 	name,
@@ -420,6 +481,118 @@ await mustNot('присутність із невідомою роллю', () =>
 
 await mustNot('опис дошки із зайвим полем', () =>
 	patch(`boards/${KEY}/info`, { secret: 'x' }, owner.token)
+);
+
+// ─── АДМІНСЬКИЙ КАНАЛ ───────────────────────────────────────────────────────
+//
+// Тут перевіряється те саме, що й для дошки, але з іншим наголосом: канал —
+// це підвищення прав, тож «сторонній не мусить» важить більше за все інше.
+// «Сторонній» у цих випадках — той, хто знає адресу каналу, тобто адміністратор:
+// йому можна надсилати команди й читати налаштування, і НЕ можна писати їх
+// самому, підроблювати квитанції чи знести канал.
+
+const adminInfo = (uid) => ({ ownerUid: uid, createdAt: SERVER_TIME, schema: 1 });
+
+await must('господар відкриває адмінський канал', () =>
+	write(`admin/${ADMIN_KEY}/info`, adminInfo(owner.uid), owner.token)
+);
+
+await must('господар викладає повні налаштування треків', () =>
+	write(
+		`admin/${ADMIN_KEY}/tracks`,
+		{ rev: 1, json: JSON.stringify([{ id: 't1', title: 'Вихід', plays: 2 }]) },
+		owner.token
+	)
+);
+
+await must('адміністратор читає канал за його адресою', () =>
+	read(`admin/${ADMIN_KEY}/tracks`, stranger.token)
+);
+
+await must('адміністратор надсилає команду', () =>
+	write(
+		`admin/${ADMIN_KEY}/cmd/a1`,
+		{ by: stranger.uid, type: 'tracks', value: '[]', at: SERVER_TIME },
+		stranger.token
+	)
+);
+
+await must('господар квитує адмінську команду', () =>
+	write(`admin/${ADMIN_KEY}/ack/a1`, { ok: true, at: SERVER_TIME }, owner.token)
+);
+
+await must('господар прибирає виконану адмінську команду', () =>
+	write(`admin/${ADMIN_KEY}/cmd/a1`, null, owner.token)
+);
+
+await must('господар закриває адмінський канал', async () => {
+	await write(`admin/${CLOSING_ADMIN_KEY}/info`, adminInfo(owner.uid), owner.token);
+	return write(`admin/${CLOSING_ADMIN_KEY}`, null, owner.token);
+});
+
+/*
+ * НАЙВАЖЛИВІШИЙ ВИПАДОК З УСІХ ТУТ.
+ *
+ * Уся вигадка з другим паролем тримається на тому, що адресу каналу не можна
+ * ні вгадати, ні підглянути. Перелічувана гілка `admin` віддала б усі адреси
+ * списком — тобто права адміністратора дісталися б кожному, хто авторизувався.
+ */
+await mustNot('перелічити адмінські канали', () => read('admin', stranger.token));
+
+await mustNot('адміністратор пише налаштування треків сам', () =>
+	write(`admin/${ADMIN_KEY}/tracks`, { rev: 2, json: '[]' }, stranger.token)
+);
+
+await mustNot('адміністратор підробляє квитанцію', () =>
+	write(`admin/${ADMIN_KEY}/ack/a2`, { ok: true, at: SERVER_TIME }, stranger.token)
+);
+
+await mustNot('адміністратор зносить канал', () =>
+	write(`admin/${ADMIN_KEY}`, null, stranger.token)
+);
+
+await mustNot('адмінська команда з чужим підписом', () =>
+	write(
+		`admin/${ADMIN_KEY}/cmd/a3`,
+		{ by: owner.uid, type: 'rescan', at: SERVER_TIME },
+		stranger.token
+	)
+);
+
+await mustNot('адмінська команда невідомого типу', () =>
+	write(
+		`admin/${ADMIN_KEY}/cmd/a4`,
+		{ by: stranger.uid, type: 'wipe', at: SERVER_TIME },
+		stranger.token
+	)
+);
+
+await mustNot('адмінська команда із зайвим полем', () =>
+	write(
+		`admin/${ADMIN_KEY}/cmd/a5`,
+		{ by: stranger.uid, type: 'rescan', at: SERVER_TIME, extra: 'x' },
+		stranger.token
+	)
+);
+
+await mustNot('команда в канал, якого немає', () =>
+	write(
+		`admin/${GHOST_ADMIN}/cmd/a6`,
+		{ by: stranger.uid, type: 'rescan', at: SERVER_TIME },
+		stranger.token
+	)
+);
+
+await mustNot('незнаний вузол усередині каналу', () =>
+	write(`admin/${ADMIN_KEY}/notes`, { text: 'x' }, owner.token)
+);
+
+await mustNot('опис каналу із зайвим полем', () =>
+	patch(`admin/${ADMIN_KEY}/info`, { secret: 'x' }, owner.token)
+);
+
+await mustNot('чужий канал під своїм іменем', () =>
+	patch(`admin/${ADMIN_KEY}/info`, { ownerUid: stranger.uid }, stranger.token)
 );
 
 // ─── Підсумок ───────────────────────────────────────────────────────────────

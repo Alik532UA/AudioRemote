@@ -1,4 +1,3 @@
-import { boardPath } from '$lib/board/boardPath';
 import { connect } from './firebase';
 import {
 	ACK_TIMEOUT_MS,
@@ -37,8 +36,32 @@ import {
  * `.info/serverTimeOffset`, який RTDB рахує сама.
  */
 
-const cmdPath = (key: string) => `${boardPath(key)}/cmd`;
-const ackPath = (key: string) => `${boardPath(key)}/ack`;
+/*
+ * КАНАЛ ЗАДАЄТЬСЯ ШЛЯХОМ, А НЕ КЛЮЧЕМ ДОШКИ.
+ *
+ * Каналів тепер два, і влаштовані вони однаково: `boards/{ключ}` для гри
+ * звуком і `admin/{ключ}` для налаштувань. Різні в них лише набір типів і те,
+ * хто має право слухати; журнал «лише створити», межа життя команди, квитанція
+ * й прибирання — ті самі. Другий екземпляр цього коду розійшовся б із першим
+ * рівно там, де це найважче помітити: у поводженні з часом.
+ */
+const cmdPath = (base: string) => `${channel(base)}/cmd`;
+const ackPath = (base: string) => `${channel(base)}/ack`;
+
+/**
+ * Шлях, а не ключ, — і це перевіряється.
+ *
+ * Обидва — рядки, тож підміна одного одним для типів невидима: передали `key`
+ * замість `boards/{key}` — і команди поїхали в корінь бази, де їх ніхто не
+ * слухає, а правила відмовили б без пояснень. Симптом був би «пульт не працює»,
+ * причина — один пропущений виклик.
+ */
+function channel(base: string): string {
+	if (!base.includes('/')) {
+		throw new Error(`канал задається шляхом, а не ключем: «${base}»`);
+	}
+	return base;
+}
 
 /** Зсув годинника цього пристрою відносно сервера, у мілісекундах. */
 let serverOffset = 0;
@@ -70,16 +93,16 @@ export interface SendResult {
  * Надіслати команду. Кидає, якщо база відмовила, — це дія, яку щойно натиснули,
  * і мовчазна невдача виглядала б як кнопка, що не працює.
  */
-export async function sendCommand(
-	key: string,
-	type: CommandType,
+export async function sendCommand<T extends string = CommandType>(
+	base: string,
+	type: T,
 	value?: string | number
 ): Promise<SendResult> {
 	await ensureOffset();
 	const { db, uid } = await connect();
 	const { push, ref, serverTimestamp, set } = await import('firebase/database');
 
-	const entry = push(ref(db, cmdPath(key)));
+	const entry = push(ref(db, cmdPath(base)));
 	const payload: Record<string, unknown> = { by: uid, type, at: serverTimestamp() };
 	// Поле `value` пишеться лише коли воно є: `undefined` RTDB не приймає, а
 	// `null` створив би дитину, яку правило не знає.
@@ -97,7 +120,7 @@ export async function sendCommand(
  * відповідь: «комп'ютер не відповів» — це інше повідомлення, ніж «не вийшло
  * програти», і людині вони кажуть різні речі.
  */
-export async function waitForAck(key: string, id: string): Promise<Ack | null> {
+export async function waitForAck(base: string, id: string): Promise<Ack | null> {
 	const { db } = await connect();
 	const { onValue, ref } = await import('firebase/database');
 
@@ -112,7 +135,7 @@ export async function waitForAck(key: string, id: string): Promise<Ack | null> {
 		};
 
 		const timer = setTimeout(() => finish(null), ACK_TIMEOUT_MS);
-		const stop = onValue(ref(db, `${ackPath(key)}/${id}`), (snapshot) => {
+		const stop = onValue(ref(db, `${ackPath(base)}/${id}`), (snapshot) => {
 			const value = snapshot.val() as Ack | null;
 			if (value) finish(value);
 		});
@@ -126,20 +149,20 @@ export async function waitForAck(key: string, id: string): Promise<Ack | null> {
  * інше — вік команди, квитанція, прибирання — робиться тут, щоб сторінка плеєра
  * не мусила пам'ятати про жодну з цих трьох речей.
  */
-export async function watchCommands(
-	key: string,
-	handle: (command: Command) => Promise<string | null>
+export async function watchCommands<T extends string = CommandType>(
+	base: string,
+	handle: (command: Command<T>) => Promise<string | null>
 ): Promise<() => void> {
 	await ensureOffset();
 	const { db } = await connect();
 	const { onChildAdded, ref, remove, serverTimestamp, set } = await import('firebase/database');
 
-	return onChildAdded(ref(db, cmdPath(key)), (snapshot) => {
+	return onChildAdded(ref(db, cmdPath(base)), (snapshot) => {
 		const id = snapshot.key;
-		const command = snapshot.val() as Command | null;
+		const command = snapshot.val() as Command<T> | null;
 		if (!id || !command) return;
 
-		const drop = () => remove(ref(db, `${cmdPath(key)}/${id}`));
+		const drop = () => remove(ref(db, `${cmdPath(base)}/${id}`));
 
 		/*
 		 * ПРОСТРОЧЕНА КОМАНДА ПРИБИРАЄТЬСЯ МОВЧКИ — без квитанції.
@@ -155,7 +178,7 @@ export async function watchCommands(
 
 		void handle(command)
 			.then((error) =>
-				set(ref(db, `${ackPath(key)}/${id}`), {
+				set(ref(db, `${ackPath(base)}/${id}`), {
 					ok: error === null,
 					...(error ? { error } : {}),
 					at: serverTimestamp()
@@ -172,11 +195,11 @@ export async function watchCommands(
  * прочитати — вкладку закрили. Без прибирання вузол ріс би вічно. Кличе
  * приймач при відкритті: це єдиний, хто має право писати в `ack`.
  */
-export async function pruneAcks(key: string): Promise<void> {
+export async function pruneAcks(base: string): Promise<void> {
 	const { db } = await connect();
 	const { get, ref, update } = await import('firebase/database');
 
-	const all = await get(ref(db, ackPath(key)));
+	const all = await get(ref(db, ackPath(base)));
 	if (!all.exists()) return;
 
 	const stale: Record<string, null> = {};
@@ -186,5 +209,5 @@ export async function pruneAcks(key: string): Promise<void> {
 		if (child.key && ack.at < cutoff) stale[child.key] = null;
 	});
 
-	if (Object.keys(stale).length > 0) await update(ref(db, ackPath(key)), stale);
+	if (Object.keys(stale).length > 0) await update(ref(db, ackPath(base)), stale);
 }

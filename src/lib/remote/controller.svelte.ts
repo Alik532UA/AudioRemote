@@ -1,3 +1,4 @@
+import { boardPath } from '$lib/board/boardPath';
 import type { ActiveBoard } from '$lib/board/session.svelte';
 import { watchInfo, watchLibrary, watchState } from '$lib/net/board';
 import type { BoardInfo, CommandType, Library, PlayerState, Track } from '$lib/net/boardTypes';
@@ -167,8 +168,8 @@ export class RemoteController {
 		this.trouble = null;
 
 		try {
-			const { id } = await sendCommand(this.board.key, type, value);
-			const ack = await waitForAck(this.board.key, id);
+			const { id } = await sendCommand(boardPath(this.board.key), type, value);
+			const ack = await waitForAck(boardPath(this.board.key), id);
 
 			if (ack === null) this.trouble = 'remote.noAck';
 			else if (!ack.ok) this.trouble = ack.error ?? 'error.unknown';
@@ -333,7 +334,7 @@ export class RemoteController {
 	setVolume(percent: number): void {
 		if (this.volumeTimer) clearTimeout(this.volumeTimer);
 		this.volumeTimer = setTimeout(() => {
-			void sendCommand(this.board.key, 'volume', Math.round(percent)).catch(() => {
+			void sendCommand(boardPath(this.board.key), 'volume', Math.round(percent)).catch(() => {
 				this.trouble = 'error.network';
 			});
 		}, 150);

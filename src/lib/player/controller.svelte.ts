@@ -5,14 +5,19 @@ import { runningInTauri, TauriFolderSource } from '$lib/audio/tauriSource';
 import type { AudioSource, SourceStatus } from '$lib/audio/source';
 import {
 	emptyConfig,
+	isVisibility,
 	MAX_GAP_SEC,
 	MAX_PLAYS,
+	toTrigger,
 	type BoardConfig,
 	type TrackVisibility
 } from '$lib/audio/boardConfig';
+import { adminPath, boardPath, deriveAdminKey } from '$lib/board/boardPath';
+import type { BoardEditor, BoardTrack } from '$lib/board/editor';
 import type { ActiveBoard } from '$lib/board/session.svelte';
+import { closeChannel, openChannel, publishTracks } from '$lib/net/admin';
 import { ensureBoard, publishLibrary, publishState } from '$lib/net/board';
-import type { BoardInfo, Command, Track } from '$lib/net/boardTypes';
+import type { AdminCommandType, BoardInfo, Command, Track } from '$lib/net/boardTypes';
 import { pruneAcks, watchCommands } from '$lib/net/commands';
 import { countRemotes, trackPresence, watchConnection, watchPresence } from '$lib/net/presence';
 import {
@@ -26,25 +31,39 @@ import { mark } from '$lib/services/breadcrumbs';
 import { emptyTrigger, type TrackTrigger } from '$lib/triggers/trigger';
 import { triggerWatcher } from '$lib/triggers/watcher.svelte';
 
-/** Трек так, як його бачить дошка: файл плюс рішення людини про нього. */
-export interface BoardTrack {
-	id: string;
-	path: string;
-	/** Підпис на екрані: свій, якщо його дали, інакше імʼя файлу. */
-	title: string;
-	/** Імʼя файлу без розширення — щоб було видно, що саме перейменували. */
-	fileName: string;
-	color: string | null;
-	/** Код гарячої клавіші (`KeyQ`, `F5`), або `null`. */
-	hotkey: string | null;
-	/** Кого трек стосується. Див. `TrackVisibility`. */
-	visibility: TrackVisibility;
-	/** Скільки разів програти поспіль. `1` — як завжди. */
-	plays: number;
-	/** Пауза між відтвореннями, секунди. */
-	gapSec: number;
-	/** Запуск за зовнішнім API. `null` — трек запускають руками. */
-	trigger: TrackTrigger | null;
+/** Трек так, як його бачить дошка. Форма спільна з пультом — див. `editor.ts`. */
+export type { BoardTrack };
+
+/**
+ * ЩО САМЕ ДОЗВОЛЕНО ЗМІНИТИ АДМІНІСТРАТОРОВІ.
+ *
+ * Береться не «все, що прийшло», а перелічені поля — і кожне через ту саму
+ * перевірку, крізь яку проходить файл налаштувань. Решта (шлях до файлу, імʼя,
+ * сам факт існування треку) — це знання про папку, і воно лишається тим, що
+ * прочитав із диска цей комп'ютер.
+ *
+ * Без цього підроблений запис підсунув би у файл чужий шлях, а застосунок
+ * записав би його як своє рішення.
+ */
+function applyPatch(entry: BoardTrack, change: Partial<BoardTrack>): BoardTrack {
+	const title = typeof change.title === 'string' ? change.title.trim().slice(0, 200) : '';
+	const hotkey =
+		typeof change.hotkey === 'string' && isAssignable(change.hotkey) ? change.hotkey : null;
+	const whole = (value: unknown, max: number, least: number): number =>
+		typeof value === 'number' && Number.isFinite(value)
+			? Math.min(max, Math.max(least, Math.round(value)))
+			: least;
+
+	return {
+		...entry,
+		title: title.length > 0 ? title : entry.fileName,
+		color: typeof change.color === 'string' ? change.color : null,
+		hotkey,
+		visibility: isVisibility(change.visibility) ? change.visibility : 'all',
+		plays: whole(change.plays, MAX_PLAYS, 1),
+		gapSec: whole(change.gapSec, MAX_GAP_SEC, 0),
+		trigger: toTrigger(change.trigger)
+	};
 }
 
 /** Скільки чекати, перш ніж писати налаштування в теку. */
@@ -74,7 +93,7 @@ const OFFLINE_GRACE_MS = 6000;
  * перехід на іншу сторінку, і після трьох відкриттів приймач виконує кожну
  * команду тричі.
  */
-export class PlayerController {
+export class PlayerController implements BoardEditor {
 	/** Що показувати: стан доступу до теки. */
 	sourceStatus = $state<SourceStatus>('none');
 	folderName = $state<string | null>(null);
@@ -100,6 +119,18 @@ export class PlayerController {
 
 	/** Остання помилка відтворення — ключ перекладу й назва треку. */
 	trouble = $state<{ key: string; name: string } | null>(null);
+
+	/**
+	 * ЧИ ВІДКРИТИЙ КАНАЛ ДЛЯ АДМІНІСТРАТОРА.
+	 *
+	 * Не «чи заданий пароль»: пароль може лежати в сховищі, а канал — не
+	 * відкритися, бо бази немає. Інтерфейс мусить казати правду саме про доступ,
+	 * а не про намір.
+	 */
+	adminOn = $state(false);
+	private adminKey: string | null = null;
+	private adminRev = 0;
+	private adminStop: (() => void) | null = null;
 
 	readonly engine: AudioEngine;
 	private readonly source: AudioSource;
@@ -270,7 +301,7 @@ export class PlayerController {
 		this.track(
 			await watchPresence(this.board.key, (present) => (this.remotes = countRemotes(present)))
 		);
-		this.track(await watchCommands(this.board.key, (command) => this.execute(command)));
+		this.track(await watchCommands(boardPath(this.board.key), (command) => this.execute(command)));
 
 		/*
 		 * Опитувач запускається тут, а не в рушії: він стосується ДОШКИ, а не
@@ -278,7 +309,17 @@ export class PlayerController {
 		 * Спрацювання йде тим самим шляхом, що й натискання на трек, — інакше
 		 * тригер обходив би і приховані треки, і оголошення пульту.
 		 */
-		await pruneAcks(this.board.key);
+		await pruneAcks(boardPath(this.board.key));
+
+		/*
+		 * Канал адміністратора — після дошки й лише для господаря. Друга машина
+		 * з тією самою парою не має права відкривати канал: налаштування пише
+		 * той, у кого папка, і приймати правки має теж він.
+		 */
+		if (this.owned && this.board.adminPassword) {
+			await this.enableAdmin(this.board.adminPassword).catch(() => undefined);
+		}
+
 		await this.announce();
 
 		/*
@@ -307,6 +348,13 @@ export class PlayerController {
 		this.stopped = true;
 		if (this.saveTimer) clearTimeout(this.saveTimer);
 		for (const cleanup of this.cleanups.splice(0)) cleanup();
+		/*
+		 * Канал лише ВІДПИСУЄТЬСЯ, а не закривається: закрити його означало б
+		 * вимкнути адміністратора щоразу, коли на комп'ютері перейшли на іншу
+		 * сторінку. Це рішення людини, а не побічний ефект навігації.
+		 */
+		this.adminStop?.();
+		this.adminStop = null;
 		this.engine.destroy();
 	}
 
@@ -486,6 +534,9 @@ export class PlayerController {
 		 */
 		this.engine.setOrder(this.visible);
 		await this.publish();
+		// Адміністратор бачить те саме, що й людина за комп'ютером, — інакше його
+		// наступна правка поїхала б із застарілим номером і була б відхилена.
+		await this.publishAdmin();
 		if (this.saveTimer) clearTimeout(this.saveTimer);
 		this.saveTimer = setTimeout(() => void this.save(), SAVE_DELAY_MS);
 	}
@@ -598,6 +649,104 @@ export class PlayerController {
 	/** Готовий тригер для вікна: наявний або порожній зразок. */
 	triggerFor(trackId: string): TrackTrigger {
 		return this.entries.find((entry) => entry.id === trackId)?.trigger ?? emptyTrigger();
+	}
+
+	// ─── Третя роль: адміністратор на пульті ─────────────────────────────────
+
+	/**
+	 * Увімкнути адміністратора: відкрити канал за другим паролем.
+	 *
+	 * Сам пароль лишається тут, у браузері плеєра. У базу їде лише канал за
+	 * адресою, виведеною з нього, — тобто база ніколи не бачить ні пароля, ні
+	 * чогось, з чого його можна відновити.
+	 */
+	async enableAdmin(password: string): Promise<void> {
+		const key = await deriveAdminKey(this.board.key, password);
+		// Старий канал зникає: інакше пульт зі вчорашнім паролем лишався б
+		// адміністратором, хоч пароль уже змінили.
+		await this.closeAdmin();
+
+		this.adminKey = key;
+		await openChannel(key);
+		this.adminOn = true;
+		await this.publishAdmin();
+		this.adminStop = await watchCommands<AdminCommandType>(adminPath(key), (command) =>
+			this.executeAdmin(command)
+		);
+	}
+
+	/** Вимкнути адміністратора: канал зникає, пароль більше нікуди не веде. */
+	async disableAdmin(): Promise<void> {
+		await this.closeAdmin();
+		this.adminOn = false;
+	}
+
+	private async closeAdmin(): Promise<void> {
+		this.adminStop?.();
+		this.adminStop = null;
+		if (this.adminKey) await closeChannel(this.adminKey).catch(() => undefined);
+		this.adminKey = null;
+	}
+
+	/**
+	 * Викласти повні налаштування адміністратору.
+	 *
+	 * Номер піднімається на кожну викладку, і саме за ним плеєр упізнає застарілу
+	 * правку: адміністратор надсилає той номер, який бачив, і якщо дошку тим
+	 * часом уже змінили — правка відхиляється, а не затирає чужу.
+	 */
+	private async publishAdmin(): Promise<void> {
+		if (!this.adminKey) return;
+		this.adminRev += 1;
+		await publishTracks(this.adminKey, {
+			rev: this.adminRev,
+			json: JSON.stringify(this.entries)
+		}).catch(() => undefined);
+	}
+
+	/**
+	 * Виконати те, що попросив адміністратор.
+	 *
+	 * ПРИЙМАЄТЬСЯ НЕ ВСЕ, ЩО ПРИЙШЛО. Зі списку беруться лише поля-рішення, і
+	 * лише для треків, які тут справді є: шлях до файлу, імʼя й сам факт
+	 * існування треку — це знання про папку, а папку бачить тільки цей
+	 * комп'ютер. Інакше підроблений запис міг би підсунути чужий шлях у файл
+	 * налаштувань.
+	 */
+	private async executeAdmin(command: Command<AdminCommandType>): Promise<string | null> {
+		try {
+			if (command.type === 'rescan') {
+				await this.rescan();
+				return null;
+			}
+
+			const sent = JSON.parse(String(command.value ?? '')) as {
+				rev?: number;
+				tracks?: Partial<BoardTrack>[];
+			};
+			if (sent.rev !== this.adminRev) return 'admin.stale';
+
+			const wanted = Array.isArray(sent.tracks) ? sent.tracks : [];
+			const rest = [...this.entries];
+			const patched: BoardTrack[] = [];
+
+			for (const change of wanted) {
+				// Виймаємо зі `rest`, тож той самий трек, названий двічі, поїде в
+				// список один раз — а не задвоїться.
+				const at = rest.findIndex((entry) => entry.id === String(change.id));
+				if (at < 0) continue;
+				patched.push(applyPatch(rest.splice(at, 1)[0], change));
+			}
+
+			// Ті, про кого адміністратор не сказав нічого, лишаються — у кінці й у
+			// своєму порядку. Зникнути трек може лише разом із файлом.
+			this.entries = [...patched, ...rest];
+			triggerWatcher.sync(this.entries);
+			await this.persist();
+			return null;
+		} catch {
+			return 'admin.badPatch';
+		}
 	}
 
 	/**

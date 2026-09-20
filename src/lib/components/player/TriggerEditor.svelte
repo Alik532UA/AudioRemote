@@ -11,12 +11,12 @@
 		type TrackTrigger
 	} from '$lib/triggers/trigger';
 	import { triggerWatcher } from '$lib/triggers/watcher.svelte';
-	import type { PlayerController } from '$lib/player/controller.svelte';
+	import type { BoardEditor } from '$lib/board/editor';
 	import Switch from '$lib/components/ui/Switch.svelte';
 
 	interface Props {
 		trackId: string;
-		controller: PlayerController;
+		controller: BoardEditor;
 	}
 
 	let { trackId, controller }: Props = $props();

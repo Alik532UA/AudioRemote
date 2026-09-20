@@ -63,7 +63,14 @@ export type TrackVisibility =
 
 export const TRACK_VISIBILITIES: readonly TrackVisibility[] = ['all', 'player', 'none'];
 
-const isVisibility = (value: unknown): value is TrackVisibility =>
+/**
+ * Чи це відома видимість.
+ *
+ * Експортується, бо перевіряти треба не лише файл: те саме значення приходить
+ * від адміністратора з пульта, і друга, «своя» перевірка там розійшлася б із
+ * цією мовчки.
+ */
+export const isVisibility = (value: unknown): value is TrackVisibility =>
 	typeof value === 'string' && (TRACK_VISIBILITIES as readonly string[]).includes(value);
 
 export interface TrackSetting {
@@ -177,12 +184,14 @@ function visibilityOf(record: Record<string, unknown>): TrackVisibility {
 }
 
 /**
- * Тригер із файлу. Будь-яке не те поле — тригера немає.
+ * Тригер із файлу — або з пульта адміністратора. Будь-яке не те поле — тригера
+ * немає.
  *
  * Читається строго: файл правлять блокнотом, і половина тригера гірша за
- * жодного — вона опитувала б чужу адресу з невідомою умовою.
+ * жодного — вона опитувала б чужу адресу з невідомою умовою. Те саме стосується
+ * того, що прийшло мережею: перевірка мусить бути одна на обидва джерела.
  */
-function toTrigger(value: unknown): TrackTrigger | null {
+export function toTrigger(value: unknown): TrackTrigger | null {
 	if (typeof value !== 'object' || value === null) return null;
 	const record = value as Record<string, unknown>;
 	if (typeof record.url !== 'string' || record.url.length === 0) return null;

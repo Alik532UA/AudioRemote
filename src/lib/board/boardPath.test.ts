@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { boardPath, deriveBoardKey, EmptySecretError, isBoardKey } from './boardPath';
+import {
+	adminPath,
+	boardPath,
+	deriveAdminKey,
+	deriveBoardKey,
+	EmptySecretError,
+	isBoardKey
+} from './boardPath';
 
 /**
  * ЧОМУ ЦЕ НАЙВАЖЛИВІШИЙ ТЕСТ У ПРОЄКТІ.
@@ -102,5 +109,49 @@ describe('ключ у посиланні на пульт', () => {
 		expect(isBoardKey('A'.repeat(32))).toBe(false);
 		expect(isBoardKey('не ключ')).toBe(false);
 		expect(isBoardKey('')).toBe(false);
+	});
+});
+
+describe('deriveAdminKey', () => {
+	const BOARD = 'a'.repeat(32);
+	const ADMIN = 'ЗАМОК-ПЕРО-СІЛЬ-9900';
+
+	it('дає адресу тієї самої форми, що й дошка', async () => {
+		expect(await deriveAdminKey(BOARD, ADMIN)).toMatch(/^[0-9a-f]{32}$/);
+	});
+
+	it('нормалізується так само, як пароль дошки', async () => {
+		// Два пристрої, дві клавіатури: якщо розійдеться — адміністратор просто
+		// не потрапить усередину, і сказати чому буде нічого.
+		expect(await deriveAdminKey(BOARD, ' замок перо сіль 9900 ')).toBe(
+			await deriveAdminKey(BOARD, ADMIN)
+		);
+	});
+
+	it('інша дошка — інший канал', async () => {
+		/*
+		 * Саме це й робить канал каналом ЦІЄЇ дошки. Без прив'язки до адреси
+		 * дошки один адмінський пароль відмикав би всі дошки школи одразу — і
+		 * помітили б це рівно тоді, коли вже пізно.
+		 */
+		expect(await deriveAdminKey('b'.repeat(32), ADMIN)).not.toBe(
+			await deriveAdminKey(BOARD, ADMIN)
+		);
+	});
+
+	it('адреса каналу не збігається з адресою дошки', async () => {
+		// Збіг означав би, що знання адмінського пароля видає пароль дошки.
+		expect(await deriveAdminKey(BOARD, ADMIN)).not.toBe(BOARD);
+	});
+
+	it('порожній пароль — відмова, а не спільний канал', async () => {
+		await expect(deriveAdminKey(BOARD, '')).rejects.toThrow(EmptySecretError);
+		await expect(deriveAdminKey(BOARD, '---')).rejects.toThrow(EmptySecretError);
+	});
+});
+
+describe('adminPath', () => {
+	it('складає шлях до адмінського каналу', () => {
+		expect(adminPath('deadbeef')).toBe('admin/deadbeef');
 	});
 });

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import { IconCheck, IconClose, IconCopy } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
@@ -11,10 +12,28 @@
 		password: string;
 		/** Адреса дошки в базі — саме її, а не пароль, несе посилання. */
 		boardKey: string;
+		/** Чи відкритий канал адміністратора зараз. */
+		adminOn: boolean;
+		/** Другий пароль, якщо він уже заданий, — щоб було що показати. */
+		admin?: string;
+		/** Увімкнути з цим паролем, або вимкнути зовсім (`null`). */
+		onadmin: (password: string | null) => Promise<void>;
 		onclose: () => void;
 	}
 
-	let { id, password, boardKey, onclose }: Props = $props();
+	let { id, password, boardKey, adminOn, admin = '', onadmin, onclose }: Props = $props();
+
+	/*
+	 * Намір і стан — різні речі, і саме тому це два прапорці.
+	 *
+	 * `adminOn` каже, чи канал відкритий насправді; `adminWanted` — чи людина
+	 * зараз хоче його мати. Між ними живе введення пароля: перемикач уже
+	 * увімкнено, поле показано, а каналу ще немає й бути не може, бо пароля
+	 * ніхто не ввів.
+	 */
+	let adminWanted = $state(untrack(() => adminOn));
+	let adminPassword = $state(untrack(() => admin));
+	let adminBusy = $state(false);
 
 	/**
 	 * ЯК ПІДКЛЮЧИТИ ПУЛЬТ — ВІКНО, А НЕ ЗГОРНУТИЙ БЛОК НА СТОРІНЦІ.
@@ -258,6 +277,56 @@
 			</section>
 		</div>
 
+		<!--
+			ТРЕТЯ РОЛЬ — окремою смугою під колонками, а не четвертою колонкою.
+
+			Колонки відповідають на одне питання: «як підключити пульт». Це —
+			інше питання й інше рішення: чи дозволяти з того пульта міняти саму
+			дошку. Поставлене в ряд із трьома способами, воно читалося б як
+			четвертий спосіб, а це не спосіб.
+		-->
+		<section class="admin">
+			<div class="admin__head">
+				<h3 class="pane__title">{t('admin.title')}</h3>
+				<Switch
+					checked={adminWanted}
+					label={t('admin.allow')}
+					testid="admin-allow"
+					onchange={(next) => {
+						adminWanted = next;
+						if (!next) void onadmin(null);
+					}}
+				/>
+			</div>
+
+			{#if adminWanted}
+				<div class="admin__form">
+					<PasswordField
+						id="admin-password"
+						label={t('admin.password')}
+						bind:value={adminPassword}
+						autocomplete="off"
+					/>
+					<button
+						class="btn btn--primary"
+						type="button"
+						disabled={adminPassword.trim().length === 0 || adminBusy}
+						onclick={async () => {
+							adminBusy = true;
+							await onadmin(adminPassword);
+							adminBusy = false;
+						}}
+						data-testid="admin-apply"
+					>
+						{adminOn ? t('admin.change') : t('admin.turnOn')}
+					</button>
+				</div>
+				<p class="muted">{adminOn ? t('admin.onHint') : t('admin.hint')}</p>
+			{:else}
+				<p class="muted">{t('admin.offHint')}</p>
+			{/if}
+		</section>
+
 		<button class="btn" type="button" onclick={copyAll} data-testid="copy-secret">
 			{#if copied}
 				<IconCheck size={18} aria-hidden="true" />
@@ -319,6 +388,39 @@
 		.grid {
 			grid-template-columns: repeat(3, 1fr);
 		}
+	}
+
+	/*
+	 * Смуга адміністратора відділена лінією, а не проміжком: без неї вона
+	 * читається як продовження третьої колонки, тобто як ще одна пара значень
+	 * для підключення — а це рішення іншого роду.
+	 */
+	.admin {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap-sm);
+		padding-top: var(--gap);
+		border-top: 1px solid var(--border);
+	}
+
+	.admin__head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--gap-sm);
+	}
+
+	/* Поле й кнопка в один рядок — кнопка по низу поля, а не по низу підказок. */
+	.admin__form {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: start;
+		gap: var(--gap-sm);
+	}
+
+	.admin__form :global(.field) {
+		flex: 1 1 260px;
 	}
 
 	.dialog__head {

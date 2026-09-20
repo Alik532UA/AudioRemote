@@ -5,14 +5,17 @@
 	import { colorNumber, TRACK_COLORS } from '$lib/config/trackColors';
 	import { MAX_GAP_SEC, MAX_PLAYS } from '$lib/audio/boardConfig';
 	import { isAssignable, labelForCode } from '$lib/hotkeys/hotkeys';
-	import type { BoardTrack } from '$lib/player/controller.svelte';
-	import type { PlayerController } from '$lib/player/controller.svelte';
+	import type { BoardEditor, BoardTrack } from '$lib/board/editor';
 	import TriggerEditor from './TriggerEditor.svelte';
 	import VisibilityPicker from './VisibilityPicker.svelte';
 
 	interface Props {
 		track: BoardTrack;
-		controller: PlayerController;
+		/*
+		 * Саме інтерфейс, а не контролер плеєра: те саме вікно відкриває
+		 * адміністратор із пульта, і там за ним стоїть не файл, а команда мережею.
+		 */
+		controller: BoardEditor;
 		onclose: () => void;
 	}
 

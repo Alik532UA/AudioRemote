@@ -22,6 +22,7 @@
 	} from '$lib/config/icons';
 	import { plural, t } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
+	import { rememberBoard } from '$lib/board/myBoards';
 	import { describeError } from '$lib/net/describeError';
 	import { PlayerController } from '$lib/player/controller.svelte';
 	import { colorOf } from '$lib/config/trackColors';
@@ -82,6 +83,33 @@
 		navigation.cancel();
 		leaveTo = navigation.to.url.href;
 	});
+	/**
+	 * Увімкнути або вимкнути адміністратора.
+	 *
+	 * Пароль зберігається ПОРУЧ ІЗ ДОШКОЮ, а не в сеансі вкладки: канал мусить
+	 * підніматися сам на кожному відкритті плеєра, інакше дозвіл, даний раз,
+	 * доводилося б давати щоранку. Сама дошка в сеансі теж оновлюється — інакше
+	 * вікно показувало б старий пароль до перезавантаження.
+	 */
+	async function setAdmin(password: string | null): Promise<void> {
+		const board = boardSession.current;
+		if (!board || !controller) return;
+
+		if (password === null) await controller.disableAdmin();
+		else await controller.enableAdmin(password);
+
+		const next = { ...board, adminPassword: password ?? undefined };
+		boardSession.open(next);
+		rememberBoard({
+			key: next.key,
+			id: next.id,
+			name: next.name,
+			role: next.role,
+			password: next.password,
+			adminPassword: next.adminPassword
+		});
+	}
+
 	/** Чи відкрите вікно «як підключити пульт». */
 	let remoteOpen = $state(false);
 	/** Вікно «увімкнути звук» закрили, не вмикаючи. Більше не питаємо. */
@@ -727,6 +755,9 @@
 				id={board.id}
 				password={board.password}
 				boardKey={board.key}
+				adminOn={controller.adminOn}
+				admin={board.adminPassword}
+				onadmin={setAdmin}
 				onclose={() => (remoteOpen = false)}
 			/>
 		{/if}

@@ -278,6 +278,29 @@ export const en: Record<TranslationKey, string> = {
 	'remote.connecting': 'Connecting…',
 	'remote.emptyLibrary': 'No music folder has been chosen on the player yet.',
 
+	// ─── Third role: administrator ───────────────────────────────────────────
+	'admin.title': 'Administrator',
+	'admin.allow': 'Allow settings from a remote',
+	'admin.password': 'Administrator password',
+	'admin.turnOn': 'Turn on',
+	'admin.change': 'Change password',
+	'admin.hint':
+		'A remote that enters this password can change the board: titles, colours, keys, repeats, visibility, API triggers and order. This password is separate from the board password.',
+	'admin.onHint': 'Allowed. Give this password to whoever will set the board up from their device.',
+	'admin.offHint': 'Off: a remote can only play sound, not change the board.',
+	'admin.enter': 'Sign in as administrator',
+	'admin.leave': 'Leave administrator',
+	'admin.askPassword': 'Enter the administrator password for this board.',
+	'admin.wrong': 'Wrong password, or this board has no administrator turned on.',
+	'admin.mode': 'Administrator mode',
+	'admin.modeHint': 'You are changing the board. Changes go to the computer that plays.',
+	'admin.waiting': 'Waiting for settings from the computer…',
+	'admin.rescan': 'Re-read the folder',
+	'admin.stale':
+		'The board changed elsewhere just now. Reopen the track settings for fresh values.',
+	'admin.badPatch': 'The player did not understand the change.',
+	'admin.noFolder': 'The folder can only be chosen on the computer that plays.',
+
 	'error.network': 'No connection to the database. Check the internet.',
 	'error.emulatorDown':
 		'The local Firebase emulator is not running. Open a second terminal in the project folder and run: npm run emulators',

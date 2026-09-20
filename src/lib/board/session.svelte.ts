@@ -21,6 +21,17 @@ export interface ActiveBoard {
 	name: string;
 	role: BoardRole;
 	password?: string;
+	/** Другий пароль — право міняти налаштування з пульта. Див. `SavedBoard`. */
+	adminPassword?: string;
+	/**
+	 * АДРЕСА АДМІНСЬКОГО КАНАЛУ — на боці ПУЛЬТА.
+	 *
+	 * Пульт пароля не зберігає взагалі: він міняє його на адресу каналу раз, при
+	 * вході, і далі тримає саму адресу. Живе вона тут, у сеансі вкладки, з тієї
+	 * самої причини, що й дошка: перезавантаження сторінки не має викидати з
+	 * режиму, а закриття вкладки — має.
+	 */
+	adminKey?: string;
 }
 
 const readSession = (): ActiveBoard | null => {
@@ -66,5 +77,6 @@ export const toActive = (board: SavedBoard): ActiveBoard => ({
 	id: board.id,
 	name: board.name,
 	role: board.role,
-	password: board.password
+	password: board.password,
+	adminPassword: board.adminPassword
 });

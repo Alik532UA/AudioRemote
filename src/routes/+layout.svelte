@@ -58,6 +58,11 @@
 	 * колонці, тож посередник не потрібен — шестірня веде прямо.
 	 */
 	const sheetFirst = $derived(narrow.matches && boardPanel.content !== null);
+
+	// Сторінка може попросити закрити аркуш — див. `boardPanel.close()`.
+	$effect(() => {
+		if (boardPanel.closeRequests > 0) sheetOpen = false;
+	});
 	let sheetOpen = $state(false);
 
 	/**
