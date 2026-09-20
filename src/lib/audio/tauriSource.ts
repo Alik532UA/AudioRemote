@@ -1,3 +1,4 @@
+import { t } from '$lib/i18n/i18n.svelte';
 import { mark } from '$lib/services/breadcrumbs';
 import { readItem, writeItem } from '$lib/services/storage';
 import {
@@ -148,7 +149,12 @@ export class TauriFolderSource implements AudioSource {
 		mark('pick:open');
 
 		const { open } = await import('@tauri-apps/plugin-dialog');
-		const picked = await open({ directory: true, multiple: false, title: 'Папка з музикою' });
+		// Заголовок системного вікна теж перекладається: це те саме, що бачить людина.
+		const picked = await open({
+			directory: true,
+			multiple: false,
+			title: t('player.pickFolder')
+		});
 		// Людина закрила діалог — це відповідь «ні», а не помилка.
 		if (typeof picked !== 'string') {
 			mark('pick:cancelled');

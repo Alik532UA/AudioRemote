@@ -18,7 +18,7 @@ const scope = base.endsWith('/') ? base : `${base}/`;
 const manifest: Partial<ManifestOptions> = {
 	name: 'AudioRemote',
 	short_name: 'AudioRemote',
-	description: "Дошка звуків: комп'ютер грає, телефон керує",
+	description: 'Аудіодошка: один пристрій грає, інші ним керують',
 	id: scope,
 	scope,
 	start_url: scope,

@@ -9,7 +9,6 @@ import type { TranslationKey } from './uk';
  */
 export const en: Record<TranslationKey, string> = {
 	'app.name': 'AudioRemote',
-	'app.tagline': 'A shared music board',
 
 	'theme.group': 'Colour theme',
 	'theme.light': 'Light',
@@ -18,14 +17,10 @@ export const en: Record<TranslationKey, string> = {
 	'theme.switchToLight': 'Switch to the light theme',
 	'theme.switchToDark': 'Switch to the dark theme',
 
-	'lang.group': 'Language',
-
 	'common.back': 'Back',
-	'common.cancel': 'Cancel',
 	'common.close': 'Close',
 	'common.copy': 'Copy',
 	'common.copied': 'Copied',
-	'common.retry': 'Try again',
 	'common.loading': 'One moment…',
 
 	'reload.ready': 'An update is ready.',
@@ -37,11 +32,11 @@ export const en: Record<TranslationKey, string> = {
 	'field.capsLock': 'Caps Lock is on',
 	'field.layout': 'Looks like a Latin keyboard layout',
 
-	'entry.lead': 'Music board',
+	'entry.lead': 'Audio board',
 	'entry.create': 'Create',
-	'entry.createHint': 'On the device that will play the tracks',
+	'entry.createHint': 'On the device that will play',
 	'entry.connect': 'Connect',
-	'entry.connectHint': 'To play tracks on someone else’s board',
+	'entry.connectHint': 'To control someone else’s board',
 	'entry.mine': 'My boards',
 	'entry.forget': 'Remove from list',
 
@@ -61,7 +56,6 @@ export const en: Record<TranslationKey, string> = {
 	'startBoard.fixed': 'A specific board',
 	'settings.startLead':
 		'Applies to launching the app only. The mark at the top left always leads to the menu, whatever is set here.',
-	'settings.startLabel': 'First page',
 	'start.menu': 'Menu',
 	'start.create': 'Create a board',
 	'start.player': 'My board',
@@ -108,7 +102,7 @@ export const en: Record<TranslationKey, string> = {
 	'create.idLabel': 'Board ID',
 	'create.passwordLabel': 'Password',
 	'create.regenerate': 'Another password',
-	'create.hint': 'Read these two lines out to whoever will control it from a phone.',
+	'create.hint': 'Read these two lines out to whoever will be in control.',
 	'create.fromSettings':
 		'This pair comes from settings, so it is THE SAME board as last time. Remove the fixed pair in settings to get a new one.',
 	'create.weak':
@@ -126,13 +120,11 @@ export const en: Record<TranslationKey, string> = {
 	'connect.notFound': 'No such board, or the password is wrong.',
 
 	'player.title': 'Player',
-	'player.subtitle': 'This computer will play the sound',
 	'player.arm': 'Enable sound',
-	'player.armed': 'Sound enabled',
 	'player.armRefused':
 		'The browser refused. Try again, or just pick a track — the permission is granted for that very tap.',
 	'player.armHint':
-		'Browsers will not play sound until a person allows it. Press once — after that the board is controlled from the phone.',
+		'Browsers will not play sound until a person allows it. Press once — after that the board is controlled from other devices.',
 	'player.pickFolder': 'Choose a music folder',
 	'player.changeFolder': 'Another folder',
 	'player.rescan': 'Re-read the folder',
@@ -149,15 +141,15 @@ export const en: Record<TranslationKey, string> = {
 	'visibility.none': 'Nobody',
 	'visibility.allHint': 'In the list here and on the remote.',
 	'visibility.playerHint':
-		'In the list here, the key works. Not on the remote — a phone cannot start it.',
+		'In the list here, the key works. Not on the remote — it cannot be started from there.',
 	'visibility.noneHint': 'Nowhere: no row, no key. Bring it back under “Hidden”.',
 	'visibility.playerMark': 'Hidden from the remote',
 	'player.hiddenOpen': 'Hidden tracks',
 	'player.hiddenCount': 'Hidden: {count}',
 	'player.noSupport':
-		'This browser cannot give a page access to a folder. Open the player in Chrome or Edge on a computer.',
+		'This browser cannot give a page access to a folder. Open the player in Chrome or Edge on a computer — or install the desktop app.',
 	'player.insecure': 'An https connection or a localhost address is required.',
-	'player.keepOpen': 'Keep this tab open — it is the one playing the sound.',
+	'player.keepOpen': 'Keep this window open — it is the one playing the sound.',
 	'player.listeners': 'Remotes connected: {count}',
 	'player.playHere': 'Play on this device',
 	'player.moveUp': 'Move up',
@@ -165,9 +157,8 @@ export const en: Record<TranslationKey, string> = {
 	'player.configReadonly':
 		'The folder was granted read-only, so order, colours and keys will not be saved. Choose the folder again and allow writing.',
 	'player.volume': 'Volume',
-	'player.showSecret': 'Board ID and password',
 	'player.connect': 'Connect a remote',
-	'player.connectHow': 'How to connect a phone',
+	'player.connectHow': 'How to connect a remote',
 	'player.connectQuick': 'One link',
 	'player.connectQuickHint':
 		'The link carries no password — only the board address. But that address OPENS the board: whoever gets the link is inside.',
@@ -180,10 +171,10 @@ export const en: Record<TranslationKey, string> = {
 	'player.leaveStay': 'Stay',
 	'player.leaveGo': 'Leave anyway',
 	'player.connectManual': 'Or by hand',
-	'player.connectQrHint': 'Point the phone camera at it.',
+	'player.connectQrHint': 'Point a phone or tablet camera at it.',
 	'player.connectSecrets': 'Values',
 	'player.connectSecretsHint': 'Needed only when connecting by hand.',
-	'player.connectStep1': 'Open this same address on the phone.',
+	'player.connectStep1': 'Open this same address on the device that will control it.',
 	'player.connectStep2': 'Tap “Connect”.',
 	'player.connectStep3': 'Enter the board id and password from here.',
 	'player.connectAddress': 'Address',
@@ -195,8 +186,6 @@ export const en: Record<TranslationKey, string> = {
 	'color.label': 'Colour {n}',
 	'color.none': 'No colour',
 
-	'hotkeys.hint':
-		'Space pauses, 0 stops, arrows change volume and seek, M mutes. Digits 1–9 always start tracks in list order, and any single key can be given to a track — that does not take the digits away.',
 	'hotkeys.slot': 'Key {key}',
 	'hotkeys.tipTitle': 'Keyboard shortcuts',
 	'hotkeys.actPlayPause': 'pause or resume',
@@ -224,7 +213,7 @@ export const en: Record<TranslationKey, string> = {
 	'trigger.paneWhen': 'When to fire',
 	'trigger.schedule': 'Only at certain hours',
 	'trigger.scheduleHint':
-		'Outside the schedule the track will not start, and the address is not polled at all. Times follow this computer’s clock.',
+		'Outside the schedule the track will not start, and the address is not polled at all. Times follow the clock of the device that plays.',
 	'trigger.scheduleNow': 'Outside the schedule right now.',
 	'trigger.scheduleSame': 'Same hours every day',
 	'week.mon': 'Mon',
@@ -270,24 +259,21 @@ export const en: Record<TranslationKey, string> = {
 	'sound.unmute': 'Unmute',
 
 	'remote.title': 'Remote',
-	'remote.online': 'Computer is online',
-	'remote.offline': 'Computer is offline',
-	'remote.offlineHint':
-		'The tab on the computer is closed. Open the board there and press “Enable sound”.',
+	'remote.online': 'Player is online',
+	'remote.offline': 'Player is offline',
+	'remote.offlineHint': 'The board is closed on the device that plays. Open it there.',
 	'remote.notArmedHint':
-		'The computer is online, but sound is not enabled yet. Ask someone to press “Enable sound” on it.',
+		'The player is online, but sound is not enabled yet. Ask someone to press “Enable sound” where it plays.',
 	'remote.nothing': 'Nothing is playing',
-	'remote.play': 'Play',
 	'remote.pause': 'Pause',
 	'remote.resume': 'Play',
 	'remote.prev': 'Previous',
 	'remote.stop': 'Stop',
 	'remote.next': 'Next',
 	'remote.volume': 'Volume',
-	'remote.sending': 'Sending…',
-	'remote.noAck': 'The computer did not answer. Check that the tab is open.',
+	'remote.noAck': 'The player did not answer. Check that the board is open where it plays.',
 	'remote.connecting': 'Connecting…',
-	'remote.emptyLibrary': 'No music folder has been chosen on the computer yet.',
+	'remote.emptyLibrary': 'No music folder has been chosen on the player yet.',
 
 	'error.network': 'No connection to the database. Check the internet.',
 	'error.emulatorDown':
