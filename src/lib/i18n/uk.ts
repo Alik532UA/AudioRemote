@@ -198,6 +198,7 @@ export const uk = {
 	'trigger.pathHint': 'Наприклад alerts.0.active. Порожньо — уся відповідь.',
 	'trigger.test': 'Умова',
 	'trigger.truthy': 'Значення не порожнє',
+	'trigger.falsy': 'Значення порожнє',
 	'trigger.equals': 'Дорівнює',
 	'trigger.contains': 'Містить',
 	'trigger.value': 'Із чим порівняти',

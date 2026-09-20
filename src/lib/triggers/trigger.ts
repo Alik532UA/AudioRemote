@@ -31,7 +31,7 @@
  */
 
 /** Як порівнювати прочитане значення. */
-export const TRIGGER_TESTS = ['truthy', 'equals', 'contains'] as const;
+export const TRIGGER_TESTS = ['truthy', 'falsy', 'equals', 'contains'] as const;
 
 export type TriggerTest = (typeof TRIGGER_TESTS)[number];
 
@@ -101,13 +101,31 @@ export function matches(value: unknown, test: TriggerTest, expected: string): bo
 				.toLowerCase()
 				.includes(expected.trim().toLowerCase());
 
+		case 'falsy':
+			/*
+			 * Дзеркало `truthy`, і воно потрібне не для симетрії.
+			 *
+			 * «Відбій» — це подія «стало порожньо»: тривога скінчилася, масив
+			 * активних став порожнім, прапорець став `false`. Без цієї умови її
+			 * довелося б виражати через «дорівнює false», що працює лише там, де
+			 * джерело віддає саме прапорець, а не список.
+			 */
+			return !truthy(value);
+
 		default:
-			// Порожній рядок, нуль і порожній масив — це «ні»: інакше тригер спрацював
-			// би на відповіді, у якій нічого не сталося.
-			if (Array.isArray(value)) return value.length > 0;
-			return Boolean(value);
+			return truthy(value);
 	}
 }
+
+/**
+ * «Не порожньо» для JSON.
+ *
+ * Порожній масив мусить читатися як «нічого немає»: у більшості API це
+ * саме той вигляд, у якому приходить «жодної тривоги». `Boolean([])` дав би
+ * `true`, і тригер спрацьовував би на відповіді, у якій нічого не сталося.
+ */
+const truthy = (value: unknown): boolean =>
+	Array.isArray(value) ? value.length > 0 : Boolean(value);
 
 /** Чи має сенс опитувати: без адреси тригер нічого не означає. */
 export const triggerReady = (trigger: TrackTrigger): boolean =>

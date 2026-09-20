@@ -195,6 +195,7 @@ export const en: Record<TranslationKey, string> = {
 	'trigger.pathHint': 'For example alerts.0.active. Empty means the whole response.',
 	'trigger.test': 'Condition',
 	'trigger.truthy': 'Value is not empty',
+	'trigger.falsy': 'Value is empty',
 	'trigger.equals': 'Equals',
 	'trigger.contains': 'Contains',
 	'trigger.value': 'Compare with',
