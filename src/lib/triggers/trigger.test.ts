@@ -172,6 +172,10 @@ describe('чи опитувати', () => {
 	});
 
 	it('не-адреса відкидається', () => {
+		// Тут `javascript:` — саме те, що перевіряється: адреса, яку тригер не
+		// сміє прийняти. Правило `no-script-url` (воно ловить цю схему в коді)
+		// придушене точково, бо рядок і є предметом перевірки.
+		// eslint-disable-next-line no-script-url
 		for (const url of ['example.org', 'ftp://a', 'javascript:alert(1)']) {
 			expect(triggerReady({ ...emptyTrigger(), on: true, url })).toBe(false);
 		}

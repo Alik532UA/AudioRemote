@@ -39,7 +39,16 @@ export default ts.config(
 	...svelte.configs.recommended,
 	{
 		languageOptions: {
-			globals: { ...globals.browser, ...globals.node },
+			/*
+			 * `__APP_VERSION__` — глобальна, оголошена через `define` у
+			 * `vite.config.ts`. Доти замість неї стояло `no-undef: 'off'` на весь
+			 * проєкт: одне ім'я коштувало вимкненого правила базового набору, тобто
+			 * зелений `lint` більше нічого не доводив про решту імен
+			 * (CODE-QUALITY-v9 § 6.4.1, `CQ-ESLINT-BASELINE`). У `.ts` правило й так
+			 * вимикає typescript-eslint — там про невідоме ім'я каже компілятор, —
+			 * а от у `.svelte` воно єдине, що ловить одруківку в назві глобальної.
+			 */
+			globals: { ...globals.browser, ...globals.node, __APP_VERSION__: 'readonly' },
 			parserOptions: {
 				/*
 				 * `allowDefaultProject` -- для файлів поза `tsconfig.json`
@@ -53,11 +62,46 @@ export default ts.config(
 			}
 		},
 		rules: {
-			// Версія збірки приходить через `define` у vite.config.ts.
-			'no-undef': 'off',
 			'@typescript-eslint/no-unused-vars': [
 				'error',
 				{ argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
+			],
+
+			/*
+			 * ВИКОНАННЯ РЯДКА ЯК КОДУ. Жодного з цих правил немає в наборах
+			 * `recommended` — ні в js, ні в typescript-eslint, — тож доти вони тут
+			 * просто не діяли (SECURITY-v9 § 2, CODE-QUALITY-v9 § 6.4.1).
+			 *
+			 * Тут це не абстракція: застосунок читає ЧУЖУ відповідь із зовнішнього
+			 * API за шляхом, який ввела людина (`triggers/trigger.ts`). Шлях до
+			 * значення розбирається вручну саме тому, що спокуса зробити це одним
+			 * `new Function` існує й виглядає коротшою.
+			 */
+			'no-eval': 'error',
+			'no-implied-eval': 'error',
+			'no-new-func': 'error',
+			'no-script-url': 'error',
+
+			/*
+			 * СВІТ SVELTE 4 НЕ ПОВЕРТАЄТЬСЯ ЧЕРЕЗ ІМПОРТ. Проєкт цілком на рунах, і
+			 * жодного такого імпорту зараз немає; правило стереже не сьогоднішній
+			 * стан, а наступний фрагмент, узятий із чужої відповіді чи старої
+			 * статті (SVELTE-CORE-v9 § 3).
+			 */
+			'no-restricted-imports': [
+				'error',
+				{
+					paths: [
+						{
+							name: 'svelte/store',
+							message: 'Стан — рунами ($state/$derived), а не сторами Svelte 4.'
+						},
+						{
+							name: '$app/stores',
+							message: 'Застаріле: беріть $app/state (page.url замість $page.url).'
+						}
+					]
+				}
 			]
 		}
 	},
