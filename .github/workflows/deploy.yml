@@ -72,7 +72,12 @@ jobs:
     # форку, де секрету немає зовсім.
     env:
       SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-      FIREBASE_PROJECT: ${{ secrets.FIREBASE_PROJECT_ID }}
+      # З ТОГО САМОГО секрету, який читає збірка, а не з окремого. Окремий
+      # вимагав би заводити друге джерело для одного факту — і тоді запасне
+      # значення нижче мовчки відправляло б правила в чужий або неіснуючий
+      # проєкт. У сусідніх `Slovko` і `MindStep` цей самий недогляд щойно
+      # знайшовся звіркою з `gh secret list`.
+      FIREBASE_PROJECT: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v5
 
@@ -95,12 +100,17 @@ jobs:
       #
       # `umask 077` перед записом: типові права на файл у раннері дають читання
       # всім, а в кроках нижче може виконуватися будь-що.
+      - name: Ідентифікатора проєкту немає
+        if: ${{ env.FIREBASE_PROJECT == '' }}
+        run: |
+          echo "::warning title=Правила не викладені::Немає секрету VITE_FIREBASE_PROJECT_ID. Без нього невідомо, у який проєкт викладати."
+
       - name: Викласти правила
-        if: ${{ env.SERVICE_ACCOUNT != '' }}
+        if: ${{ env.SERVICE_ACCOUNT != '' && env.FIREBASE_PROJECT != '' }}
         run: |
           trap 'rm -f "$RUNNER_TEMP/sa.json"' EXIT
           (umask 077; printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json")
-          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@15 deploy --only database --project "${FIREBASE_PROJECT:-audioremote}" --non-interactive
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@15 deploy --only database --project "$FIREBASE_PROJECT" --non-interactive
 
   build-and-deploy:
     # Правила йдуть ПЕРШИМИ: нові сумісні зі старим кодом, старі з новим — ні.
