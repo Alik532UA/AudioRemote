@@ -47,6 +47,21 @@ export const en: Record<TranslationKey, string> = {
 
 	'settings.title': 'Settings',
 	'settings.app': 'App settings',
+	'settings.startTitle': 'What to open on launch',
+	'settings.startLead':
+		'Applies to launching the app only. The mark at the top left always leads to the menu, whatever is set here.',
+	'settings.startLabel': 'First page',
+	'start.menu': 'Menu',
+	'start.create': 'Create a board',
+	'start.player': 'The last player board',
+	'start.connect': 'Connect to a board',
+	'start.remote': 'The last remote board',
+	'start.noPlayerBoard':
+		'The player did not open: there is no saved board yet. Create one and it will open by itself next time.',
+	'start.noRemoteBoard':
+		'The remote did not open: there is no saved board yet. Connect once and it will open by itself next time.',
+	'start.createFailed':
+		'Could not open the fixed board. Check the id and password in the settings.',
 	'settings.open': 'Settings',
 	'settings.language': 'Language',
 	'settings.version': 'Version',

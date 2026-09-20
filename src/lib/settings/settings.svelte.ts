@@ -1,5 +1,6 @@
 import { normalizeBoardId, normalizePassword } from '$lib/board/secret';
 import { readJson, writeJson } from '$lib/services/storage';
+import { isStartPage, type StartPage } from './startPage.svelte';
 
 /**
  * НАЛАШТУВАННЯ — і головне з них: СТАЛА ПАРА (ідентифікатор, пароль).
@@ -36,13 +37,16 @@ export interface StoredSettings {
 	fixedBoardId: string;
 	/** Сталий пароль. Порожній — генерувати щоразу. */
 	fixedPassword: string;
+	/** Що відкривати при запуску. Див. `startPage.svelte.ts`. */
+	startPage: StartPage;
 }
 
-const EMPTY: StoredSettings = { fixedBoardId: '', fixedPassword: '' };
+const EMPTY: StoredSettings = { fixedBoardId: '', fixedPassword: '', startPage: 'menu' };
 
 class SettingsState {
 	fixedBoardId = $state('');
 	fixedPassword = $state('');
+	startPage = $state<StartPage>('menu');
 
 	/**
 	 * Чи налаштована стала пара.
@@ -63,16 +67,32 @@ class SettingsState {
 		const stored = readJson<StoredSettings>(STORAGE_KEY, EMPTY);
 		this.fixedBoardId = typeof stored.fixedBoardId === 'string' ? stored.fixedBoardId : '';
 		this.fixedPassword = typeof stored.fixedPassword === 'string' ? stored.fixedPassword : '';
+		// Невідоме значення — це або чужа версія, або зіпсуте сховище: меню
+		// безпечне в обох випадках.
+		this.startPage = isStartPage(stored.startPage) ? stored.startPage : 'menu';
 	}
 
-	save(boardId: string, password: string): void {
-		this.fixedBoardId = boardId;
-		this.fixedPassword = password;
-		writeJson(STORAGE_KEY, { fixedBoardId: boardId, fixedPassword: password });
+	/**
+	 * Зберегти ЧАСТИНУ налаштувань, решту лишити як є.
+	 *
+	 * Спершу метод брав пару позиційно (`save(id, password)`) і писав увесь
+	 * об'єкт. Третє налаштування на такому підписі означало б правку кожного
+	 * місця виклику — і тихо затирало б себе з того, яке забули виправити.
+	 */
+	save(patch: Partial<StoredSettings>): void {
+		if (patch.fixedBoardId !== undefined) this.fixedBoardId = patch.fixedBoardId;
+		if (patch.fixedPassword !== undefined) this.fixedPassword = patch.fixedPassword;
+		if (patch.startPage !== undefined) this.startPage = patch.startPage;
+
+		writeJson(STORAGE_KEY, {
+			fixedBoardId: this.fixedBoardId,
+			fixedPassword: this.fixedPassword,
+			startPage: this.startPage
+		} satisfies StoredSettings);
 	}
 
 	clear(): void {
-		this.save('', '');
+		this.save({ fixedBoardId: '', fixedPassword: '' });
 	}
 }
 

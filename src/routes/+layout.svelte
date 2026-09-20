@@ -31,7 +31,15 @@
 	 *
 	 * На головній його немає: повертатися нема куди.
 	 */
-	const atHome = $derived(page.url.pathname.replace(/\/$/, '') === base.replace(/\/$/, ''));
+	/*
+	 * «Початок» — це і корінь, і меню.
+	 *
+	 * Корінь лише стрілочник і живе мить, але поки він на екрані, кнопка
+	 * «назад» там була б обіцянкою нікуди. Меню — справжній початок, і
+	 * повертатися з нього нема куди.
+	 */
+	const root = base.replace(/\/$/, '');
+	const atHome = $derived([root, `${root}/menu`].includes(page.url.pathname.replace(/\/$/, '')));
 
 	/**
 	 * «Назад» — це КРОК НАЗАД, а не стрибок на головну.
@@ -53,7 +61,7 @@
 
 	const goBack = () => {
 		if (window.history.length > 1) window.history.back();
-		else void goto(resolve('/'));
+		else void goto(resolve('/menu'));
 	};
 
 	onMount(() => {
@@ -97,7 +105,11 @@
 <div class="shell">
 	<header class="shell__top">
 		<div class="shell__left">
-			<a class="shell__mark" href={resolve('/')} title={t('app.name')} data-testid="brand">
+			<!--
+				Знак веде в МЕНЮ, а не в корінь. Корінь — стрілочник: він поніс би
+				назад на ту саму сторінку, з якої людина щойно натиснула знак.
+			-->
+			<a class="shell__mark" href={resolve('/menu')} title={t('app.name')} data-testid="brand">
 				<AppMark size={26} />
 				<span class="visually-hidden">{t('app.name')}</span>
 			</a>

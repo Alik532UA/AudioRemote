@@ -9,6 +9,7 @@
 		normalizePassword
 	} from '$lib/board/secret';
 	import { settings } from '$lib/settings/settings.svelte';
+	import { isStartPage, START_PAGES } from '$lib/settings/startPage.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import ThemeSwitcher from '$lib/components/ui/ThemeSwitcher.svelte';
 	import { isEmulator } from '$lib/net/firebase';
@@ -60,7 +61,7 @@
 	const bothSet = $derived(hasId && hasPassword);
 
 	function save() {
-		settings.save(boardId.trim(), password.trim());
+		settings.save({ fixedBoardId: boardId.trim(), fixedPassword: password.trim() });
 		saved = true;
 		setTimeout(() => (saved = false), 2000);
 	}
@@ -108,6 +109,29 @@
 			<div aria-labelledby="theme-label">
 				<ThemeSwitcher />
 			</div>
+		</div>
+
+		<div class="field">
+			<label class="field__label" for="start-page">{t('settings.startTitle')}</label>
+			<!--
+				Списком, а не рядом кнопок: варіантів п'ять, і підписи в них довгі —
+				ряд кнопок на телефоні перетворився б на п'ять рядків.
+			-->
+			<select
+				id="start-page"
+				class="input"
+				value={settings.startPage}
+				data-testid="settings-start"
+				onchange={(event) => {
+					const chosen = event.currentTarget.value;
+					if (isStartPage(chosen)) settings.save({ startPage: chosen });
+				}}
+			>
+				{#each START_PAGES as page (page)}
+					<option value={page}>{t(`start.${page}`)}</option>
+				{/each}
+			</select>
+			<p class="muted">{t('settings.startLead')}</p>
 		</div>
 
 		<hr class="rule" />

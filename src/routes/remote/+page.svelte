@@ -41,7 +41,9 @@
 		boardSession.restore();
 		const board = boardSession.current;
 		if (!board) {
-			void goto(resolve('/'));
+			// У МЕНЮ, а не в корінь: корінь — стрілочник, і за налаштуванням
+			// «відкривати приймач» він відправив би сюди знову, по колу.
+			void goto(resolve('/menu'));
 			return;
 		}
 
