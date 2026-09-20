@@ -127,7 +127,8 @@ jobs:
         run: |
           trap 'rm -f "$RUNNER_TEMP/sa.json"' EXIT
           (umask 077; printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json")
-          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"             node scripts/verify-deployed-rules.mjs
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" \
+            node scripts/verify-deployed-rules.mjs
 
   build-and-deploy:
     # Правила йдуть ПЕРШИМИ: нові сумісні зі старим кодом, старі з новим — ні.
