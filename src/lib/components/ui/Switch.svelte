@@ -63,7 +63,13 @@
 		--switch-h: 26px;
 		--switch-w: calc(var(--switch-h) * 1.8);
 		--switch-pad: 3px;
-		--switch-knob: calc(var(--switch-h) - var(--switch-pad) * 2);
+		/*
+		 * Мінус два пікселі рамки. `position: absolute` рахується від ПАДІНГ-БОКСА,
+		 * тобто вже всередині рамки, а висота доріжки з `border-box` рамку
+		 * включає. Без цього кулька мала згори три пікселі, а знизу один — і
+		 * виглядала з'їхалою вниз рівно на два.
+		 */
+		--switch-knob: calc(var(--switch-h) - var(--switch-pad) * 2 - 2px);
 
 		position: relative;
 		flex: none;
