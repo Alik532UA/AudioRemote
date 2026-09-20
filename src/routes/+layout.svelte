@@ -10,7 +10,7 @@
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 	import AppMark from '$lib/components/ui/AppMark.svelte';
 	import ReloadPrompt from '$lib/components/ui/ReloadPrompt.svelte';
-	import { IconBack, IconSettings } from '$lib/config/icons';
+	import { IconBack, IconMenu, IconSettings } from '$lib/config/icons';
 	import { mark, rotate } from '$lib/services/breadcrumbs';
 	import { purgeLegacyHandles } from '$lib/audio/localSource';
 	import BoardSheet from '$lib/components/ui/BoardSheet.svelte';
@@ -78,6 +78,18 @@
 	let settingsOpen = $state(false);
 	const onSettingsPage = $derived(page.url.pathname.replace(/\/$/, '') === `${root}/settings`);
 
+	/**
+	 * «НАЗАД» НЕ ПОКАЗУЄТЬСЯ НА ПУЛЬТІ, КОЛИ ЦЕ ТЕЛЕФОН.
+	 *
+	 * Пульт на телефоні відкривають і працюють із нього весь вечір; «назад» там
+	 * веде в меню, тобто геть від того, заради чого його відкрили. Місце в
+	 * смузі при цьому найдорожче саме на телефоні, а вихід нікуди не дівається —
+	 * він за знаком застосунку ліворуч.
+	 */
+	const hideBack = $derived(
+		narrow.matches && page.url.pathname.replace(/\/$/, '') === `${root}/remote`
+	);
+
 	const goBack = () => {
 		if (window.history.length > 1) window.history.back();
 		else void goto(resolve('/menu'));
@@ -133,7 +145,7 @@
 				<span class="visually-hidden">{t('app.name')}</span>
 			</a>
 
-			{#if ready && !atHome}
+			{#if ready && !atHome && !hideBack}
 				<button class="shell__back" type="button" onclick={goBack} data-testid="back">
 					<IconBack size={18} aria-hidden="true" />
 					{t('common.back')}
@@ -145,15 +157,21 @@
 			<div class="shell__controls">
 				<ThemeToggle />
 				{#if sheetFirst}
+					<!--
+						ГАМБУРГЕР, А НЕ ШЕСТІРНЯ. За цією кнопкою не налаштування, а меню
+						дошки: її шапка, вхід в адміністратори і вже звідти — перехід до
+						налаштувань застосунку. Шестірня обіцяла б інше, і обіцянку цю
+						довелося б виконувати «налаштуваннями в налаштуваннях».
+					-->
 					<button
 						class="shell__settings"
 						type="button"
-						title={t('settings.open')}
-						aria-label={t('settings.open')}
+						title={t('settings.boardMenu')}
+						aria-label={t('settings.boardMenu')}
 						onclick={() => (sheetOpen = true)}
 						data-testid="go-settings"
 					>
-						<IconSettings size={20} aria-hidden="true" />
+						<IconMenu size={20} aria-hidden="true" />
 					</button>
 				{:else if onSettingsPage}
 					<a

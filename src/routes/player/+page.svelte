@@ -32,6 +32,8 @@
 	import LeaveDialog from '$lib/components/player/LeaveDialog.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import ArmDialog from '$lib/components/player/ArmDialog.svelte';
+	import Equalizer from '$lib/components/ui/Equalizer.svelte';
+	import { releaseAfterTap } from '$lib/services/focus';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
@@ -651,7 +653,17 @@
 											На телефоні її немає зовсім: клавіатури там нема, а місце в рядку
 											потрібне назві.
 										-->
-										{#if !narrow.matches}
+										{#if engine.trackId === entry.id && engine.playing}
+											<!--
+												Поки трек звучить, на місці клавіші стоять смужки. Клавіша
+												при цьому нікуди не дінеться: рядок і так під рукою, а
+												питання «що зараз грає» з відстані важить більше за підказку
+												про кнопку, яку вже натиснули.
+											-->
+											<span class="tracks__key tracks__key--live">
+												<Equalizer size={16} />
+											</span>
+										{:else if !narrow.matches}
 											<kbd class="tracks__key" data-testid="key-{entry.id}">
 												{controller.keyLabels[entry.id] ?? '·'}
 											</kbd>
@@ -661,7 +673,10 @@
 											class="tracks__title"
 											type="button"
 											title={t('player.playHere')}
-											onclick={() => controller?.toggleLocal(entry.id)}
+											onclick={(event) => {
+												releaseAfterTap(event);
+												void controller?.toggleLocal(entry.id);
+											}}
 											data-testid="play-here-{entry.id}"
 										>
 											{#if narrow.matches}
@@ -958,8 +973,9 @@
 	 * 44px тут замало: вони про «можна влучити», а не про «важко промазати».
 	 */
 	@media (max-width: 899px) {
+		/* Та сама висота, що й на пульті: один список — одна міра. */
 		.tracks__main {
-			min-height: calc(var(--tap) * 2);
+			min-height: calc(var(--tap) * 1.5);
 		}
 
 		/* Два рядки замість одного обірваного — див. `titleLines`. */
@@ -973,6 +989,25 @@
 			overflow: hidden;
 			text-overflow: ellipsis;
 			white-space: nowrap;
+		}
+
+		/*
+		 * Назва без поділу «виконавець — пісня» бере ДВА рядки, а не один.
+		 *
+		 * Доти вона обрізалася на середині першого ж речення: «Увага,
+		 * невідкладно пройдіть д…» — і всі оголошення, що починаються однаково,
+		 * ставали на телефоні нерозрізненними. Два рядки покривають майже все, а
+		 * те, що не влізло й у них, обрізається так само трикрапкою.
+		 *
+		 * `:only-child` — бо коли рядків уже два (`titleLines` поділив), кожен
+		 * мусить лишитися одним: інакше «виконавець» забирав би обидва рядки.
+		 */
+		.tracks__line:only-child {
+			display: -webkit-box;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: 2;
+			line-clamp: 2;
+			white-space: normal;
 		}
 	}
 
@@ -1096,8 +1131,27 @@
 		white-space: nowrap;
 	}
 
-	/* Наведення й фокус теж малюються на рядку — там, де тепер і стан. */
-	.tracks__main:has(.tracks__title:hover:not(:disabled)),
+	/* Місце під смужки — те саме, що й під клавішу: рядок не мусить смикатися. */
+	.tracks__key--live {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border: 1px solid transparent;
+		background: none;
+		color: var(--accent);
+	}
+
+	/*
+	 * Наведення й фокус теж малюються на рядку — там, де тепер і стан. Наведення
+	 * при цьому лише для пристроїв із вказівником: Android лишає `:hover` після
+	 * дотику, і рядок світився б рамкою ще довго після того, як відзвучав.
+	 */
+	@media (hover: hover) {
+		.tracks__main:has(.tracks__title:hover:not(:disabled)) {
+			border-color: var(--accent);
+		}
+	}
+
 	.tracks__main:has(.tracks__title:focus-visible) {
 		border-color: var(--accent);
 	}

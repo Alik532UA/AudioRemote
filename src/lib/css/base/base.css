@@ -275,8 +275,17 @@ svg {
 		transform var(--transition-fast);
 }
 
-.btn:hover:not(:disabled) {
-	border-color: var(--border-hover);
+/*
+ * НАВЕДЕННЯ — ЛИШЕ ДЛЯ ВКАЗІВНИКА.
+ *
+ * На Android `:hover` лишається на кнопці після дотику й тримається, доки не
+ * торкнешся чогось іншого. Виглядає це як «кнопка лишилася натиснутою», а на
+ * рядку треку — ще гірше: як «оцей трек обрано», хоч він давно відзвучав.
+ */
+@media (hover: hover) {
+	.btn:hover:not(:disabled) {
+		border-color: var(--border-hover);
+	}
 }
 
 /*
@@ -308,10 +317,12 @@ svg {
 	box-shadow: 0 2px 8px var(--accent-glow);
 }
 
-.btn--primary:hover:not(:disabled) {
-	background: var(--accent-button-hover);
-	transform: translateY(-1px);
-	box-shadow: 0 4px 12px var(--accent-glow);
+@media (hover: hover) {
+	.btn--primary:hover:not(:disabled) {
+		background: var(--accent-button-hover);
+		transform: translateY(-1px);
+		box-shadow: 0 4px 12px var(--accent-glow);
+	}
 }
 
 .btn--primary:active:not(:disabled) {

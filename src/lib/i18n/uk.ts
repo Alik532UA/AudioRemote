@@ -39,6 +39,7 @@ export const uk = {
 	'entry.forget': 'Прибрати зі списку',
 
 	'settings.title': 'Налаштування',
+	'settings.boardMenu': 'Меню дошки',
 	'settings.app': 'Налаштування застосунку',
 	'settings.lookTitle': 'Вигляд',
 	'settings.launchTitle': 'Запуск',
@@ -208,6 +209,8 @@ export const uk = {
 	'track.settings': 'Налаштування треку',
 	'track.open': 'Налаштування треку',
 	'track.displayName': 'Підпис на екрані',
+	'track.emoji': 'Значок у підписі',
+	'track.emojiAdd': 'Додати {symbol} до підпису',
 	'track.plays': 'Скільки разів програти',
 	'track.gap': 'Пауза між відтвореннями, секунд',
 	'track.gapHint': 'Поки триває пауза, трек вважається таким, що грає: пульт це показує.',

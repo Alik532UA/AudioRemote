@@ -36,6 +36,7 @@ export { default as IconBack } from '@lucide/svelte/icons/arrow-left';
 export { default as IconPower } from '@lucide/svelte/icons/power';
 export { default as IconWarning } from '@lucide/svelte/icons/triangle-alert';
 export { default as IconSettings } from '@lucide/svelte/icons/settings';
+export { default as IconMenu } from '@lucide/svelte/icons/menu';
 export { default as IconSun } from '@lucide/svelte/icons/sun';
 export { default as IconMoon } from '@lucide/svelte/icons/moon';
 export { default as IconKeyboard } from '@lucide/svelte/icons/keyboard';

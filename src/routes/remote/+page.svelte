@@ -28,6 +28,8 @@
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 	import { colorOf } from '$lib/config/trackColors';
 	import { folderOf, titleLines } from '$lib/audio/source';
+	import Equalizer from '$lib/components/ui/Equalizer.svelte';
+	import { releaseAfterTap } from '$lib/services/focus';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
@@ -616,10 +618,12 @@
 										style={hex ? `--track-color: ${hex}` : undefined}
 										type="button"
 										disabled={controller.sending || shy}
-										onclick={() =>
-											current
+										onclick={(event) => {
+											releaseAfterTap(event);
+											void (current
 												? controller?.send(sounding ? 'pause' : 'resume')
-												: controller?.send('play', track.id)}
+												: controller?.send('play', track.id));
+										}}
 										data-testid="play-{track.id}"
 									>
 										<!--
@@ -630,12 +634,17 @@
 											вже грає.
 										-->
 										<span class="tracks__mark">
-											{#if key && !narrow.matches}
+											{#if sounding}
+												<!--
+													Смужки, а не значок паузи: значок каже, ЩО СТАНЕТЬСЯ від
+													натискання, а тут потрібне інше — щоб було видно з
+													відстані, що саме цей трек зараз звучить.
+												-->
+												<Equalizer size={18} />
+											{:else if key && !narrow.matches}
 												<kbd class="tracks__key" aria-label={t('hotkeys.slot', { key })}>
 													{key}
 												</kbd>
-											{:else if sounding}
-												<IconPause size={18} aria-hidden="true" />
 											{:else}
 												<IconPlay size={18} aria-hidden="true" />
 											{/if}
@@ -814,7 +823,13 @@
 		cursor: pointer;
 	}
 
-	.tool:hover,
+	@media (hover: hover) {
+		.tool:hover {
+			border-color: var(--border);
+			color: var(--text-primary);
+		}
+	}
+
 	.tool:focus-visible {
 		border-color: var(--border);
 		color: var(--text-primary);
@@ -1005,8 +1020,13 @@
 
 	/* Той самий подвійний зріст, що й у приймача: ціль для пальця наосліп. */
 	@media (max-width: 899px) {
+		/*
+		 * Півтори висоти дотику, а не дві. Дві заводилися під три рядки тексту,
+		 * а там їх щонайбільше два — тобто чверть висоти списку йшла в порожнечу,
+		 * і на екран уміщалося на трек менше.
+		 */
 		.tracks__btn {
-			min-height: calc(var(--tap) * 2);
+			min-height: calc(var(--tap) * 1.5);
 		}
 
 		/*
@@ -1046,9 +1066,41 @@
 			text-overflow: ellipsis;
 			white-space: nowrap;
 		}
+
+		/*
+		 * Назва без поділу «виконавець — пісня» бере ДВА рядки, а не один.
+		 *
+		 * Доти вона обрізалася на середині першого ж речення: «Увага,
+		 * невідкладно пройдіть д…» — і всі оголошення, що починаються однаково,
+		 * ставали на телефоні нерозрізненними. Два рядки покривають майже все, а
+		 * те, що не влізло й у них, обрізається так само трикрапкою.
+		 *
+		 * `:only-child` — бо коли рядків уже два (`titleLines` поділив), кожен
+		 * мусить лишитися одним: інакше «виконавець» забирав би обидва рядки.
+		 */
+		.tracks__line:only-child {
+			display: -webkit-box;
+			-webkit-box-orient: vertical;
+			-webkit-line-clamp: 2;
+			line-clamp: 2;
+			white-space: normal;
+		}
 	}
 
-	.tracks__btn:hover:not(:disabled),
+	/*
+	 * НАВЕДЕННЯ — ЛИШЕ ТАМ, ДЕ Є ЧИМ НАВОДИТИ.
+	 *
+	 * Android лишає `:hover` на елементі ПІСЛЯ дотику — доки не торкнешся чогось
+	 * іншого. Тобто рамка навколо треку стояла й тоді, коли він уже відзвучав, і
+	 * читалася як «оцей зараз обраний». Фокус тут ні до чого: його ми знімаємо
+	 * окремо, а це залишок наведення, якого на пальці не буває.
+	 */
+	@media (hover: hover) {
+		.tracks__btn:hover:not(:disabled) {
+			border-color: var(--accent);
+		}
+	}
+
 	.tracks__btn:focus-visible {
 		border-color: var(--accent);
 	}
