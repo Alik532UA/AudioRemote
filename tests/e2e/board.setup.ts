@@ -1,4 +1,4 @@
-import { expect, test as setup } from '@playwright/test';
+import { expect, test as setup, type APIRequestContext } from '@playwright/test';
 
 /**
  * ЕМУЛЯТОР НА МІСЦІ Й ПРАВИЛА В НЬОМУ ДІЮТЬ.
@@ -32,28 +32,41 @@ const DB = process.env.E2E_DB_URL ?? 'http://127.0.0.1:9020';
 const AUTH = process.env.E2E_AUTH_URL ?? 'http://127.0.0.1:9119';
 const NS = 'demo-audioremote-default-rtdb';
 
+/**
+ * Код відповіді або `null`, якщо порт навіть не прийняв зʼєднання.
+ *
+ * `request.get` на мертвий порт КИДАЄ, а не повертає нуль, і тоді прогін
+ * показує `ECONNREFUSED 127.0.0.1:9119` замість пояснення, що це означає.
+ * Саме таке повідомлення цей файл і покликаний замінити.
+ */
+async function status(request: APIRequestContext, url: string): Promise<number | null> {
+	try {
+		return (await request.get(url, { failOnStatusCode: false, timeout: 5000 })).status();
+	} catch {
+		return null;
+	}
+}
+
 setup('база емулятора відповідає, і правила в ній діють', async ({ request }) => {
-	const root = await request.get(`${DB}/.json?ns=${NS}`, { failOnStatusCode: false });
+	const code = await status(request, `${DB}/.json?ns=${NS}`);
+
+	expect(code, `база емулятора мовчить на ${DB} — підніміть її: npm run emulators`).not.toBeNull();
 
 	expect(
-		root.status(),
-		`база емулятора не відповідає на ${DB} — підніміть її: npm run emulators`
-	).not.toBe(0);
-
-	expect(
-		root.status(),
+		code,
 		'корінь бази читається — значить правила НЕ діють: емулятор підняв порожню ' +
 			`базу «дозволити все» під іншим простором імен, ніж ${NS}`
 	).toBe(401);
 });
 
 setup('емулятор входу відповідає', async ({ request }) => {
-	const answer = await request.get(`${AUTH}/`, { failOnStatusCode: false });
+	const code = await status(request, `${AUTH}/`);
 
 	expect(
-		answer.status(),
-		`емулятор входу мовчить на ${AUTH}. Найчастіша причина — на 9020 висить ` +
-			'емулятор від попереднього прогону, піднятий лише з `--only database`: ' +
-			'порт зайнятий, тож новий не стартував, а входу немає'
-	).toBeLessThan(500);
+		code,
+		`емулятор входу мовчить на ${AUTH}, і правила вимагають входу скрізь. ` +
+			'Найчастіша причина: на порті бази висить емулятор від попереднього прогону, ' +
+			'піднятий лише з `--only database`. Тоді новий не стартував — порт зайнятий, — ' +
+			'а входу немає. Зняти залишок: netstat -ano | findstr :9020, потім taskkill /PID <pid> /F'
+	).not.toBeNull();
 });
