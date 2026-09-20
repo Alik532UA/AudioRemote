@@ -32,13 +32,50 @@
 	 * дошку відкривають, а ця форма її саме шукає.
 	 */
 	onMount(() => {
+		/*
+		 * ПОСИЛАННЯ-КЛЮЧ: пара приїжджає у ФРАГМЕНТІ адреси, а не в запиті.
+		 *
+		 * Різниця не косметична. Усе після `#` браузер серверу не надсилає
+		 * ніколи: ні в журнал хостингу, ні в журнал проксі, ні в заголовок
+		 * `Referer` при переході за будь-яким зовнішнім посиланням. У `?id=…`
+		 * пароль опинився б у всіх трьох місцях одразу.
+		 *
+		 * Лишається історія браузера й знімок екрана — тому фрагмент стирається
+		 * з адреси відразу, як його прочитали.
+		 *
+		 * Названо прямо: саме посилання ДОРІВНЮЄ паролю. Хто його отримав, той
+		 * усередині — інакше «одне натискання» неможливе за побудовою.
+		 */
+		const fromLink = new URLSearchParams(window.location.hash.slice(1));
+		const linkedId = fromLink.get('id');
+		const linkedPassword = fromLink.get('pw');
+
+		if (linkedId && linkedPassword) {
+			history.replaceState(null, '', window.location.pathname + window.location.search);
+			boardId = linkedId;
+			password = linkedPassword;
+			void enter();
+			return;
+		}
+
 		boardId = listBoards().find((board) => board.role === 'remote')?.id ?? '';
 	});
 
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		if (!ready) return;
+		await enter();
+	}
 
+	/**
+	 * Вхід за парою — спільний для форми й для посилання.
+	 *
+	 * Окремо, бо шлях за посиланням не має ні події, ні кнопки: він
+	 * починається сам. А поводитися мусить так само, включно з тим, що при
+	 * невдачі поля лишаються заповненими — щоб людина могла просто натиснути
+	 * ще раз, а не набирати все наново.
+	 */
+	async function enter() {
 		busy = true;
 		failure = null;
 

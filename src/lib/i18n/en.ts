@@ -162,6 +162,11 @@ export const en: Record<TranslationKey, string> = {
 	'player.showSecret': 'Board ID and password',
 	'player.connect': 'Connect a remote',
 	'player.connectHow': 'How to connect a phone',
+	'player.connectQuick': 'One link',
+	'player.connectQuickHint':
+		'Open it on the phone — the board opens itself. The link EQUALS the password: whoever gets it is inside.',
+	'player.connectLink': 'Link',
+	'player.connectManual': 'Or by hand',
 	'player.connectStep1': 'Open this same address on the phone.',
 	'player.connectStep2': 'Tap “Connect”.',
 	'player.connectStep3': 'Enter the board id and password from here.',

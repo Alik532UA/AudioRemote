@@ -54,8 +54,26 @@
 	 * Текст збирається з ТИХ САМИХ рядків словника, що й вікно, — інакше
 	 * переклад розійшовся б із тим, що читає людина.
 	 */
+	/**
+	 * ПОСИЛАННЯ-КЛЮЧ — пара у ФРАГМЕНТІ, а не в запиті.
+	 *
+	 * Усе після `#` браузер серверу не надсилає ніколи: ні в журнал хостингу, ні
+	 * в журнал проксі, ні в `Referer`. У `?id=…` пароль опинився б у всіх трьох
+	 * місцях. Сторінка підключення стирає фрагмент з адреси одразу, як прочитає
+	 * його, тож в історії телефона він теж не залишається.
+	 *
+	 * Чого це не робить безпечним: посилання ДОРІВНЮЄ паролю. Інакше «одне
+	 * натискання» неможливе за побудовою, і сказано це поруч, а не дрібним
+	 * шрифтом.
+	 */
+	const link = $derived(
+		`${address}connect#id=${encodeURIComponent(id)}&pw=${encodeURIComponent(password)}`
+	);
+
 	const fullText = $derived(
 		[
+			`${t('player.connectQuick')}: ${link}`,
+			'',
 			t('player.connectHow'),
 			`1. ${t('player.connectStep1')} ${address}`,
 			`2. ${t('player.connectStep2')}`,
@@ -101,7 +119,18 @@
 		</header>
 
 		<section>
-			<h3 class="dialog__sub">{t('player.connectHow')}</h3>
+			<h3 class="dialog__sub">{t('player.connectQuick')}</h3>
+			<div class="line">
+				<output class="mono line__value line__value--address" data-testid="dialog-link">
+					{link}
+				</output>
+				<CopyButton value={link} label={t('player.connectLink')} testid="copy-link" />
+			</div>
+			<p class="muted">{t('player.connectQuickHint')}</p>
+		</section>
+
+		<section>
+			<h3 class="dialog__sub">{t('player.connectManual')}</h3>
 			<ol class="steps">
 				<li>{t('player.connectStep1')}</li>
 				<li>{t('player.connectStep2')}</li>

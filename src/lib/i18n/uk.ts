@@ -165,6 +165,11 @@ export const uk = {
 	'player.showSecret': 'Ідентифікатор і пароль дошки',
 	'player.connect': 'Підключити пульт',
 	'player.connectHow': 'Як підключити телефон',
+	'player.connectQuick': 'Одним посиланням',
+	'player.connectQuickHint':
+		'Відкрити на телефоні — дошка відкриється сама. Посилання ДОРІВНЮЄ паролю: хто його отримав, той усередині.',
+	'player.connectLink': 'Посилання',
+	'player.connectManual': 'Або вручну',
 	'player.connectStep1': 'Відкрийте на телефоні цю саму адресу.',
 	'player.connectStep2': 'Натисніть «Підключитися».',
 	'player.connectStep3': 'Введіть ідентифікатор і пароль звідси.',
