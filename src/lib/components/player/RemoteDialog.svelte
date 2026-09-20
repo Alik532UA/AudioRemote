@@ -3,14 +3,17 @@
 	import { t } from '$lib/i18n/i18n.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import CopyButton from '$lib/components/ui/CopyButton.svelte';
+	import QrCode from '$lib/components/ui/QrCode.svelte';
 
 	interface Props {
 		id: string;
 		password: string;
+		/** Адреса дошки в базі — саме її, а не пароль, несе посилання. */
+		boardKey: string;
 		onclose: () => void;
 	}
 
-	let { id, password, onclose }: Props = $props();
+	let { id, password, boardKey, onclose }: Props = $props();
 
 	/**
 	 * ЯК ПІДКЛЮЧИТИ ПУЛЬТ — ВІКНО, А НЕ ЗГОРНУТИЙ БЛОК НА СТОРІНЦІ.
@@ -55,20 +58,28 @@
 	 * переклад розійшовся б із тим, що читає людина.
 	 */
 	/**
-	 * ПОСИЛАННЯ-КЛЮЧ — пара у ФРАГМЕНТІ, а не в запиті.
+	 * ПОСИЛАННЯ НЕСЕ АДРЕСУ ДОШКИ, А НЕ ПАРОЛЬ.
 	 *
-	 * Усе після `#` браузер серверу не надсилає ніколи: ні в журнал хостингу, ні
-	 * в журнал проксі, ні в `Referer`. У `?id=…` пароль опинився б у всіх трьох
-	 * місцях. Сторінка підключення стирає фрагмент з адреси одразу, як прочитає
-	 * його, тож в історії телефона він теж не залишається.
+	 * Пульту пароль не потрібен ніколи: увійти досить за ключем, бо ключ і є
+	 * адреса (хеш від пари, див. `boardPath.ts`). Тому в посиланні їде він — і
+	 * з цього виходять три речі одразу.
 	 *
-	 * Чого це не робить безпечним: посилання ДОРІВНЮЄ паролю. Інакше «одне
-	 * натискання» неможливе за побудовою, і сказано це поруч, а не дрібним
-	 * шрифтом.
+	 * 1. Пароль не покидає цього комп'ютера. Це важить найбільше там, де в
+	 *    налаштуваннях задано СТАЛУ пару: один пароль відкриває всі дошки, і
+	 *    пересилати його заради однієї — надто щедро.
+	 * 2. Відновити пароль із ключа неможливо за побудовою.
+	 * 3. Посилання стає чистим ASCII. Пароль із українських слів давав
+	 *    `%D0%92%D0%9E...` на пів екрана, і людина не бачила, що саме надсилає.
+	 *
+	 * Усе це — у ФРАГМЕНТІ, після `#`: браузер серверу його не надсилає ніколи,
+	 * тож ні журнал хостингу, ні проксі, ні `Referer` його не бачать. Сторінка
+	 * підключення стирає фрагмент з адреси одразу, як прочитає, — щоб не лишався
+	 * і в історії телефона.
+	 *
+	 * Чого це не робить безпечним: ключ ВІДКРИВАЄ дошку. Хто отримав посилання,
+	 * той усередині — інакше «одне натискання» неможливе за побудовою.
 	 */
-	const link = $derived(
-		`${address}connect#id=${encodeURIComponent(id)}&pw=${encodeURIComponent(password)}`
-	);
+	const link = $derived(`${address}connect#k=${boardKey}&id=${encodeURIComponent(id)}`);
 
 	const fullText = $derived(
 		[
@@ -83,6 +94,18 @@
 			`${t('create.passwordLabel')}: ${password}`
 		].join(String.fromCharCode(10))
 	);
+
+	let linkCopied = $state(false);
+
+	async function copyLink() {
+		try {
+			await navigator.clipboard.writeText(link);
+			linkCopied = true;
+			setTimeout(() => (linkCopied = false), 2000);
+		} catch {
+			// Буфер заборонений політикою — лишається код камерою.
+		}
+	}
 
 	async function copyAll() {
 		try {
@@ -118,66 +141,102 @@
 			</button>
 		</header>
 
-		<section>
-			<h3 class="dialog__sub">{t('player.connectQuick')}</h3>
-			<div class="line">
-				<output class="mono line__value line__value--address" data-testid="dialog-link">
-					{link}
-				</output>
-				<CopyButton value={link} label={t('player.connectLink')} testid="copy-link" />
-			</div>
-			<p class="muted">{t('player.connectQuickHint')}</p>
-		</section>
-
-		<section>
-			<h3 class="dialog__sub">{t('player.connectManual')}</h3>
-			<ol class="steps">
-				<li>{t('player.connectStep1')}</li>
-				<li>{t('player.connectStep2')}</li>
-				<li>{t('player.connectStep3')}</li>
-			</ol>
-		</section>
-
 		<!--
-			Три значення — три кнопки. Адресу відкривають у браузері телефона,
-			ідентифікатор і пароль вводять у двох різних полях, а часом треба
-			переслати лише пароль: одна кнопка на все вікно змушувала виділяти
-			текст мишею — і то з поля, де пароль прихований крапками.
+			ТРИ КОЛОНКИ, бо тут три РІЗНІ способи, а не один довгий.
+			
+			Одним стовпцем вікно виростало вище за екран, і людина гортала його,
+			шукаючи потрібний спосіб; обабіч при цьому лишалося порожнє місце.
+			Колонки ставлять способи поруч: камерою, руками, значеннями — і видно,
+			що обирати, не читаючи всього.
 		-->
-		<div class="field">
-			<span class="field__label">{t('player.connectAddress')}</span>
-			<div class="line">
-				<output class="mono line__value line__value--address" data-testid="dialog-address">
-					{address}
-				</output>
-				<CopyButton value={address} label={t('player.connectAddress')} testid="copy-address" />
-			</div>
-		</div>
+		<div class="grid">
+			<section class="pane">
+				<h3 class="pane__title">{t('player.connectQuick')}</h3>
+				<QrCode value={link} label={t('player.connectLink')} />
+				<p class="muted">{t('player.connectQrHint')}</p>
 
-		<div class="field">
-			<span class="field__label">{t('create.idLabel')}</span>
-			<div class="line">
-				<output class="secret mono line__value" data-testid="dialog-id">{id}</output>
-				<CopyButton value={id} label={t('create.idLabel')} testid="copy-id" />
-			</div>
-		</div>
+				<!--
+					Саме посилання НЕ показуємо текстом. Тридцять два символи ключа —
+					це стіна, яку ніхто не читає, а в колонці вона ще й розсипалася на
+					п'ять рядків і робила вікно вищим за екран. Хто копіює, той і так
+					побачить його там, куди вставить; хто ні — тому потрібна камера.
+					Значення лишається доступним перевіркам через `data-link`.
+				-->
+				<button
+					class="btn"
+					type="button"
+					onclick={copyLink}
+					data-testid="dialog-link"
+					data-link={link}
+				>
+					{#if linkCopied}
+						<IconCheck size={18} aria-hidden="true" />
+						{t('common.copied')}
+					{:else}
+						<IconCopy size={18} aria-hidden="true" />
+						{t('player.connectCopyLink')}
+					{/if}
+				</button>
 
-		<!--
-			Кнопка пароля — ВСЕРЕДИНІ поля, поруч із оком. Поруч із полем вона
-			з'їжджала б під рядок підказок (Caps Lock, розкладка), який там є
-			завжди, навіть порожній.
-		-->
-		<PasswordField
-			id="player-password"
-			label={t('create.passwordLabel')}
-			value={password}
-			autocomplete="off"
-			readonly
-		>
-			{#snippet action()}
-				<CopyButton value={password} label={t('create.passwordLabel')} testid="copy-password" />
-			{/snippet}
-		</PasswordField>
+				<p class="muted">{t('player.connectQuickHint')}</p>
+			</section>
+
+			<section class="pane">
+				<h3 class="pane__title">{t('player.connectManual')}</h3>
+				<ol class="steps">
+					<li>{t('player.connectStep1')}</li>
+					<li>{t('player.connectStep2')}</li>
+					<li>{t('player.connectStep3')}</li>
+				</ol>
+
+				<div class="field">
+					<span class="field__label">{t('player.connectAddress')}</span>
+					<div class="line">
+						<output class="mono line__value line__value--address" data-testid="dialog-address">
+							{address}
+						</output>
+						<CopyButton value={address} label={t('player.connectAddress')} testid="copy-address" />
+					</div>
+				</div>
+			</section>
+
+			<section class="pane">
+				<h3 class="pane__title">{t('player.connectSecrets')}</h3>
+
+				<!--
+					Два значення — дві кнопки. Ідентифікатор і пароль вводять у різні
+					поля, а часом треба переслати лише пароль: одна кнопка на все вікно
+					змушувала виділяти текст мишею — і то з поля, де пароль прихований
+					крапками.
+				-->
+				<div class="field">
+					<span class="field__label">{t('create.idLabel')}</span>
+					<div class="line">
+						<output class="secret mono line__value" data-testid="dialog-id">{id}</output>
+						<CopyButton value={id} label={t('create.idLabel')} testid="copy-id" />
+					</div>
+				</div>
+
+				<!--
+					Кнопка пароля — ВСЕРЕДИНІ поля, поруч із оком. Поруч із полем вона
+					з'їжджала б під рядок підказок (Caps Lock, розкладка), який там є
+					завжди, навіть порожній.
+				-->
+				<PasswordField
+					id="player-password"
+					label={t('create.passwordLabel')}
+					value={password}
+					autocomplete="off"
+					readonly
+				>
+					{#snippet action()}
+						<CopyButton value={password} label={t('create.passwordLabel')} testid="copy-password" />
+					{/snippet}
+				</PasswordField>
+
+				<p class="muted">{t('player.connectSecretsHint')}</p>
+			</section>
+		</div>
 
 		<button class="btn" type="button" onclick={copyAll} data-testid="copy-secret">
 			{#if copied}
@@ -193,7 +252,9 @@
 
 <style>
 	.dialog {
-		width: min(480px, calc(100vw - 32px));
+		width: min(1000px, calc(100vw - 32px));
+		/* Вікно не буває вищим за екран: прокручується ВМІСТ, а не сторінка. */
+		max-height: calc(100dvh - 48px);
 		padding: 0;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-lg);
@@ -210,7 +271,27 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap);
+		max-height: inherit;
+		overflow: auto;
 		padding: var(--gap-lg);
+	}
+
+	.grid {
+		display: grid;
+		gap: var(--gap);
+		grid-template-columns: 1fr;
+		/* Колонки різної висоти стоять на місці, а не тягнуться до найвищої. */
+		align-items: start;
+	}
+
+	/*
+	 * Межа в 900px: три колонки по 280px плюс проміжки й відступи. Вужче —
+	 * посилання починає ламатися посеред ключа, і читати його стає неможливо.
+	 */
+	@media (min-width: 900px) {
+		.grid {
+			grid-template-columns: repeat(3, 1fr);
+		}
 	}
 
 	.dialog__head {
@@ -222,12 +303,6 @@
 
 	.dialog__title {
 		font-size: 1.1rem;
-	}
-
-	.dialog__sub {
-		margin-bottom: var(--gap-xs);
-		font-size: 0.9rem;
-		color: var(--text-secondary);
 	}
 
 	.steps {

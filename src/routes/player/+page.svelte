@@ -677,7 +677,12 @@
 		{/if}
 
 		{#if remoteOpen && board.password}
-			<RemoteDialog id={board.id} password={board.password} onclose={() => (remoteOpen = false)} />
+			<RemoteDialog
+				id={board.id}
+				password={board.password}
+				boardKey={board.key}
+				onclose={() => (remoteOpen = false)}
+			/>
 		{/if}
 
 		{#if openFor}
