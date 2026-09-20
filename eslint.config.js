@@ -59,6 +59,8 @@ export default ts.config(
 				 *
 				 * `svelte.config.js` у переліку НЕМАЄ навмисно: його імпортує
 				 * перевірка хешів CSP, тобто він уже входить у проєкт tsconfig.
+				 * `playwright.config.ts` — навпаки: його не імпортує ніщо, і
+				 * `tsconfig.json` SvelteKit бере лише `src/` і `tests/`.
 				 * Файл, названий в обох місцях, відкидається з «included by
 				 * allowDefaultProject but also by the project».
 				 *
@@ -68,7 +70,7 @@ export default ts.config(
 				 * справи не причетний. Файли тут дрібні, і платня — частки секунди.
 				 */
 				projectService: {
-					allowDefaultProject: ['eslint.config.js', 'scripts/*.mjs'],
+					allowDefaultProject: ['eslint.config.js', 'playwright.config.ts', 'scripts/*.mjs'],
 					maximumDefaultProjectFileMatchCount_THIS_WILL_SLOW_DOWN_LINTING: 20
 				},
 				extraFileExtensions: ['.svelte']

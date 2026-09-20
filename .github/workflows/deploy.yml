@@ -205,6 +205,34 @@ jobs:
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: npm run check:bundle
 
+      # БРАУЗЕР — ЄДИНЕ, ЩО БАЧИТЬ ТРИ РЕЧІ: чи пустила політика безпеки свій
+      # же інлайн-скрипт теми, чи `light-dark()` справді перемальовує сторінку
+      # й чи віддає хостинг `404.html` саме з кодом 404. Усе це ламається без
+      # жодної помилки на екрані.
+      #
+      # Ставиться ЛИШЕ chromium: приймач працює тільки в Chrome або Edge
+      # (File System Access API), тож firefox і webkit тут перевіряли б те,
+      # чим однаково не користуються, — і коштували б утричі довше.
+      #
+      # Крок іде ПІСЛЯ збірки й над нею: проєкт `identity` першим ділом
+      # звіряє версію, яку віддає порт, із `package.json` — прогін проти
+      # старої теки `build/` був би зеленим і не довів би нічого.
+      - name: Браузер
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:e2e
+        env:
+          BASE_PATH: /AudioRemote
+
+      # СЛІД ПРОГОНУ АРТЕФАКТОМ НЕ ВИВАНТАЖУЄТЬСЯ, і це рішення, а не пропуск.
+      # `actions/upload-artifact` станом на 2026-09-21 стоїть на `node20` і в
+      # v4, і в v5 (прочитано з action.yml обох) — тобто заради зручності в
+      # workflow заїхав би знятий рантайм, який спершу лише попереджає
+      # (`CI-ACTION-RUNTIME`). Звіт Playwright у логу й так містить помилку,
+      # журнал викликів і фрагмент коду; trace лишається для локального
+      # прогону, де він і потрібен.
+
       - name: Збірка не змінює відстежувані файли
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: git diff --exit-code
