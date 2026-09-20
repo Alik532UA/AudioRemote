@@ -81,6 +81,35 @@ describe('умова', () => {
 	});
 });
 
+describe('заперечення умов', () => {
+	/*
+	 * Джерело, яке віддає САМІ ЛИШЕ активні тривоги, каже «тривога» наявністю
+	 * назви, а «відбій» — її відсутністю. Без заперечень друга подія не
+	 * описувалася б узагалі.
+	 */
+	const active = [{ name: 'Одеський район', oblast: 'Одеська область', level: 'yellow' }];
+	const calm: unknown[] = [];
+
+	it('«містить» ловить тривогу, «не містить» — відбій', () => {
+		expect(matches(active, 'contains', 'Одеська область')).toBe(true);
+		expect(matches(active, 'notContains', 'Одеська область')).toBe(false);
+
+		expect(matches(calm, 'contains', 'Одеська область')).toBe(false);
+		expect(matches(calm, 'notContains', 'Одеська область')).toBe(true);
+	});
+
+	it('чужа область не рахується за свою', () => {
+		const other = [{ oblast: 'Львівська область' }];
+		expect(matches(other, 'contains', 'Одеська область')).toBe(false);
+		expect(matches(other, 'notContains', 'Одеська область')).toBe(true);
+	});
+
+	it('«не дорівнює» — дзеркало «дорівнює»', () => {
+		expect(matches(false, 'notEquals', 'true')).toBe(true);
+		expect(matches(true, 'notEquals', 'true')).toBe(false);
+	});
+});
+
 describe('чи опитувати', () => {
 	it('вимкнений тригер не опитується навіть з адресою', () => {
 		expect(triggerReady({ ...emptyTrigger(), url: 'https://example.org' })).toBe(false);

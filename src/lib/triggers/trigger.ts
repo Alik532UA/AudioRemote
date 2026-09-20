@@ -31,7 +31,22 @@
  */
 
 /** Як порівнювати прочитане значення. */
-export const TRIGGER_TESTS = ['truthy', 'falsy', 'equals', 'contains'] as const;
+/**
+ * Умови ПАРАМИ: кожна має своє заперечення.
+ *
+ * Без заперечень половина подій не описується взагалі. Джерело, яке віддає
+ * список САМИХ ЛИШЕ активних тривог, каже «тривога в Одесі» тим, що містить
+ * її назву, — а «відбій» тим, що більше не містить. Умови «містить» без
+ * «не містить» вистачило б рівно на половину задачі.
+ */
+export const TRIGGER_TESTS = [
+	'truthy',
+	'falsy',
+	'equals',
+	'notEquals',
+	'contains',
+	'notContains'
+] as const;
 
 export type TriggerTest = (typeof TRIGGER_TESTS)[number];
 
@@ -94,12 +109,16 @@ export function readPath(data: unknown, path: string): unknown {
 export function matches(value: unknown, test: TriggerTest, expected: string): boolean {
 	switch (test) {
 		case 'equals':
-			return String(value) === expected.trim();
+			return same(value, expected);
+
+		case 'notEquals':
+			return !same(value, expected);
 
 		case 'contains':
-			return JSON.stringify(value ?? null)
-				.toLowerCase()
-				.includes(expected.trim().toLowerCase());
+			return has(value, expected);
+
+		case 'notContains':
+			return !has(value, expected);
 
 		case 'falsy':
 			/*
@@ -126,6 +145,14 @@ export function matches(value: unknown, test: TriggerTest, expected: string): bo
  */
 const truthy = (value: unknown): boolean =>
 	Array.isArray(value) ? value.length > 0 : Boolean(value);
+
+const same = (value: unknown, expected: string): boolean => String(value) === expected.trim();
+
+/** Пошук по всій гілці як по тексту: підходить і рядку, і списку обʼєктів. */
+const has = (value: unknown, expected: string): boolean =>
+	JSON.stringify(value ?? null)
+		.toLowerCase()
+		.includes(expected.trim().toLowerCase());
 
 /** Чи має сенс опитувати: без адреси тригер нічого не означає. */
 export const triggerReady = (trigger: TrackTrigger): boolean =>
