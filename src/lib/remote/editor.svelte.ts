@@ -93,6 +93,10 @@ export class RemoteEditor implements BoardEditor {
 		this.update(trackId, (entry) => ({ ...entry, color: slug }));
 	}
 
+	setIcon(trackId: string, icon: string | null): void {
+		this.update(trackId, (entry) => ({ ...entry, icon }));
+	}
+
 	setHotkey(trackId: string, hotkey: string | null): void {
 		// Клавіша унікальна — так само, як у плеєра: інакше дошка приїхала б туди
 		// з двома треками на одній клавіші, і виграв би той, хто вище.

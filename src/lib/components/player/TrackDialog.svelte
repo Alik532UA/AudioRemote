@@ -3,7 +3,7 @@
 	import { IconClose, IconKeyboard, IconZap } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { colorNumber, TRACK_COLORS } from '$lib/config/trackColors';
-	import { MAX_GAP_SEC, MAX_PLAYS } from '$lib/audio/boardConfig';
+	import { MAX_GAP_SEC, MAX_ICON, MAX_PLAYS } from '$lib/audio/boardConfig';
 	import { isAssignable, labelForCode } from '$lib/hotkeys/hotkeys';
 	import type { BoardEditor, BoardTrack } from '$lib/board/editor';
 	import TriggerEditor from './TriggerEditor.svelte';
@@ -42,55 +42,7 @@
 	 * зробити гірше.
 	 */
 	let node = $state<HTMLDialogElement | null>(null);
-	let titleInput = $state<HTMLInputElement | null>(null);
 
-	/**
-	 * Готові значки. Порядок — від найчастішого до рідкісного.
-	 *
-	 * Це не «палітра емодзі», а список того, що справді трапляється на дошці
-	 * школи: сирена, дзвоник, оголошення, музика, світло. Довший набір
-	 * перетворив би вибір на пошук.
-	 */
-	const TRACK_EMOJI = [
-		'🔔',
-		'🚨',
-		'📢',
-		'🎵',
-		'🎤',
-		'💡',
-		'🔌',
-		'⚡',
-		'🕯️',
-		'🎉',
-		'🎬',
-		'⏱️',
-		'🇺🇦',
-		'❤️',
-		'⭐',
-		'✅'
-	];
-
-	/**
-	 * Вставити значок ТУДИ, ДЕ КУРСОР, а не в кінець.
-	 *
-	 * Значок майже завжди ставлять попереду назви, і «завжди в кінець»
-	 * означало б, що його щоразу треба перетягувати руками. Поле лишається у
-	 * фокусі — людина тут-таки продовжує правити підпис.
-	 */
-	function addEmoji(symbol: string): void {
-		const input = titleInput;
-		if (!input) return;
-
-		const at = input.selectionStart ?? input.value.length;
-		const to = input.selectionEnd ?? at;
-		const next = `${input.value.slice(0, at)}${symbol}${input.value.slice(to)}`.slice(0, 200);
-
-		input.value = next;
-		controller.setTitle(track.id, next);
-		input.focus();
-		const caret = Math.min(at + symbol.length, next.length);
-		input.setSelectionRange(caret, caret);
-	}
 	/** Чекаємо натискання клавіші, щоб призначити її треку. */
 	let capturing = $state(false);
 	let rejected = $state<string | null>(null);
@@ -213,7 +165,6 @@
 				<div class="field">
 					<label class="field__label" for="track-title">{t('track.displayName')}</label>
 					<input
-						bind:this={titleInput}
 						id="track-title"
 						class="input"
 						type="text"
@@ -223,33 +174,33 @@
 						data-testid="track-title"
 						oninput={(event) => controller.setTitle(track.id, event.currentTarget.value)}
 					/>
+				</div>
 
-					<!--
-						ЗНАЧОК У ПІДПИС — кнопками, а не «знайдіть емодзі самі».
-						
-						Емодзі в назві читається з відстані швидше за будь-яке слово, і
-						саме цього від дошки в залі й хочуть. Але покласти його туди не
-						було чим: на комп'ютері це Win+. (про яке знають одиниці), а у
-						вікні застосунку системної панелі емодзі може не бути зовсім.
-						
-						Набір короткий і про цю роботу, а не «усі емодзі світу»: довгий
-						список тут був би другим вікном, у якому шукають замість того, щоб
-						працювати. Клавіатуру телефона це не скасовує — звідти можна
-						вставити будь-який інший.
-					-->
-					<div class="emoji" role="group" aria-label={t('track.emoji')}>
-						{#each TRACK_EMOJI as symbol (symbol)}
-							<button
-								class="emoji__btn"
-								type="button"
-								title={t('track.emojiAdd', { symbol })}
-								onclick={() => addEmoji(symbol)}
-								data-testid="emoji-{symbol}"
-							>
-								{symbol}
-							</button>
-						{/each}
-					</div>
+				<!--
+					ЗНАЧОК — ОКРЕМЕ ПОЛЕ, і в нього вводять, а не обирають зі списку.
+					
+					Спершу емодзі вставлявся просто в підпис, і з цього виходило дві біди
+					одразу: на телефоні він займав місце в першому з двох рядків назви, а
+					вирівняти чи збільшити його було неможливо — він був частиною
+					речення. Окремим полем він стає позначкою збоку на всю висоту рядка.
+					
+					Потім тут стояв набір готових значків, і його прибрано: будь-який
+					готовий набір або завеликий, щоб у ньому шукати, або замалий, щоб у
+					ньому знайшлося потрібне. Клавіатура емодзі є і в телефоні, і в
+					системі (Win+. на комп'ютері), і вона вміє все.
+				-->
+				<div class="field">
+					<label class="field__label" for="track-icon">{t('track.emoji')}</label>
+					<input
+						id="track-icon"
+						class="input input--icon"
+						type="text"
+						maxlength={MAX_ICON}
+						value={track.icon ?? ''}
+						placeholder={t('track.emojiHint')}
+						data-testid="track-icon"
+						oninput={(event) => controller.setIcon(track.id, event.currentTarget.value)}
+					/>
 				</div>
 
 				<div class="field">
@@ -377,37 +328,16 @@
 </dialog>
 
 <style>
-	/* Ряд значків: переносяться, а не стискаються — торкатися треба пальцем. */
-	.emoji {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 2px;
-		margin-top: var(--gap-xs);
-	}
-
-	.emoji__btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 2rem;
-		height: 2rem;
-		padding: 0;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		background: none;
-		font-size: 1.1rem;
-		line-height: 1;
-		cursor: pointer;
-	}
-
-	.emoji__btn:hover,
-	.emoji__btn:focus-visible {
-		border-color: var(--border-hover);
-		background: var(--bg-sunken);
-	}
-
-	.emoji__btn:active {
-		box-shadow: inset 0 0 0 999px var(--press-veil);
+	/*
+	 * Поле значка вузьке навмисно: у ньому один символ, і поле на всю ширину
+	 * обіцяло б, що туди кладуть текст. Сам символ показується великим — таким
+	 * він і стоятиме в списку.
+	 */
+	.input--icon {
+		width: 5rem;
+		font-size: 1.5rem;
+		line-height: 1.2;
+		text-align: center;
 	}
 
 	.dialog {

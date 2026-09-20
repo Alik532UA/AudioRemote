@@ -669,6 +669,10 @@
 											</kbd>
 										{/if}
 
+										{#if entry.icon}
+											<span class="tracks__icon" aria-hidden="true">{entry.icon}</span>
+										{/if}
+
 										<button
 											class="tracks__title"
 											type="button"
@@ -1197,6 +1201,24 @@
 	.tracks__main--playing {
 		border-color: var(--accent);
 		color: var(--accent);
+	}
+
+	/*
+	 * Значок — на всю висоту рядка, окремо від назви: на телефоні назва бере два
+	 * рядки, і символ усередині тексту з'їдав би місце в першому з них.
+	 */
+	.tracks__icon {
+		display: grid;
+		flex: none;
+		place-items: center;
+		align-self: stretch;
+		min-width: 1.75rem;
+		font-size: 1.25rem;
+		line-height: 1;
+		/* Вище за накладку назви — інакше натискання по значку не запускало б трек. */
+		position: relative;
+		z-index: 1;
+		pointer-events: none;
 	}
 
 	/* Позначка живе поруч із інструментами й теж не ловить натискання назви. */

@@ -26,6 +26,8 @@ export interface BoardTrack {
 	/** Імʼя файлу без розширення — щоб було видно, що саме перейменували. */
 	fileName: string;
 	color: string | null;
+	/** Значок перед назвою: емодзі або `null`. Окреме поле, а не частина підпису. */
+	icon: string | null;
 	/** Код гарячої клавіші (`KeyQ`, `F5`), або `null`. */
 	hotkey: string | null;
 	/** Кого трек стосується. Див. `TrackVisibility`. */
@@ -46,6 +48,7 @@ export interface BoardEditor {
 
 	setTitle(trackId: string, title: string): void;
 	setColor(trackId: string, slug: string | null): void;
+	setIcon(trackId: string, icon: string | null): void;
 	setHotkey(trackId: string, hotkey: string | null): void;
 	setVisibility(trackId: string, visibility: TrackVisibility): void;
 	setRepeat(trackId: string, plays: number, gapSec: number): void;

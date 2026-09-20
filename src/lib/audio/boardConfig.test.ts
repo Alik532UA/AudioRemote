@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseConfig, serializeConfig, emptyConfig, MAX_PLAYS } from './boardConfig';
+import { parseConfig, serializeConfig, emptyConfig, MAX_ICON, MAX_PLAYS } from './boardConfig';
 
 describe('файл налаштувань папки', () => {
 	it('старий прапорець «приховано» читається як «ніде»', () => {
@@ -75,5 +75,33 @@ describe('повтори треку', () => {
 		expect(config.tracks[0].gapSec).toBeUndefined();
 		expect(config.tracks[1].plays).toBeUndefined();
 		expect(config.tracks[2].plays).toBeUndefined();
+	});
+});
+
+describe('значок треку', () => {
+	it('читається як є', () => {
+		const config = parseConfig(JSON.stringify({ tracks: [{ path: 'Сирена.mp3', icon: '🚨' }] }));
+		expect(config.tracks[0].icon).toBe('🚨');
+	});
+
+	it('без значка поле у файлі не зʼявляється', () => {
+		const text = serializeConfig({ ...emptyConfig(), tracks: [{ path: 'Гонг.mp3' }] });
+		expect(text).not.toContain('icon');
+	});
+
+	it('речення замість значка обрізається до межі', () => {
+		/*
+		 * Поле правлять і блокнотом, і адміністратор із пульта. Довгий рядок тут
+		 * розсунув би кожен рядок списку — це не помилка даних, а зіпсований екран.
+		 */
+		const config = parseConfig(
+			JSON.stringify({ tracks: [{ path: 'a.mp3', icon: 'це не значок, а ціле речення' }] })
+		);
+		expect(config.tracks[0].icon).toHaveLength(MAX_ICON);
+	});
+
+	it('порожній рядок — це відсутність значка', () => {
+		const config = parseConfig(JSON.stringify({ tracks: [{ path: 'a.mp3', icon: '   ' }] }));
+		expect(config.tracks[0].icon).toBeUndefined();
 	});
 });

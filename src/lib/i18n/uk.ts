@@ -210,7 +210,7 @@ export const uk = {
 	'track.open': 'Налаштування треку',
 	'track.displayName': 'Підпис на екрані',
 	'track.emoji': 'Значок у підписі',
-	'track.emojiAdd': 'Додати {symbol} до підпису',
+	'track.emojiHint': 'емодзі',
 	'track.plays': 'Скільки разів програти',
 	'track.gap': 'Пауза між відтвореннями, секунд',
 	'track.gapHint': 'Поки триває пауза, трек вважається таким, що грає: пульт це показує.',

@@ -198,7 +198,9 @@ await must('господар викладає бібліотеку', () =>
 					order: 0,
 					key: '1',
 					hotkey: 'KeyQ',
-					color: 'azure'
+					color: 'azure',
+					icon: '🚨',
+					auto: true
 				}
 			}
 		},
@@ -481,6 +483,25 @@ await mustNot('присутність із невідомою роллю', () =>
 
 await mustNot('опис дошки із зайвим полем', () =>
 	patch(`boards/${KEY}/info`, { secret: 'x' }, owner.token)
+);
+
+await mustNot('значок завдовжки з речення', () =>
+	write(
+		`boards/${KEY}/library`,
+		{
+			rev: 2,
+			tracks: {
+				t1: {
+					title: 'Вихід',
+					path: 'act1/vyhid.mp3',
+					durationMs: 1000,
+					order: 0,
+					icon: 'це не значок, а ціле речення'
+				}
+			}
+		},
+		owner.token
+	)
 );
 
 // ─── АДМІНСЬКИЙ КАНАЛ ───────────────────────────────────────────────────────

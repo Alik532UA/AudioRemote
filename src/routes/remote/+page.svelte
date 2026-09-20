@@ -16,7 +16,8 @@
 		IconRefresh,
 		IconStop,
 		IconVolume,
-		IconWarning
+		IconWarning,
+		IconZap
 	} from '$lib/config/icons';
 	import { plural, t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
@@ -33,6 +34,7 @@
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
+	import { settings } from '$lib/settings/settings.svelte';
 	import { createLatch, SEEK_HOLD_MS, SEEK_TOLERANCE_MS, VOLUME_HOLD_MS } from '$lib/remote/latch';
 
 	let controller = $state<RemoteController | null>(null);
@@ -649,6 +651,15 @@
 												<IconPlay size={18} aria-hidden="true" />
 											{/if}
 										</span>
+										{#if track.icon}
+											<!--
+												Значок стоїть ОКРЕМО від назви й на всю її висоту: на
+												телефоні назва займає два рядки, і символ, вклеєний у
+												текст, з'їдав би місце в першому з них.
+											-->
+											<span class="tracks__icon" aria-hidden="true">{track.icon}</span>
+										{/if}
+
 										<span class="tracks__title">
 											{#if narrow.matches}
 												{#each titleLines(track.title) as line (line)}
@@ -658,6 +669,22 @@
 												{track.title}
 											{/if}
 										</span>
+
+										{#if settings.showTrigger && 'auto' in track && track.auto}
+											<!--
+												Блискавка відповідає на «чому воно заграло саме́». Доти її
+												бачив лише той, хто стоїть за комп'ютером, — а питання це
+												виникає саме в того, хто з телефоном у залі.
+											-->
+											<span
+												class="tracks__zap"
+												title={t('track.trigger')}
+												aria-label={t('track.trigger')}
+												data-testid="trigger-mark-{track.id}"
+											>
+												<IconZap size={14} aria-hidden="true" />
+											</span>
+										{/if}
 									</button>
 
 									{#if editor}
@@ -1146,5 +1173,27 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	/*
+	 * Значок — на всю висоту рядка, а не в потоці тексту. Саме тому він і став
+	 * окремим полем: усередині назви його не можна ні вирівняти, ні збільшити.
+	 */
+	.tracks__icon {
+		display: grid;
+		flex: none;
+		place-items: center;
+		align-self: stretch;
+		min-width: 1.75rem;
+		font-size: 1.25rem;
+		line-height: 1;
+	}
+
+	/* Позначка «запускається за API» — тиха, як і на плеєрі. */
+	.tracks__zap {
+		display: grid;
+		flex: none;
+		place-items: center;
+		color: var(--text-secondary);
 	}
 </style>

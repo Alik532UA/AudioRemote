@@ -207,7 +207,7 @@ export const en: Record<TranslationKey, string> = {
 	'track.open': 'Track settings',
 	'track.displayName': 'Display name',
 	'track.emoji': 'Icon in the title',
-	'track.emojiAdd': 'Add {symbol} to the title',
+	'track.emojiHint': 'emoji',
 	'track.plays': 'How many times to play',
 	'track.gap': 'Pause between plays, seconds',
 	'track.gapHint': 'During the pause the track still counts as playing, and the remote shows that.',

@@ -7,6 +7,7 @@ import {
 	emptyConfig,
 	isVisibility,
 	MAX_GAP_SEC,
+	MAX_ICON,
 	MAX_PLAYS,
 	toTrigger,
 	type BoardConfig,
@@ -58,6 +59,7 @@ function applyPatch(entry: BoardTrack, change: Partial<BoardTrack>): BoardTrack 
 		...entry,
 		title: title.length > 0 ? title : entry.fileName,
 		color: typeof change.color === 'string' ? change.color : null,
+		icon: typeof change.icon === 'string' ? change.icon.trim().slice(0, MAX_ICON) || null : null,
 		hotkey,
 		visibility: isVisibility(change.visibility) ? change.visibility : 'all',
 		plays: whole(change.plays, MAX_PLAYS, 1),
@@ -404,6 +406,7 @@ export class PlayerController implements BoardEditor {
 					fileName: track.title,
 					title: setting?.title ?? track.title,
 					color: setting?.color ?? null,
+					icon: setting?.icon ?? null,
 					hotkey: setting?.hotkey ?? null,
 					visibility: setting?.visibility ?? 'all',
 					plays: setting?.plays ?? 1,
@@ -424,6 +427,11 @@ export class PlayerController implements BoardEditor {
 
 	setColor(trackId: string, slug: string | null): void {
 		this.update(trackId, (entry) => ({ ...entry, color: slug }));
+	}
+
+	setIcon(trackId: string, icon: string | null): void {
+		const trimmed = icon?.trim().slice(0, MAX_ICON) ?? '';
+		this.update(trackId, (entry) => ({ ...entry, icon: trimmed.length > 0 ? trimmed : null }));
 	}
 
 	/**
@@ -551,6 +559,7 @@ export class PlayerController implements BoardEditor {
 				// іменами файлів, і перейменування файлу нічого б не змінило.
 				...(entry.title !== entry.fileName ? { title: entry.title } : {}),
 				...(entry.color ? { color: entry.color } : {}),
+				...(entry.icon ? { icon: entry.icon } : {}),
 				...(entry.hotkey ? { hotkey: entry.hotkey } : {}),
 				...(entry.visibility === 'all' ? {} : { visibility: entry.visibility }),
 				...(entry.plays > 1 ? { plays: entry.plays } : {}),
@@ -591,7 +600,16 @@ export class PlayerController implements BoardEditor {
 				order: index,
 				...(key ? { key } : {}),
 				...(entry.hotkey ? { hotkey: entry.hotkey } : {}),
-				...(entry.color ? { color: entry.color } : {})
+				...(entry.color ? { color: entry.color } : {}),
+				...(entry.icon ? { icon: entry.icon } : {}),
+				/*
+				 * Пульту їде САМ ФАКТ, а не тригер: у тригері адреса чужого сервера
+				 * й заголовки з ключем доступу, а бібліотеку читає кожен, хто на
+				 * дошці. Без цього рядка блискавку біля треку бачив би лише той, хто
+				 * стоїть за комп'ютером, — а питання «чому воно заграло саме́»
+				 * виникає саме в того, хто з телефоном.
+				 */
+				...(entry.trigger?.on ? { auto: true } : {})
 			};
 		});
 
