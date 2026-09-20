@@ -9,6 +9,7 @@ import {
 	type BoardConfig
 } from './boardConfig';
 import {
+	byFolderThenTitle,
 	isAudioFile,
 	titleFromName,
 	TrackMissingError,
@@ -207,8 +208,9 @@ export class TauriFolderSource implements AudioSource {
 			found.map(async (entry) => ({ ...entry, id: await trackIdFromPath(entry.path) }))
 		);
 
-		// Порядок — за назвою й українськими правилами: список читає людина.
-		return tracks.sort((left, right) => left.title.localeCompare(right.title, 'uk'));
+		// Порядок — за підпапкою, потім за назвою: список читає людина, і межа між
+		// наборами в папці мусить лишатися межею. Див. `byFolderThenTitle`.
+		return tracks.sort(byFolderThenTitle);
 	}
 
 	async open(path: string): Promise<File> {

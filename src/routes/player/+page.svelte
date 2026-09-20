@@ -26,7 +26,7 @@
 	import { describeError } from '$lib/net/describeError';
 	import { PlayerController } from '$lib/player/controller.svelte';
 	import { colorOf } from '$lib/config/trackColors';
-	import { titleLines } from '$lib/audio/source';
+	import { folderOf, titleLines } from '$lib/audio/source';
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 	import HiddenDialog from '$lib/components/player/HiddenDialog.svelte';
 	import LeaveDialog from '$lib/components/player/LeaveDialog.svelte';
@@ -611,7 +611,26 @@
 						<ul class="tracks">
 							{#each controller.visible as entry, index (entry.id)}
 								{@const hex = colorOf(entry.color)}
-								<li class="tracks__row" style={hex ? `--track-color: ${hex}` : undefined}>
+								{@const folder = folderOf(entry.path)}
+								<!--
+									ПІДПАПКА ПОКАЗУЄТЬСЯ ЛИШЕ ТАМ, ДЕ ВОНА ЗМІНИЛАСЯ.
+									
+									Порядок треків — рішення людини, і перегруповувати список за
+									папками не можна: вона розклала його так, як він має звучати.
+									Тому папка не збирає треки докупи, а лише називає межу там, де
+									список переходить з однієї в іншу. Якщо папок немає взагалі,
+									немає й жодного зайвого рядка.
+								-->
+								{#if index === 0 ? folder !== '' : folder !== folderOf(controller.visible[index - 1].path)}
+									<li class="tracks__folder" data-testid="folder-mark-{entry.id}">
+										<span class="tracks__folder-name">{folder || t('player.rootFolder')}</span>
+									</li>
+								{/if}
+								<li
+									class="tracks__row"
+									class:tracks__row--odd={index % 2 === 0}
+									style={hex ? `--track-color: ${hex}` : undefined}
+								>
 									<!--
 										Стан треку показує ВЕСЬ РЯДОК, а не підпис усередині нього. Обвідка
 										навколо самих літер виглядала як поле вводу, у яке потрапив курсор, а
@@ -967,8 +986,50 @@
 		background: color-mix(in oklab, var(--track-color) 12%, transparent);
 	}
 
-	.tracks__row:nth-child(odd) .tracks__main:not(.tracks__main--tinted) {
+	/*
+	 * Смугастість рахується ЗА НОМЕРОМ ТРЕКУ, а не за позицією в розмітці.
+	 *
+	 * `:nth-child(odd)` збивався б від рядків-роздільників між підпапками: вони
+	 * теж діти списку, і після кожного смуги мінялися б місцями — тобто виглядало
+	 * б це як випадковий візерунок, а не як чергування.
+	 */
+	.tracks__row--odd .tracks__main:not(.tracks__main--tinted) {
 		background: var(--bg-sunken);
+	}
+
+	/*
+	 * МЕЖА МІЖ ПІДПАПКАМИ.
+	 *
+	 * На широкому екрані вона підписана назвою папки; на телефоні лишається сама
+	 * лінія — там рядок коштує дорого, а межу видно й без слів.
+	 */
+	.tracks__folder {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-xs);
+		margin-block: var(--gap-xs) 2px;
+		color: var(--text-muted);
+		font-size: 0.7rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	/* Лінія добирає решту ширини — і лишається єдиним, що є на телефоні. */
+	.tracks__folder::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: var(--border);
+	}
+
+	@media (max-width: 899px) {
+		.tracks__folder {
+			margin-block: var(--gap-sm);
+		}
+
+		.tracks__folder-name {
+			display: none;
+		}
 	}
 
 	/*

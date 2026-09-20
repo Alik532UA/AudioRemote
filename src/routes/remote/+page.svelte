@@ -27,7 +27,7 @@
 	import AdminDialog from '$lib/components/remote/AdminDialog.svelte';
 	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 	import { colorOf } from '$lib/config/trackColors';
-	import { titleLines } from '$lib/audio/source';
+	import { folderOf, titleLines } from '$lib/audio/source';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
@@ -586,8 +586,19 @@
 						</div>
 
 						<ul class="tracks">
-							{#each rows as track (track.id)}
+							{#each rows as track, index (track.id)}
 								{@const hex = colorOf(track.color)}
+								{@const folder = folderOf(track.path)}
+								<!--
+									Межа між підпапками — та сама, що й на плеєрі: два екрани
+									однієї дошки не мусять по-різному показувати той самий список.
+									Підпис зникає на телефоні, лінія лишається.
+								-->
+								{#if index === 0 ? folder !== '' : folder !== folderOf(rows[index - 1].path)}
+									<li class="tracks__folder" data-testid="folder-mark-{track.id}">
+										<span class="tracks__folder-name">{folder || t('player.rootFolder')}</span>
+									</li>
+								{/if}
 								{@const key = (editor ?? controller).keyLabels[track.id]}
 								{@const current = controller.state?.trackId === track.id}
 								{@const sounding = current && playing}
@@ -737,6 +748,38 @@
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--gap-xs);
+	}
+
+	/*
+	 * МЕЖА МІЖ ПІДПАПКАМИ — те саме, що на плеєрі: підпис на широкому екрані,
+	 * сама лінія на телефоні.
+	 */
+	.tracks__folder {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-xs);
+		margin-block: var(--gap-xs) 2px;
+		color: var(--text-muted);
+		font-size: 0.7rem;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.tracks__folder::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: var(--border);
+	}
+
+	@media (max-width: 899px) {
+		.tracks__folder {
+			margin-block: var(--gap-sm);
+		}
+
+		.tracks__folder-name {
+			display: none;
+		}
 	}
 
 	/* Рядок треку в режимі адміністратора: кнопка на всю ширину плюс інструменти. */

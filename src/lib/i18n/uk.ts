@@ -155,6 +155,7 @@ export const uk = {
 	'player.keepOpen': 'Не закривайте це вікно — саме воно грає звук.',
 	'player.listeners': 'Підключено пультів: {count}',
 	'player.playHere': 'Запустити на цьому пристрої',
+	'player.rootFolder': 'Без підпапки',
 	'player.moveUp': 'Вище в списку',
 	'player.moveDown': 'Нижче в списку',
 	'player.configReadonly':

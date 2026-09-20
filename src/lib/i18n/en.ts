@@ -152,6 +152,7 @@ export const en: Record<TranslationKey, string> = {
 	'player.keepOpen': 'Keep this window open — it is the one playing the sound.',
 	'player.listeners': 'Remotes connected: {count}',
 	'player.playHere': 'Play on this device',
+	'player.rootFolder': 'No subfolder',
 	'player.moveUp': 'Move up',
 	'player.moveDown': 'Move down',
 	'player.configReadonly':
