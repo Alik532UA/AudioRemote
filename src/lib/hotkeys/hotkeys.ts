@@ -196,6 +196,28 @@ export function isTyping(target: EventTarget | null): boolean {
 }
 
 /**
+ * ЧИ ЛЕЖИТЬ НАД СТОРІНКОЮ МОДАЛЬНЕ ВІКНО.
+ *
+ * `showModal()` робить решту сторінки інертною для миші й фокуса — але НЕ для
+ * слухача на вікні: подія клавіші однаково доходить до нього. Через це пробіл,
+ * натиснутий на кнопці у відкритому вікні налаштувань, робив дві речі
+ * одночасно: сторінка ставила музику на паузу, а `preventDefault()` заразом
+ * з'їдав саме натискання кнопки. Тобто в залі змовкав звук, а кнопка, яку
+ * тиснули, не спрацьовувала — і читалося це як «вікно зависло».
+ *
+ * Шукається `dialog[open]` у ВСЬОМУ документі, а не під подією: коли фокус ще
+ * на `<body>`, шлях від події до вікна не веде нікуди, а вікно однаково зверху.
+ *
+ * Документ береться з події, а не з глобального: у прогоні без DOM
+ * (`@vitest-environment node`) глобального немає, і звернення до нього впало б
+ * замість того, щоб чесно сказати «нічого не перекрито».
+ */
+export function isCovered(target: EventTarget | null): boolean {
+	const doc = target instanceof Node ? target.ownerDocument : (globalThis.document ?? null);
+	return doc?.querySelector('dialog[open]') != null;
+}
+
+/**
  * Чи взагалі варто дивитися на це натискання.
  *
  * Shift дозволений навмисно: на багатьох розкладках `+` набирається саме з ним.
@@ -205,7 +227,8 @@ export function isTyping(target: EventTarget | null): boolean {
 export function isHotkeyEvent(event: KeyboardEvent): boolean {
 	if (event.ctrlKey || event.altKey || event.metaKey) return false;
 	if (event.repeat) return false;
-	return !isTyping(event.target);
+	if (isTyping(event.target)) return false;
+	return !isCovered(event.target);
 }
 
 /**

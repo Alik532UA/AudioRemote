@@ -107,6 +107,60 @@ describe('коли НЕ реагувати', () => {
 			delta: VOLUME_STEP
 		});
 	});
+
+	describe('відкрите вікно забирає клавіші собі', () => {
+		/*
+		 * `showModal()` робить сторінку інертною для миші й фокуса, але слухач на
+		 * ВІКНІ події клавіші отримує однаково. Пробіл на кнопці у відкритому
+		 * вікні робив дві речі: ставив музику на паузу й `preventDefault()`
+		 * з'їдав саме натискання кнопки — у залі змовкав звук, а кнопка не
+		 * спрацьовувала.
+		 *
+		 * jsdom не має верхнього шару, тож перевіряється те саме, що читає код:
+		 * наявність `dialog[open]` у документі.
+		 */
+		const withDialog = (run: (target: HTMLElement) => void) => {
+			const dialog = document.createElement('dialog');
+			const button = document.createElement('button');
+			dialog.append(button);
+			document.body.append(dialog);
+			dialog.setAttribute('open', '');
+			try {
+				run(button);
+			} finally {
+				dialog.remove();
+			}
+		};
+
+		it('перевірка жива: без вікна та сама клавіша діє', () => {
+			const button = document.createElement('button');
+			document.body.append(button);
+			expect(isHotkeyEvent(press({ code: 'Space' }, button))).toBe(true);
+			button.remove();
+		});
+
+		it('пробіл на кнопці всередині вікна не доходить до дошки', () => {
+			withDialog((button) => {
+				expect(isHotkeyEvent(press({ code: 'Space' }, button))).toBe(false);
+			});
+		});
+
+		it('клавіша при фокусі на body теж не доходить', () => {
+			// Шлях від події до вікна тут не веде нікуди, а вікно однаково зверху:
+			// саме тому шукається `dialog[open]` у всьому документі.
+			withDialog(() => {
+				expect(isHotkeyEvent(press({ code: 'Digit1' }, document.body))).toBe(false);
+			});
+		});
+
+		it('закрите вікно нічого не забирає', () => {
+			// `<dialog>` без `open` лежить у розмітці завжди — і завжди прихований.
+			const dialog = document.createElement('dialog');
+			document.body.append(dialog);
+			expect(isHotkeyEvent(press({ code: 'Space' }, document.body))).toBe(true);
+			dialog.remove();
+		});
+	});
 });
 
 describe('які клавіші можна віддати треку', () => {
