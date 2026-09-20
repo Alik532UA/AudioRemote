@@ -120,6 +120,15 @@ export class TauriFolderSource implements AudioSource {
 			return false;
 		}
 
+		/*
+		 * Діалог дає ШЛЯХ, але не дає ПРАВА його читати: область дії плагіна
+		 * файлів описана наперед у `capabilities/`, а назвати папку наперед
+		 * неможливо — у кожній школі вона своя. Нативна команда розширює область
+		 * рівно на цю папку, і рівно вона робить наступний `readDir` можливим.
+		 */
+		const { invoke } = await import('@tauri-apps/api/core');
+		await invoke('allow_folder', { path: picked });
+
 		this.root = picked;
 		writeItem(FOLDER_KEY, picked);
 		mark(`pick:ok ${this.label}`);

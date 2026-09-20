@@ -1,0 +1,34 @@
+[package]
+name = "audioremote"
+version = "0.1.0"
+description = "AudioRemote — приймач для творчої школи"
+authors = ["Alik Zapolnov"]
+edition = "2021"
+rust-version = "1.77.2"
+
+[lib]
+# `_lib`, бо ім'я бібліотеки не може збігатися з ім'ям пакета на Windows.
+name = "audioremote_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+# ПАПКА МУСИТЬ ПЕРЕЖИТИ ПЕРЕЗАПУСК ЗАСТОСУНКУ.
+#
+# Дозвіл, виданий діалогом, живе в пам'яті процесу: закрили вікно — і папка,
+# обрана вчора, знову недоступна, хоч шлях до неї записаний. Цей плагін
+# зберігає виданий дозвіл на диск і повертає його при старті. Без нього вся
+# затія («папка за замовчуванням, нічого не питати») не працює.
+tauri-plugin-persisted-scope = "2"
+
+[profile.release]
+# Розмір тут важить більше за останні відсотки швидкості: застосунок цілий день
+# чекає натискання, а качати його доведеться на кожен комп'ютер школи.
+opt-level = "s"
+lto = true
+strip = true

@@ -1,0 +1,20 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "default",
+	"description": "Дозволи для сторінки приймача. Вона приходить із мережі, а не з exe, тож без розділу remote не отримала б жодного: адреса точна, дозвіл видається їй, а не всьому домену.",
+	"windows": ["main"],
+	"remote": {
+		"urls": ["https://alik532ua.github.io/AudioRemote/*"]
+	},
+	"permissions": [
+		"core:default",
+		"dialog:default",
+		"dialog:allow-open",
+		"fs:default",
+		"fs:allow-exists",
+		"fs:allow-read-dir",
+		"fs:allow-read-file",
+		"fs:allow-read-text-file",
+		"fs:allow-write-text-file"
+	]
+}
