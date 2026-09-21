@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fits, layoutPanel, moveTo, spanOf } from './layout';
+import { controlOf, fits, layoutPanel, moveTo, shapeOf, sizeOf, spanOf } from './layout';
 import type { Panel, PanelCell } from '$lib/net/panelTypes';
 
 /**
@@ -35,7 +35,7 @@ describe('скільки місця просить віджет', () => {
 describe('розкладка панелі', () => {
 	it('стовпчиком віджет іде вниз по колонці', () => {
 		const { placed, free } = layoutPanel(panelOf({ '0': buttons(3) }));
-		expect(placed).toEqual([{ cell: '0', row: 0, col: 0, rows: 3, cols: 1, vertical: true }]);
+		expect(placed).toEqual([{ cell: '0', row: 0, col: 0, rows: 3, cols: 1 }]);
 		// Зайнято 0, 3, 6 — решта вільна.
 		expect(free).not.toContain('3');
 		expect(free).not.toContain('6');
@@ -45,14 +45,14 @@ describe('розкладка панелі', () => {
 
 	it('рядком віджет іде вправо по ряду', () => {
 		const { placed } = layoutPanel(panelOf({ '0': buttons(3, false) }));
-		expect(placed[0]).toMatchObject({ rows: 1, cols: 3, vertical: false });
+		expect(placed[0]).toMatchObject({ rows: 1, cols: 3 });
 	});
 
 	it('за край сітки не виходить — повертається сам', () => {
 		// Три кнопки рядком з середнього стовпця не влазять: лишилося два.
 		// Замість зникнення віджет стає стовпчиком, бо там місце є.
 		const { placed } = layoutPanel(panelOf({ '1': buttons(3, false) }));
-		expect(placed[0]).toMatchObject({ cell: '1', rows: 3, cols: 1, vertical: true });
+		expect(placed[0]).toMatchObject({ cell: '1', rows: 3, cols: 1 });
 	});
 
 	it('коли не влазить ні так, ні так — стає в саму клітинку, а не зникає', () => {
@@ -88,20 +88,20 @@ describe('чи стане віджет на місце', () => {
 	const panel = panelOf({ '0': buttons(3) });
 
 	it('вільне місце — так, зайняте — ні', () => {
-		expect(fits(panel, '1', 3, true)).toBe(true);
+		expect(fits(panel, '1', { rows: 3, cols: 1 })).toBe(true);
 		// Клітинка 3 під першим віджетом.
-		expect(fits(panel, '3', 1, true)).toBe(false);
+		expect(fits(panel, '3', { rows: 1, cols: 1 })).toBe(false);
 	});
 
 	it('за край — ні', () => {
-		expect(fits(panelOf({}), '2', 3, false)).toBe(false);
-		expect(fits(panelOf({}), '12', 3, true)).toBe(false);
+		expect(fits(panelOf({}), '2', { rows: 1, cols: 3 })).toBe(false);
+		expect(fits(panelOf({}), '12', { rows: 3, cols: 1 })).toBe(false);
 	});
 
 	it('сам віджет своєму ж повороту не заважає', () => {
 		// Без цього змінити поворот на місці було б неможливо ніколи: віджет
 		// натикався б на власні клітинки.
-		expect(fits(panel, '0', 3, false, '0')).toBe(true);
+		expect(fits(panel, '0', { rows: 1, cols: 3 }, '0')).toBe(true);
 	});
 });
 
@@ -142,12 +142,77 @@ describe('пересування віджета', () => {
 		// Ряд 3: стовпчиком треба три ряди, лишилося два. Рядком — три стовпці,
 		// і всі вільні. Відмовити тут означало б вимагати спершу повернути.
 		const cells = moveTo(panelOf({ '0': buttons(3) }), '0', '9');
-		expect(cells?.['9'].vertical).toBe(false);
+		expect(cells && sizeOf(cells['9'])).toEqual({ rows: 1, cols: 3 });
 	});
 
 	it('не влазить у жодному повороті — не пересувається', () => {
 		// Останній ряд, середній стовпець: стовпчиком немає рядів, рядком —
 		// лише два стовпці з трьох потрібних.
 		expect(moveTo(panelOf({ '0': buttons(3) }), '0', '13')).toBeNull();
+	});
+});
+
+describe('свій розмір віджета', () => {
+	it('названий прямо — той і беремо', () => {
+		expect(sizeOf({ ...buttons(4), rows: 2, cols: 2 })).toEqual({ rows: 2, cols: 2 });
+	});
+
+	it('пів розміру не рахується: без обох чисел розмір виводиться з органів', () => {
+		expect(sizeOf({ ...buttons(4), rows: 2 })).toEqual({ rows: 4, cols: 1 });
+		expect(sizeOf({ ...buttons(4), cols: 2 })).toEqual({ rows: 4, cols: 1 });
+	});
+
+	it('розмір поза сіткою не береться', () => {
+		expect(sizeOf({ ...buttons(2), rows: 9, cols: 1 })).toEqual({ rows: 2, cols: 1 });
+		expect(sizeOf({ ...buttons(2), rows: 1, cols: 7 })).toEqual({ rows: 2, cols: 1 });
+	});
+
+	it('прямокутник займає всі свої клітинки', () => {
+		const { placed, free } = layoutPanel(panelOf({ '0': { ...buttons(4), rows: 2, cols: 2 } }));
+		expect(placed[0]).toMatchObject({ rows: 2, cols: 2 });
+		// Зайнято 0, 1, 3, 4.
+		for (const key of ['0', '1', '3', '4']) expect(free).not.toContain(key);
+		expect(free).toContain('2');
+	});
+});
+
+describe('у якій формі віджет стоїть', () => {
+	it('типовий розмір читається назад як поворот, а не як «свій»', () => {
+		// Інакше вікно віджета відкривалося б на «своєму розмірі» завжди, і
+		// людина, яка просто додала кнопку, застрягла б у вчорашніх числах.
+		expect(shapeOf(buttons(3))).toEqual({ shape: 'down', rows: 3, cols: 1 });
+		expect(shapeOf(buttons(3, false))).toEqual({ shape: 'across', rows: 1, cols: 3 });
+	});
+
+	it('прямокутник, який не є жодним поворотом, — «свій»', () => {
+		expect(shapeOf({ ...buttons(4), rows: 2, cols: 2 })).toEqual({
+			shape: 'custom',
+			rows: 2,
+			cols: 2
+		});
+	});
+
+	it('порожня комірка починає зі стовпчика', () => {
+		expect(shapeOf(null)).toEqual({ shape: 'down', rows: 1, cols: 1 });
+	});
+});
+
+describe('ім’я органа', () => {
+	it('сусідні органи однієї комірки не збігаються', () => {
+		expect(controlOf('3', 'bump', 10)).not.toBe(controlOf('3', 'bump', -10));
+		expect(controlOf('3', 'press', 1)).not.toBe(controlOf('3', 'press', 2));
+		expect(controlOf('3', 'toggle')).not.toBe(controlOf('4', 'toggle'));
+	});
+
+	it('те саме натискання дає те саме ім’я', () => {
+		expect(controlOf('3', 'press', 0)).toBe(controlOf('3', 'press', 0));
+	});
+
+	it('сусідні номери не є префіксами один одного під роздільником', () => {
+		// Підсвітка шукає `ім'я + '#'`: без цього `3|press|1` збігався б із
+		// початком `3|press|11`, і спалахувала б чужа кнопка.
+		expect(`${controlOf('3', 'press', 11)}#7`.startsWith(`${controlOf('3', 'press', 1)}#`)).toBe(
+			false
+		);
 	});
 });

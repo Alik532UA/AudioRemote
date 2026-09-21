@@ -4,8 +4,23 @@ import {
 	PANEL_COLS,
 	PANEL_ROWS,
 	type Panel,
-	type PanelCell
+	type PanelCell,
+	type PanelCommandType
 } from '$lib/net/panelTypes';
+
+/**
+ * ІМ'Я ОРГАНА — не комірки, а того, у що саме тиснуть.
+ *
+ * У віджеті органів кілька, і підсвітити після натискання треба ОДИН. Комірки
+ * для цього не досить: «гучніше» й «тихіше» живуть в одній комірці, а
+ * спалахувати мусить та кнопка, якої торкнулися.
+ *
+ * Формат спільний для обох екранів і для журналу, тому він тут, а не в
+ * розмітці: два однакові шаблони в різних файлах розійшлися б мовчки, і
+ * підсвітка просто перестала б збігатися.
+ */
+export const controlOf = (cell: string, type: PanelCommandType, value?: string | number): string =>
+	`${cell}|${type}|${value ?? ''}`;
 
 /**
  * СКІЛЬКИ МІСЦЯ ЗАЙМАЄ ВІДЖЕТ — і де саме воно є.
@@ -46,11 +61,9 @@ export interface Placed {
 	/** Скільки рядів і стовпців зайнято НАСПРАВДІ. */
 	rows: number;
 	cols: number;
-	/** Чи стоять органи стовпчиком. */
-	vertical: boolean;
 }
 
-/** Скільки клітинок просить віджет. */
+/** Скільки ОРГАНІВ у віджеті: кнопок, або дві в повзунка, або один. */
 export function spanOf(cell: PanelCell): number {
 	if (cell.kind === 'slider') return 2;
 	if (cell.kind === 'check') return 1;
@@ -60,15 +73,45 @@ export function spanOf(cell: PanelCell): number {
 /** Типовий поворот — стовпчиком: так віджет на п'ять кнопок улазить завжди. */
 export const isVertical = (cell: PanelCell): boolean => cell.vertical !== false;
 
-/** Клітинки, які зайняв би віджет. `null` — не влазить або місце зайняте. */
-function areaOf(at: number, span: number, vertical: boolean, taken: ReadonlySet<number>) {
+export interface Size {
+	rows: number;
+	cols: number;
+}
+
+const whole = (value: unknown, max: number): boolean =>
+	Number.isInteger(value) && (value as number) >= 1 && (value as number) <= max;
+
+/**
+ * РОЗМІР ВІДЖЕТА В КЛІТИНКАХ.
+ *
+ * Названий прямо — беремо названий; не названий — виводимо з кількості органів
+ * і повороту. Обидва числа мусять бути разом і в межах сітки: пів розміру
+ * («три ряди, а скільки стовпців — як вийде») дало б два джерела правди для
+ * однієї відповіді.
+ */
+export function sizeOf(cell: PanelCell): Size {
+	if (whole(cell.rows, PANEL_ROWS) && whole(cell.cols, PANEL_COLS)) {
+		return { rows: cell.rows as number, cols: cell.cols as number };
+	}
+
+	const span = spanOf(cell);
+	return isVertical(cell) ? { rows: span, cols: 1 } : { rows: 1, cols: span };
+}
+
+/** Той самий розмір, покладений набік. Це і є поворот. */
+export const turned = (size: Size): Size => ({ rows: size.cols, cols: size.rows });
+
+/** Клітинки, які зайняв би прямокутник. `null` — не влазить або зайнято. */
+function areaOf(at: number, size: Size, taken: ReadonlySet<number>) {
 	const row = Math.floor(at / PANEL_COLS);
 	const col = at % PANEL_COLS;
-	if (vertical ? row + span > PANEL_ROWS : col + span > PANEL_COLS) return null;
+	if (row + size.rows > PANEL_ROWS || col + size.cols > PANEL_COLS) return null;
 
 	const cells: number[] = [];
-	for (let step = 0; step < span; step += 1) {
-		cells.push(vertical ? at + step * PANEL_COLS : at + step);
+	for (let down = 0; down < size.rows; down += 1) {
+		for (let right = 0; right < size.cols; right += 1) {
+			cells.push((row + down) * PANEL_COLS + col + right);
+		}
 	}
 	return cells.some((cell) => taken.has(cell)) ? null : cells;
 }
@@ -89,24 +132,19 @@ export function layoutPanel(panel: Panel): { placed: Placed[]; free: string[] } 
 		const cell = panel.cells[String(index)];
 		if (!cell) continue;
 
-		const span = spanOf(cell);
-		const wanted = isVertical(cell);
-		const cells =
-			areaOf(index, span, wanted, taken) ??
-			areaOf(index, span, !wanted, taken) ??
-			areaOf(index, 1, wanted, taken);
+		const wanted = sizeOf(cell);
+		const tries: Size[] = [wanted, turned(wanted), { rows: 1, cols: 1 }];
+		const size = tries.find((option) => areaOf(index, option, taken) !== null);
 		// Якір зайняв сусід — малювати нема де. Буває лише на зіпсутих даних.
-		if (!cells) continue;
+		if (!size) continue;
 
-		for (const at of cells) taken.add(at);
-		const vertical = cells.length < 2 ? wanted : cells[1] === index + PANEL_COLS;
+		for (const at of areaOf(index, size, taken) as number[]) taken.add(at);
 		placed.push({
 			cell: String(index),
 			row: Math.floor(index / PANEL_COLS),
 			col: index % PANEL_COLS,
-			rows: vertical ? cells.length : 1,
-			cols: vertical ? 1 : cells.length,
-			vertical
+			rows: size.rows,
+			cols: size.cols
 		});
 	}
 
@@ -124,29 +162,21 @@ export function layoutPanel(panel: Panel): { placed: Placed[]; free: string[] } 
  * `ignore` — віджет, який ЗАРАЗ правлять: його власне місце не вважається
  * зайнятим, інакше зміна повороту на місці була б неможлива завжди.
  */
-export function fits(
-	panel: Panel,
-	at: string,
-	span: number,
-	vertical: boolean,
-	ignore?: string
-): boolean {
+export function fits(panel: Panel, at: string, size: Size, ignore?: string): boolean {
 	const others: Panel = { rev: panel.rev, cells: { ...panel.cells } };
 	if (ignore !== undefined) delete others.cells[ignore];
 	delete others.cells[at];
 
 	const taken = new Set<number>();
 	for (const spot of layoutPanel(others).placed) {
-		for (let step = 0; step < Math.max(spot.rows, spot.cols); step += 1) {
-			taken.add(
-				spot.vertical
-					? (spot.row + step) * PANEL_COLS + spot.col
-					: spot.row * PANEL_COLS + spot.col + step
-			);
+		for (let down = 0; down < spot.rows; down += 1) {
+			for (let right = 0; right < spot.cols; right += 1) {
+				taken.add((spot.row + down) * PANEL_COLS + spot.col + right);
+			}
 		}
 	}
 
-	return areaOf(Number(at), span, vertical, taken) !== null;
+	return areaOf(Number(at), size, taken) !== null;
 }
 
 /**
@@ -199,10 +229,53 @@ export function moveTo(panel: Panel, from: string, to: string): Panel['cells'] |
  * від людини спершу повернути, а потім тягнути. `null` — не влазить ніяк.
  */
 function turnedInto(panel: Panel, at: string, cell: PanelCell): PanelCell | null {
-	const span = spanOf(cell);
-	const wanted = isVertical(cell);
+	const wanted = sizeOf(cell);
+	if (fits(panel, at, wanted)) return cell;
 
-	if (fits(panel, at, span, wanted)) return cell;
-	if (fits(panel, at, span, !wanted)) return { ...cell, vertical: !wanted };
+	const other = turned(wanted);
+	if (fits(panel, at, other)) return withSize(cell, other);
 	return null;
+}
+
+/**
+ * Той самий віджет із названим розміром.
+ *
+ * Коли розмір збігається з типовим, обидва числа НЕ пишуться, лишається сам
+ * поворот: інакше віджет, у якого додали кнопку, застряг би в учорашньому
+ * розмірі — і людина не зрозуміла б, чому нова кнопка стиснула сусідок.
+ */
+export function withSize(cell: PanelCell, size: Size): PanelCell {
+	const span = spanOf(cell);
+	const next: PanelCell = { ...cell };
+	delete next.rows;
+	delete next.cols;
+
+	if (size.rows === span && size.cols === 1) return { ...next, vertical: true };
+	if (size.cols === span && size.rows === 1) return { ...next, vertical: false };
+	return { ...next, rows: size.rows, cols: size.cols };
+}
+
+/**
+ * ЯК ЛЮДИНА ЗАДАЄ ФОРМУ: два звичні повороти й свій прямокутник третім.
+ *
+ * Типовий розмір рахується з кількості органів, і в дев'яти випадках із десяти
+ * саме він і потрібен: п'ять кнопок стовпчиком, повзунок на дві клітинки. Але
+ * «п'ять кнопок» буває і квадратом 2×3, і смужкою — а вивести це з самої лише
+ * кількості неможливо, бо відповідь залежить від того, що стоїть поруч.
+ */
+export type Shape = 'down' | 'across' | 'custom';
+
+/**
+ * У якій формі віджет стоїть ЗАРАЗ — щоб вікно відкрилося на ній, а не на
+ * типовій. Зворотне до `withSize`: та пише розмір у комірку, ця читає його
+ * назад у той вибір, який людина колись зробила.
+ */
+export function shapeOf(cell: PanelCell | null): { shape: Shape; rows: number; cols: number } {
+	if (!cell) return { shape: 'down', rows: 1, cols: 1 };
+
+	const size = sizeOf(cell);
+	const span = spanOf(cell);
+	if (size.rows === span && size.cols === 1) return { shape: 'down', ...size };
+	if (size.cols === span && size.rows === 1) return { shape: 'across', ...size };
+	return { shape: 'custom', ...size };
 }

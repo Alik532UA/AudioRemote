@@ -404,9 +404,17 @@ export const en: Record<TranslationKey, string> = {
 	'panel.stepHint': 'How much one press moves it.',
 	'panel.icon': 'Icon in the caption',
 	'panel.color': 'Widget colour',
+	'panel.buttonColor': 'Colour of button {n}',
+	'panel.important': 'Important action',
+	'panel.importantHint':
+		'A press flips the screen to the opposite theme for a moment. You catch it out of the corner of your eye, even while looking at the desk.',
 	'panel.turn': 'Turn',
 	'panel.turnDown': 'Down a column',
 	'panel.turnAcross': 'Across a row',
+	'panel.turnCustom': 'Custom size',
+	'panel.sizeRows': 'Rows',
+	'panel.sizeCols': 'Columns',
+	'panel.sizeHint': 'Controls follow this shape: five buttons in 2×3 become two rows.',
 	'panel.spanHint': 'Takes {count} cells. The mouse wheel over the widget turns it too.',
 	'panel.noRoom':
 		'A widget this size does not fit here: there is no room, or a neighbour is in the way. Turn it, drop a button, or choose another place.',

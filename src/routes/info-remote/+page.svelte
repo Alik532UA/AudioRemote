@@ -11,7 +11,9 @@
 	import { sendCommand, waitForAck } from '$lib/net/commands';
 	import { emptyPanel, watchPanel, watchPanelState } from '$lib/net/panel';
 	import type { Panel, PanelCommandType } from '$lib/net/panelTypes';
+	import { controlOf } from '$lib/panel/layout';
 	import { mark } from '$lib/services/breadcrumbs';
+	import { themeState } from '$lib/services/theme.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
 	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
@@ -31,6 +33,11 @@
 	 * забрано в розміру кнопок. Роль пристрою видно в смузі застосунку, назву
 	 * дошки — тут, і більше нічого.
 	 */
+	/** Скільки живе підсвітка комірки. Далі панель знову каже «зараз нічого». */
+	const RECENT_MS = 3000;
+	/** Скільки триває спалах теми на важливій дії. */
+	const FLASH_MS = 1000;
+
 	let info = $state<BoardInfo | null>(null);
 	let boardOnline = $state(false);
 	/** Доки перший знімок присутності не приїхав, «офлайн» означає «ще не знаємо». */
@@ -41,8 +48,18 @@
 	let levels = $state<Record<string, number>>({});
 	let flags = $state<Record<string, boolean>>({});
 	let busy = $state(false);
-	/** Що щойно натиснули — підсвічується, доки не натиснуть наступне. */
+	/** Що щойно натиснули — підсвічується три секунди й гасне само. */
 	let recent = $state<string | null>(null);
+	/** Орган, якого торкнулися, плюс номер натискання. Спалахує на панелі. */
+	let hot = $state<string | null>(null);
+	/*
+	 * Лічильники не реактивні навмисно: від них не залежить жодна розмітка.
+	 * Перший робить кожне натискання відмітним — без нього та сама кнопка
+	 * вдруге не перезапустила б спалах. Другий стежить, чия черга гасити
+	 * підсвітку, щоб старий такт не гасив нову.
+	 */
+	let beat = 0;
+	let watch = 0;
 	/** Чому останнє прохання не доїхало. Порожньо — доїхало або ще не тиснули. */
 	let trouble = $state<TranslationKey | null>(null);
 
@@ -102,13 +119,33 @@
 	 * Надсилається НАМІР, а не нове значення: рахує господар. Чому так —
 	 * у `panelTypes.ts`.
 	 */
+	/**
+	 * ВІДГУК НА НАТИСКАННЯ — одразу й на місці, ще до відповіді табла.
+	 *
+	 * Помічник тисне наосліп і не дивиться на екран довше за мить. Чекати з
+	 * підсвіткою на квитанцію означало б показувати її тоді, коли він уже
+	 * відвів очі; а спалах на самій кнопці — це відповідь на питання «я взагалі
+	 * влучив?», і воно не про мережу. Чи доїхало прохання, каже окремий рядок
+	 * помилки — там, де про це й питають.
+	 */
+	function mind(cell: string, type: PanelCommandType, value?: number): void {
+		recent = cell;
+		hot = `${controlOf(cell, type, value)}#${(beat += 1)}`;
+		if (panel.cells[cell]?.important) themeState.flash(FLASH_MS);
+
+		const mine = (watch += 1);
+		window.setTimeout(() => {
+			if (watch === mine) recent = null;
+		}, RECENT_MS);
+	}
+
 	async function ask(cell: string, type: PanelCommandType, value?: number) {
 		const board = boardSession.current;
 		if (!board || busy) return;
 
 		busy = true;
 		trouble = null;
-		recent = cell;
+		mind(cell, type, value);
 
 		try {
 			const { id } = await sendCommand(boardPath(board.key), type, value, { cell });
@@ -153,7 +190,7 @@
 			</p>
 		{:else}
 			<div class="room">
-				<PanelGrid {panel} {levels} {flags} {recent} {busy} press={ask} />
+				<PanelGrid {panel} {levels} {flags} {recent} {hot} {busy} press={ask} />
 			</div>
 		{/if}
 	{/if}

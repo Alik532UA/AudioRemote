@@ -24,8 +24,9 @@
 		type PanelOutcome
 	} from '$lib/panel/apply';
 	import { starterPanel } from '$lib/panel/starter';
-	import { fits, isVertical, moveTo, spanOf } from '$lib/panel/layout';
+	import { controlOf, fits, moveTo, sizeOf, turned, withSize } from '$lib/panel/layout';
 	import { mark } from '$lib/services/breadcrumbs';
+	import { themeState } from '$lib/services/theme.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
@@ -33,6 +34,7 @@
 	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
 	import PanelEditorGrid from '$lib/components/panel/PanelEditorGrid.svelte';
 	import PanelLog from '$lib/components/panel/PanelLog.svelte';
+	import Picker from '$lib/components/ui/Picker.svelte';
 	import CellDialog from '$lib/components/panel/CellDialog.svelte';
 	import type { TranslationKey } from '$lib/i18n/i18n.svelte';
 
@@ -56,6 +58,20 @@
 	/** Скільки прохань тримати на екрані. Далі найстаріші випадають. */
 	const KEPT = 40;
 
+	/**
+	 * СКІЛЬКИ ЖИВЕ ПІДСВІТКА НА ПАНЕЛІ — три секунди, а не до наступного прохання.
+	 *
+	 * Доти комірка лишалася підсвіченою назавжди, і через півгодини панель
+	 * казала неправду: обведене місце читалося як «просять зараз», хоч просили
+	 * його востаннє в першій дії. Журнал відповідає на «що було» і тримає рядок
+	 * скільки завгодно; панель відповідає на «що зараз», і «зараз» мусить
+	 * минати.
+	 */
+	const RECENT_MS = 3000;
+
+	/** Скільки триває спалах теми на важливій дії. */
+	const FLASH_MS = 1000;
+
 	let ready = $state(false);
 	let helpers = $state(0);
 	let fatal = $state<TranslationKey | null>(null);
@@ -64,8 +80,19 @@
 	let panel = $state<Panel>(emptyPanel());
 	let levels = $state<Record<string, number>>({});
 	let flags = $state<Record<string, boolean>>({});
-	/** Комірка, яку щойно попросили. Підсвічується, доки не прийде наступна. */
+	/** Комірка, яку щойно попросили. Гасне сама через `RECENT_MS`. */
 	let recent = $state<string | null>(null);
+	/** Орган, який щойно натиснули, плюс номер натискання. Спалахує на панелі. */
+	let hot = $state<string | null>(null);
+	/*
+	 * Два лічильники, і обидва НЕ реактивні навмисно: від них не залежить
+	 * жодна розмітка. Перший робить кожне натискання відмітним — без нього та
+	 * сама кнопка вдруге дала б той самий рядок, і спалах не перезапустився б.
+	 * Другий стежить, чия черга гасити підсвітку: натискання на ту саму комірку
+	 * за дві секунди мусить дати нові три, а не догоряти старі.
+	 */
+	let beat = 0;
+	let watch = 0;
 	let notices = $state<(PanelNotice & { id: string; at: number; own: boolean })[]>([]);
 	let filling = $state(false);
 	/** Режим складання. Поки він увімкнений, сітка показує місця, а не органи. */
@@ -157,9 +184,27 @@
 		const result = applyPanelCommand(panel, { levels, flags }, command);
 		if (refused(result)) return result;
 
-		remember(result, command.cell, `${command.at}-${command.cell}`, false);
+		remember(result, command, `${command.at}-${command.cell}`, false);
 		await publishPanelState(board.key, result.next);
 		return null;
+	}
+
+	/** Що саме натиснули: комірки не досить — у віджеті органів кілька. */
+	type Touched = { cell: string; type: PanelCommandType; value?: string | number };
+
+	/**
+	 * ПІДСВІТКА НА ПАНЕЛІ ГАСНЕ САМА, і гасить її ОСТАННЄ натискання.
+	 *
+	 * Лічильник, а не порівняння з коміркою: два прохання на ту саму комірку за
+	 * дві секунди дали б два такти, і перший із них погасив би підсвітку
+	 * другого через секунду після її появи.
+	 */
+	function focus(cell: string): void {
+		recent = cell;
+		const mine = (watch += 1);
+		window.setTimeout(() => {
+			if (watch === mine) recent = null;
+		}, RECENT_MS);
 	}
 
 	/**
@@ -170,10 +215,15 @@
 	 * рівно для того, щоб людина не шукала в залі того, хто попросив, коли
 	 * просила вона сама.
 	 */
-	function remember(result: PanelOutcome, cell: string, id: string, own: boolean): void {
+	function remember(result: PanelOutcome, at: Touched, id: string, own: boolean): void {
 		levels = result.next.levels ?? {};
 		flags = result.next.flags ?? {};
-		recent = cell;
+		focus(at.cell);
+		hot = `${controlOf(at.cell, at.type, at.value)}#${(beat += 1)}`;
+
+		// Важливу дію видно навіть тому, хто дивиться не на екран (`panelTypes.ts`).
+		if (panel.cells[at.cell]?.important) themeState.flash(FLASH_MS);
+
 		notices = [{ ...result.notice, id, at: Date.now(), own }, ...notices].slice(0, KEPT);
 	}
 
@@ -227,7 +277,7 @@
 		);
 		if (refused(result)) return;
 
-		remember(result, cell, `self-${at}-${cell}`, true);
+		remember(result, { cell, type, value }, `self-${at}-${cell}`, true);
 		void publishPanelState(board.key, result.next);
 	}
 
@@ -242,9 +292,9 @@
 		const cell = panel.cells[at];
 		if (!cell) return;
 
-		const wanted = !isVertical(cell);
-		if (!fits(panel, at, spanOf(cell), wanted, at)) return;
-		await putCell(at, { ...cell, vertical: wanted });
+		const wanted = turned(sizeOf(cell));
+		if (!fits(panel, at, wanted, at)) return;
+		await putCell(at, withSize(cell, wanted));
 	}
 
 	/**
@@ -299,20 +349,21 @@
 			форми, журнал — те, що росте й заповнює.
 		-->
 		<div class="desk" class:desk--one={view !== 'both'}>
-			<header class="head card desk__who" data-testid="board-head">
-				<div class="head__who">
-					<h1 class="head__role" data-testid="board-role-title">{t('info.boardTitle')}</h1>
-					{#if board.name}
-						<p class="head__title">{board.name}</p>
-					{/if}
-					<p class="muted mono">{board.id}</p>
-				</div>
-				<div class="head__side">
-					<p class="muted" data-testid="info-helpers-count">
-						{t('info.helpers', { count: `${helpers}` })}
-					</p>
+			<div class="desk__side">
+				<header class="head card desk__who" data-testid="board-head">
+					<div class="head__who">
+						<h1 class="head__role" data-testid="board-role-title">{t('info.boardTitle')}</h1>
+						{#if board.name}
+							<p class="head__title">{board.name}</p>
+						{/if}
+						<p class="muted mono">{board.id}</p>
+					</div>
+					<div class="head__side">
+						<p class="muted" data-testid="info-helpers-count">
+							{t('info.helpers', { count: `${helpers}` })}
+						</p>
 
-					<!--
+						<!--
 					ЯК ПОКЛИКАТИ ПОМІЧНИКА — там само, де в плеєра «Підключити пульт».
 					Без цієї кнопки дошка була глухим кутом: ідентифікатор на екрані є,
 					пароль знає лише той, хто створював, а звідки його взяти вдруге —
@@ -322,26 +373,36 @@
 					Лише для СВОЄЇ дошки: пароля в чужому записі немає, і показувати
 					порожнє вікно нема сенсу.
 				-->
-					{#if board.password}
-						<button
-							class="btn btn--sm"
-							type="button"
-							onclick={() => (inviteOpen = true)}
-							data-testid="info-open-remote-btn"
-						>
-							<IconPhone size={18} aria-hidden="true" />
-							{t('info.connectHelper')}
-						</button>
-					{/if}
+						{#if board.password}
+							<button
+								class="btn btn--sm"
+								type="button"
+								onclick={() => (inviteOpen = true)}
+								data-testid="info-open-remote-btn"
+							>
+								<IconPhone size={18} aria-hidden="true" />
+								{t('info.connectHelper')}
+							</button>
+						{/if}
+					</div>
+				</header>
 
+				<!--
+				КЕРУВАННЯ ЕКРАНОМ — ОКРЕМОЮ КАРТКОЮ, а не хвостом картки дошки.
+
+				У картці дошки лежить те, що ВОНА про себе каже: роль, ідентифікатор,
+				скільки підказок на звʼязку, як покликати ще одну. Складання панелі й
+				вибір того, що показувати, — це не про дошку, а про цей екран, і
+				всередині її картки вони читалися як її властивості.
+			-->
+				<section class="card stack" data-testid="info-screen-section">
 					<!--
 					СКЛАДАННЯ — ОКРЕМИЙ РЕЖИМ, а не олівець біля кожної комірки.
 					Складають панель раз на сезон, а дивляться на неї щовечора; олівці
 					стояли б на екрані весь той час, поки вони не потрібні.
 
 					На порожній дошці кнопки тут немає: те саме слово стоїть посеред
-					картки, яка пояснює, чому екран порожній, — і двічі одне й те саме
-					питає, чим воно відрізняється.
+					картки, яка пояснює, чому екран порожній.
 				-->
 					{#if !empty || editing}
 						<button
@@ -360,25 +421,24 @@
 					{/if}
 
 					<!--
-					Вибір стоїть у шапці, а не над сіткою: це не дія над панеллю, а
-					налаштування ЦЬОГО екрана. За широким пультом видно обидві половини,
-					за вузьким доводиться обирати.
+					ВИБІР ПІДПИСАНО. Три слова без підпису питали «і те, і те» — а чого
+					саме? Тепер сказано прямо, і сам вибір — той самий орган, що й у
+					налаштуваннях, а не власна копія його стилів: копія розтягувалася на
+					всю ширину картки й лишала по собі порожній четвертий сегмент.
 				-->
-					<div class="views" role="group" aria-label={t('panel.viewTitle')}>
-						{#each VIEWS as which (which)}
-							<button
-								class="views__item"
-								type="button"
-								aria-pressed={view === which}
-								onclick={() => (view = which)}
-								data-testid="info-view-{which}-btn"
-							>
-								{t(`panelView.${which}`)}
-							</button>
-						{/each}
+					<div class="field">
+						<span class="field__label" id="info-view-label">{t('panel.viewTitle')}</span>
+						<Picker
+							row
+							labelledby="info-view-label"
+							value={view}
+							prefix="info-view"
+							options={VIEWS.map((which) => ({ value: which, label: t(`panelView.${which}`) }))}
+							onpick={(next) => (view = next as View)}
+						/>
 					</div>
-				</div>
-			</header>
+				</section>
+			</div>
 
 			<div class="desk__main">
 				{#if !ready}
@@ -438,7 +498,7 @@
 							крутить саме звукорежисер, а кнопку з підписом він тисне, щоб
 							позначити зроблене — і рядок про це лягає в той самий журнал.
 						-->
-							<PanelGrid {panel} {levels} {flags} {recent} press={own} />
+							<PanelGrid {panel} {levels} {flags} {recent} {hot} press={own} />
 						</section>
 					{/if}
 
@@ -495,36 +555,6 @@
 		gap: var(--gap-xs);
 	}
 
-	/* Вибір виду — три кнопки без власних рамок у спільній, як у налаштуваннях. */
-	.views {
-		display: flex;
-		overflow: hidden;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-	}
-
-	.views__item {
-		min-height: var(--tap);
-		padding: 0 var(--gap-sm);
-		border: 0;
-		border-inline-start: 1px solid var(--border);
-		background: var(--bg-surface-raised);
-		color: var(--text-secondary);
-		cursor: pointer;
-		font: inherit;
-		font-size: 0.85rem;
-	}
-
-	.views__item:first-child {
-		border-inline-start: 0;
-	}
-
-	.views__item[aria-pressed='true'] {
-		background: var(--accent-soft);
-		color: var(--accent);
-		font-weight: 600;
-	}
-
 	/*
 	 * Дві половини поруч на пульті, одна під одною на телефоні. Журнал
 	 * розтягується, сітка — ні: у неї є власне відношення сторін.
@@ -553,6 +583,13 @@
 	 * лічильник підказок і три кнопки. Ширина потрібна журналу — саме його
 	 * читають через увесь стіл.
 	 */
+	/* Ліва колонка: дві картки одна під одною — дошка й керування екраном. */
+	.desk__side {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap);
+	}
+
 	.desk {
 		display: grid;
 		grid-template-columns: minmax(220px, 20rem) 1fr;

@@ -14,9 +14,12 @@
 		type Panel,
 		type PanelCell
 	} from '$lib/net/panelTypes';
-	import { fits, spanOf } from '$lib/panel/layout';
+	import { fits, shapeOf, sizeOf, type Shape } from '$lib/panel/layout';
+	import ButtonRows from './ButtonRows.svelte';
+	import CellShape from './CellShape.svelte';
 	import ColorPalette from '$lib/components/ui/ColorPalette.svelte';
 	import Picker from '$lib/components/ui/Picker.svelte';
+	import Switch from '$lib/components/ui/Switch.svelte';
 
 	/**
 	 * ЩО ПОСТАВИТИ В КОМІРКУ — одне вікно на всі три роди.
@@ -63,21 +66,32 @@
 	 * б стирати щойно введене. Без `untrack` компілятор чесно питає, чи не
 	 * забули ми `$derived`.
 	 */
+	const start = untrack(() => shapeOf(cell));
+
 	let node = $state<HTMLDialogElement | null>(null);
 	let kind = $state<Choice>(untrack(() => cell?.kind ?? 'none'));
 	let caption = $state(untrack(() => cell?.caption ?? ''));
 	let step = $state(untrack(() => cell?.step ?? 10));
-	let vertical = $state(untrack(() => cell?.vertical !== false));
 	let color = $state<string | null>(untrack(() => cell?.color ?? null));
 	let icon = $state(untrack(() => cell?.icon ?? ''));
+	let important = $state(untrack(() => cell?.important === true));
+	let shape = $state<Shape>(start.shape);
+	let rows = $state(start.rows);
+	let cols = $state(start.cols);
 	/*
-	 * Підписи кнопок живуть окремим масивом рядків, а не масивом об'єктів:
-	 * `bind:value` на полі всередині `{#each}` по об'єктах вимагав би ключа,
-	 * якого в них немає, — порожній підпис не відрізнити від порожнього
-	 * підпису.
+	 * Кнопки живуть масивом об'єктів, бо в кожної їх тепер дві властивості —
+	 * підпис і колір. Ключем у `{#each}` іде позиція: двох однакових полів тут
+	 * не відрізнити ніяк, і порожній підпис не відрізнити від порожнього.
 	 */
-	let labels = $state<string[]>(
-		untrack(() => cell?.buttons?.map((button) => button.label) ?? ['', '', ''])
+	let buttons = $state<{ label: string; color: string | null }[]>(
+		untrack(
+			() =>
+				cell?.buttons?.map((button) => ({ label: button.label, color: button.color ?? null })) ?? [
+					{ label: '', color: null },
+					{ label: '', color: null },
+					{ label: '', color: null }
+				]
+		)
 	);
 
 	$effect(() => {
@@ -92,7 +106,19 @@
 	 * тиснеться, було б нізвідки. Решта родів своїх обов'язкових полів не має,
 	 * а «Порожньо» — це прибирання, і воно законне завжди.
 	 */
-	const ready = $derived(kind !== 'buttons' || labels.some((label) => label.trim().length > 0));
+	const ready = $derived(
+		kind !== 'buttons' || buttons.some((button) => button.label.trim().length > 0)
+	);
+
+	/** Порожні рядки — це не кнопки: людина лишила запасне поле незаповненим. */
+	const kept = () =>
+		buttons
+			.slice(0, MAX_BUTTONS)
+			.map((button) => ({
+				label: button.label.trim().slice(0, MAX_LABEL),
+				...(button.color ? { color: button.color } : {})
+			}))
+			.filter((button) => button.label.length > 0);
 
 	/**
 	 * ЧИ СТАНЕ ВІДЖЕТ НА ЦЕ МІСЦЕ — рахується на льоту, поки його складають.
@@ -105,15 +131,15 @@
 	const draft = $derived<PanelCell>({
 		kind: kind === 'none' ? 'check' : kind,
 		caption,
-		...(kind === 'buttons'
-			? { buttons: labels.filter((label) => label.trim().length > 0).map((label) => ({ label })) }
-			: {}),
+		...(kind === 'buttons' ? { buttons: kept() } : {}),
 		...(kind === 'slider' ? { step } : {}),
-		vertical
+		...(shape === 'custom' ? { rows, cols } : {}),
+		vertical: shape !== 'across'
 	});
 
-	const span = $derived(kind === 'none' ? 1 : spanOf(draft));
-	const roomy = $derived(kind === 'none' || fits(panel, index, span, vertical, index));
+	const size = $derived(sizeOf(draft));
+	const span = $derived(kind === 'none' ? 1 : size.rows * size.cols);
+	const roomy = $derived(kind === 'none' || fits(panel, index, size, index));
 
 	function save() {
 		if (kind === 'none') {
@@ -125,17 +151,13 @@
 		const next: PanelCell = {
 			kind,
 			caption: caption.trim().slice(0, MAX_CAPTION),
-			vertical,
+			vertical: shape !== 'across',
+			...(shape === 'custom' ? { rows, cols } : {}),
 			...(color ? { color } : {}),
+			...(important ? { important: true } : {}),
 			...(icon.trim() ? { icon: icon.trim().slice(0, MAX_PANEL_ICON) } : {})
 		};
-		if (kind === 'buttons') {
-			// Порожні рядки — це не кнопки: людина лишила запасне поле незаповненим.
-			next.buttons = labels
-				.map((label) => label.trim().slice(0, MAX_LABEL))
-				.filter((label) => label.length > 0)
-				.map((label) => ({ label }));
-		}
+		if (kind === 'buttons') next.buttons = kept();
 		if (kind === 'slider') next.step = step;
 
 		onsave(next);
@@ -229,58 +251,61 @@
 						<span class="field__label">{t('panel.color')}</span>
 						<ColorPalette value={color} testid="cell-swatch" onpick={(slug) => (color = slug)} />
 					</div>
+
+					<!--
+						ВАЖЛИВА ДІЯ — і чому нею мигає весь екран, а не сам віджет.
+
+						Яскравішу рамку на самому віджеті видно лише тому, хто на нього й
+						так дивиться. А потрібне зворотне: звукорежисер дивиться на пульт,
+						у зал або в ноти, і мить протилежної теми він упіймає КРАЄМ ОКА —
+						саме тому, що змінюється все поле зору, а не його клаптик.
+
+						Прапорець необовʼязковий навмисно: якби так поводилася кожна
+						кнопка, екран блимав би цілу виставу й перестав би щось означати.
+					-->
+					<div class="field">
+						<Switch
+							checked={important}
+							label={t('panel.important')}
+							testid="cell-important-toggle"
+							onchange={(next) => (important = next)}
+						/>
+						<p class="muted">{t('panel.importantHint')}</p>
+					</div>
 				</div>
 
 				<div class="group">
-					<!--
-						ПОВОРОТ — ТУТ, А НЕ ЛИШЕ КОЛЕСОМ МИШІ. Колесом швидше, але його немає
-						ні на телефоні, ні з клавіатури, а без повороту панель не скласти.
-					-->
-					<div class="field">
-						<span class="field__label" id="cell-turn-label">{t('panel.turn')}</span>
-						<Picker
-							row
-							labelledby="cell-turn-label"
-							value={vertical ? 'down' : 'across'}
-							prefix="cell-turn"
-							options={[
-								{ value: 'down', label: t('panel.turnDown') },
-								{ value: 'across', label: t('panel.turnAcross') }
-							]}
-							onpick={(next) => (vertical = next === 'down')}
-						/>
-						<p class="muted">{t('panel.spanHint', { count: span })}</p>
-					</div>
+					<CellShape
+						{shape}
+						{rows}
+						{cols}
+						{span}
+						onshape={(next) => {
+							/*
+							 * «Свій розмір» починається з ТОГО, що зараз на екрані, а не з
+							 * того, що було при відкритті вікна. Людина, яка щойно додала
+							 * четверту кнопку, побачила б у лічильниках учорашні три — і
+							 * мусила б спершу виправити число, якого не міняла.
+							 */
+							if (next === 'custom' && shape !== 'custom') {
+								rows = size.rows;
+								cols = size.cols;
+							}
+							shape = next;
+						}}
+						onsize={(down, across) => {
+							rows = down;
+							cols = across;
+						}}
+					/>
 
 					{#if kind === 'buttons'}
 						<div class="field">
 							<span class="field__label">{t('panel.buttonsTitle')}</span>
-							{#each labels as _, position (position)}
-								<label class="visually-hidden" for="cell-label-{position}">
-									{t('panel.buttonLabel', { n: position + 1 })}
-								</label>
-								<input
-									id="cell-label-{position}"
-									class="input"
-									type="text"
-									maxlength={MAX_LABEL}
-									placeholder={t('panel.buttonLabel', { n: position + 1 })}
-									bind:value={labels[position]}
-									data-testid="cell-label-{position}-input"
-								/>
-							{/each}
-
-							{#if labels.length < MAX_BUTTONS}
-								<button
-									class="btn btn--sm"
-									type="button"
-									onclick={() => (labels = [...labels, ''])}
-									data-testid="cell-add-label-btn"
-								>
-									{t('panel.addButton')}
-								</button>
-							{/if}
-							<p class="muted">{t('panel.buttonsHint')}</p>
+							<ButtonRows
+								rows={buttons}
+								onadd={() => (buttons = [...buttons, { label: '', color: null }])}
+							/>
 						</div>
 					{:else if kind === 'slider'}
 						<div class="field">

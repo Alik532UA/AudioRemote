@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { DEFAULT_LEVEL, type Panel, type PanelCommandType } from '$lib/net/panelTypes';
-	import { layoutPanel, type Placed } from '$lib/panel/layout';
+	import { controlOf, layoutPanel, type Placed } from '$lib/panel/layout';
 	import { colorOf } from '$lib/config/trackColors';
 
 	/**
@@ -49,10 +49,19 @@
 		busy?: boolean;
 		/** Комірка, яку щойно чіпали. Підсвічується на обох екранах. */
 		recent?: string | null;
+		/**
+		 * ЩО САМЕ щойно натиснули: `controlOf(...)` плюс `#` і номер натискання.
+		 *
+		 * Не просто комірка: у віджеті органів кілька, і спалахнути мусить той,
+		 * якого торкнулися, а не всі його сусіди. Номер у хвості потрібен для
+		 * повторів — двічі підряд та сама кнопка дає той самий орган, і без
+		 * номера друге натискання не відрізнити від першого взагалі.
+		 */
+		hot?: string | null;
 		press: (cell: string, type: PanelCommandType, value?: number) => void;
 	}
 
-	let { panel, levels, flags, busy = false, recent = null, press }: Props = $props();
+	let { panel, levels, flags, busy = false, recent = null, hot = null, press }: Props = $props();
 
 	/**
 	 * ДЕ ЩО СТОЇТЬ — рахується один раз на панель, а не вгадується розміткою.
@@ -71,6 +80,46 @@
 		const index = Number(key);
 		return `${Math.floor(index / 3) + 1} / ${(index % 3) + 1} / span 1 / span 1`;
 	};
+
+	/** Колір змінною, а не класом: назв кольорів десять, а правило одне. */
+	const paint = (hex: string | null) => (hex ? `; --widget-color: ${hex}` : '');
+
+	/**
+	 * Чи цей орган щойно натиснули — і яким саме натисканням.
+	 *
+	 * Порівняння з `#` на кінці, а не голим початком рядка: без роздільника
+	 * `3|press|1` збігався б із `3|press|11`, і спалахувала б чужа кнопка.
+	 */
+	const fire = (control: string) => (hot?.startsWith(`${control}#`) ? hot : '');
+
+	/**
+	 * СПАЛАХ НА НАТИСНУТІЙ КНОПЦІ — і чому його перезапускає JavaScript.
+	 *
+	 * Сам спалах — це CSS: клас `key--hot` вмикає такт, який за п'ять секунд
+	 * гасне до власного кольору кнопки. Але клас НЕ ПЕРЕЗАПУСКАЄ такт: та сама
+	 * кнопка двічі поспіль лишає його ввімкненим, браузер не бачить зміни, і
+	 * друге натискання не показує нічого. Тому тут класичний прийом: інлайновий
+	 * `animation: none`, змушене перемальовування, зняття інлайну — після цього
+	 * такт починається спочатку.
+	 *
+	 * Ім'я такту звідси НЕ називається навмисно: Svelte перейменовує `@keyframes`
+	 * під хеш компонента, і будь-яке ім'я в JS розійшлося б зі стилями на
+	 * першій же збірці.
+	 */
+	function glow(node: HTMLElement, mark: string) {
+		let seen = mark;
+		return {
+			update(next: string) {
+				if (next === seen) return;
+				seen = next;
+				if (!next) return;
+
+				node.style.animation = 'none';
+				void node.offsetWidth;
+				node.style.animation = '';
+			}
+		};
+	}
 </script>
 
 <div class="grid" data-testid="panel-list">
@@ -92,18 +141,11 @@
 		{@const cell = panel.cells[key]}
 		{#if cell}
 			{@const hex = colorOf(cell.color)}
-			<!--
-				КОЛІР — СМУГА ЗБОКУ Й ЛЕДЬ ПОМІТНА ПІДКЛАДКА, а не тло під текстом.
-				Те саме рішення, що й у треків: інакше довелося б добирати читабельну
-				пару до кожної з десяти заготовок у кожній темі. Колір тут для того,
-				щоб віджет ЗНАХОДИЛИ оком, а не читали.
-			-->
 			<div
 				class="cell"
 				class:cell--recent={recent === key}
-				class:cell--wide={!at.vertical}
 				class:cell--tinted={hex !== null}
-				style="grid-area: {spot(at)}{hex ? `; --widget-color: ${hex}` : ''}"
+				style="grid-area: {spot(at)}; --cols: {at.cols}{paint(hex)}"
 				data-testid="panel-cell-{key}"
 			>
 				{#if cell.caption || cell.icon}
@@ -114,12 +156,24 @@
 				{/if}
 
 				{#if cell.kind === 'buttons'}
-					<div class="cell__stack">
+					<!--
+						ОРГАНИ СТАЮТЬ ПО ФОРМІ ВІДЖЕТА: стільки стовпців, скільки клітинок
+						він займає вшир. Чотири кнопки у віджеті 2×2 стануть квадратом, ті
+						самі чотири в 1×4 — рядком, і окремого правила для кожної форми не
+						треба жодного.
+					-->
+					<div class="cell__stack cell__stack--grid">
 						{#each cell.buttons ?? [] as button, index (index)}
+							{@const own = colorOf(button.color)}
+							{@const mark = fire(controlOf(key, 'press', index))}
 							<button
 								class="key"
+								class:key--tinted={own !== null}
+								class:key--hot={mark !== ''}
 								type="button"
 								disabled={busy}
+								style={own ? `--widget-color: ${own}` : undefined}
+								use:glow={mark}
 								onclick={() => press(key, 'press', index)}
 								data-testid="panel-press-{key}-{index}-btn"
 							>
@@ -129,19 +183,24 @@
 					</div>
 				{:else if cell.kind === 'slider'}
 					{@const level = levels[key] ?? DEFAULT_LEVEL}
+					{@const step = cell.step ?? 10}
+					{@const up = fire(controlOf(key, 'bump', step))}
+					{@const down = fire(controlOf(key, 'bump', -step))}
 					<!--
 						Дві кнопки замість справжнього повзунка, і це не спрощення.
 						Тягнути повзунок у комірці завширшки з палець неможливо наосліп, а
 						головне — помічник просить НАПРЯМОК («гучніше»), а не число:
 						скільки саме це буде, вирішує крок, який поставив господар.
 					-->
-					<div class="cell__stack">
+					<div class="cell__stack" class:cell__stack--row={at.cols > at.rows}>
 						<button
 							class="key"
+							class:key--hot={up !== ''}
 							type="button"
 							disabled={busy}
 							aria-label="{cell.caption}: {t('panel.up')}"
-							onclick={() => press(key, 'bump', cell.step ?? 10)}
+							use:glow={up}
+							onclick={() => press(key, 'bump', step)}
 							data-testid="panel-up-{key}-btn"
 						>
 							{t('panel.up')}
@@ -151,10 +210,12 @@
 						</output>
 						<button
 							class="key"
+							class:key--hot={down !== ''}
 							type="button"
 							disabled={busy}
 							aria-label="{cell.caption}: {t('panel.down')}"
-							onclick={() => press(key, 'bump', -(cell.step ?? 10))}
+							use:glow={down}
+							onclick={() => press(key, 'bump', -step)}
 							data-testid="panel-down-{key}-btn"
 						>
 							{t('panel.down')}
@@ -162,13 +223,16 @@
 					</div>
 				{:else}
 					{@const on = flags[key] === true}
+					{@const mark = fire(controlOf(key, 'toggle'))}
 					<div class="cell__stack">
 						<button
 							class="key key--check"
 							class:key--on={on}
+							class:key--hot={mark !== ''}
 							type="button"
 							disabled={busy}
 							aria-pressed={on}
+							use:glow={mark}
 							onclick={() => press(key, 'toggle')}
 							data-testid="panel-toggle-{key}-btn"
 						>
@@ -185,7 +249,7 @@
 	/*
 	 * СІТКА ЗАЙМАЄ ТЕ, ЩО ЇЙ ДАЛИ, — а скільки дати, вирішує сторінка.
 	 *
-	 * Спершу тут стояло `aspect-ratio: 9 / 16` і межа висоти у `dvh`. Заміряно
+	 * Спершу тут стояло `aspect-ratio: 9 / 16` і межа висоти в `dvh`. Заміряно
 	 * на 375×812: сітка виходила 343×610 при вільних 660 — тобто відношення
 	 * з'їдало п'ятдесят точок висоти, а на них із трьох кнопок у комірці
 	 * виходило 102×30 замість 102×44. Ціна відношення виявилася рівно тією, яку
@@ -274,40 +338,60 @@
 		white-space: nowrap;
 	}
 
+	/*
+	 * СТОС ОРГАНІВ — СІТКА, А НЕ КОЛОНКА, і рахує вона клітинки віджета.
+	 *
+	 * Доти органи завжди стояли в один ряд або в один стовпчик, бо й віджет був
+	 * смужкою завширшки в клітинку. Відколи віджетові можна задати свій
+	 * прямокутник, «стовпчик» перестав бути відповіддю: чотири кнопки у віджеті
+	 * 2×2 мусять стати квадратом. `--cols` приходить із розкладки й каже,
+	 * скільки клітинок завширшки віджет узяв; решта — робота сітки.
+	 */
 	.cell__stack {
-		display: flex;
+		display: grid;
 		flex: 1;
-		flex-direction: column;
 		gap: 2px;
+		grid-auto-rows: minmax(0, 1fr);
+		grid-auto-columns: minmax(0, 1fr);
 		min-block-size: 0;
 		min-inline-size: 0;
 	}
 
-	/* Повернутий віджет: органи стають у ряд, а не стовпчиком. */
-	.cell--wide .cell__stack {
-		flex-direction: row;
+	.cell__stack--grid {
+		grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+	}
+
+	/* Повзунок у широкому віджеті: «більше», число й «менше» стають у ряд. */
+	.cell__stack--row {
+		grid-auto-flow: column;
 	}
 
 	.cell__value {
 		display: grid;
-		flex: none;
 		place-items: center;
 		font-size: 0.8rem;
 		line-height: 1;
 	}
 
 	/*
-	 * Кнопки ДІЛЯТЬ висоту комірки порівну, а не мають свою.
+	 * КНОПКА ЗАЙМАЄ 80% СВОГО МІСЦЯ, а не все до країв.
 	 *
-	 * `min-height` тут був би гіршим за відсутній: чотири кнопки по 44 px не
-	 * влазять у рядок сітки без прокрутки, тож межа або розсунула б сітку, або
-	 * дала б прокрутку — обидва наслідки ламають те, заради чого сітка й
-	 * фіксована. Замір і межі цього рішення названі в PROJECT-CONTEXT § 4б-7.
+	 * Доти органи впиралися один в одного: між ними лишалося дві точки, і група
+	 * з трьох кнопок читалася як один довгий прямокутник, поділений рисками. Те,
+	 * що це ТРИ окремі цілі, доводилося з'ясовувати пальцем.
+	 *
+	 * Повітря навколо кнопки — і є та відповідь. Вісімдесят відсотків у кожному
+	 * напрямку лишають зазор приблизно в п'яту частину клітинки, і за ним кнопки
+	 * видно як окремі. Розміру це коштує небагато: клітинка на телефоні —
+	 * 102×122, тобто кнопка лишається 82×98 при стандарті 44×44
+	 * (PROJECT-CONTEXT § 4б-7).
 	 */
 	.key {
 		display: grid;
-		flex: 1;
 		place-items: center;
+		place-self: center;
+		inline-size: 80%;
+		block-size: 80%;
 		min-block-size: 0;
 		min-inline-size: 0;
 		padding: 2px;
@@ -321,6 +405,19 @@
 		font-size: 0.78rem;
 		line-height: 1.05;
 		text-align: center;
+	}
+
+	/*
+	 * СВІЙ КОЛІР У КНОПКИ — і він сильніший за колір віджета, навмисно.
+	 *
+	 * Колір віджета обводить усю групу; колір кнопки має виділити ОДНУ з них
+	 * серед сусідок («стоп» червоним серед білих). Тому тут не обводка, а
+	 * помітніша підкладка: обводка всередині обводки читалася б як друга рамка
+	 * того самого віджета.
+	 */
+	.key--tinted {
+		border-color: var(--widget-color);
+		background: color-mix(in oklab, var(--widget-color) 22%, var(--bg-surface));
 	}
 
 	.key:disabled {
@@ -341,6 +438,44 @@
 	/* Відгук на палець: `:hover` на дотику не буває, а знати про натискання треба. */
 	.key:not(:disabled):active {
 		box-shadow: inset 0 0 0 999px var(--press-veil);
+	}
+
+	/*
+	 * НАТИСНУТА КНОПКА СВІТИТЬСЯ Й ГАСНЕ П'ЯТЬ СЕКУНД.
+	 *
+	 * Доти натискання було видно лише в журналі — тобто в іншому кінці екрана, а
+	 * на самій панелі не лишалося нічого. Людина, яка щойно натиснула, не бачила,
+	 * ЩО саме вона натиснула, і звіряла це очима по журналу.
+	 *
+	 * Світиться `box-shadow`, а не тло: вставлена тінь лягає ПОВЕРХ будь-якого
+	 * тла й ПІД текстом, тож те саме правило працює і для білої кнопки, і для
+	 * тієї, якій дали власний колір, — і гасне вона до власного кольору, хай
+	 * який він. Тло довелося б гасити в десять різних кінцевих значень.
+	 *
+	 * П'ять секунд — це довго навмисно: звукорежисер дивиться на пульт, а не на
+	 * екран, і підіймає очі вже після того, як прохання прозвучало.
+	 */
+	.key--hot {
+		animation: press-glow 5s ease-out;
+	}
+
+	@keyframes press-glow {
+		from {
+			box-shadow:
+				inset 0 0 0 999px var(--accent-soft),
+				0 0 0 3px var(--accent);
+		}
+		to {
+			box-shadow:
+				inset 0 0 0 999px transparent,
+				0 0 0 3px transparent;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.key--hot {
+			animation: none;
+		}
 	}
 
 	.key--check {
