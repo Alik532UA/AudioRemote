@@ -7,6 +7,7 @@
 	import { isAssignable, labelForCode } from '$lib/hotkeys/hotkeys';
 	import type { BoardEditor, BoardTrack } from '$lib/board/editor';
 	import TriggerEditor from './TriggerEditor.svelte';
+	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
 	import VisibilityPicker from './VisibilityPicker.svelte';
 
 	interface Props {
@@ -256,32 +257,26 @@
 				-->
 				<div class="field">
 					<label class="field__label" for="track-plays">{t('track.plays')}</label>
-					<input
+					<NumberStepper
 						id="track-plays"
-						class="input mono"
-						type="number"
-						min="1"
-						max={MAX_PLAYS}
+						label={t('track.plays')}
 						value={track.plays}
-						data-testid="track-plays"
-						oninput={(event) =>
-							controller.setRepeat(track.id, Number(event.currentTarget.value), track.gapSec)}
+						min={1}
+						max={MAX_PLAYS}
+						onchange={(next) => controller.setRepeat(track.id, next, track.gapSec)}
 					/>
 				</div>
 
 				{#if track.plays > 1}
 					<div class="field">
 						<label class="field__label" for="track-gap">{t('track.gap')}</label>
-						<input
+						<NumberStepper
 							id="track-gap"
-							class="input mono"
-							type="number"
-							min="0"
-							max={MAX_GAP_SEC}
+							label={t('track.gap')}
 							value={track.gapSec}
-							data-testid="track-gap"
-							oninput={(event) =>
-								controller.setRepeat(track.id, track.plays, Number(event.currentTarget.value))}
+							min={0}
+							max={MAX_GAP_SEC}
+							onchange={(next) => controller.setRepeat(track.id, track.plays, next)}
 						/>
 						<p class="muted">{t('track.gapHint')}</p>
 					</div>

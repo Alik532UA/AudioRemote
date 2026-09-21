@@ -227,8 +227,13 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	// (`HardResetButton.svelte`). Стеля опускається РАЗОМ із файлом, інакше
 	// звільнене місце мовчки заповнить наступна правка, і ратчет не спрацює.
 	'src/lib/components/settings/SettingsPanel.svelte': 459,
-	'src/lib/components/player/TriggerEditor.svelte': 415,
-	'src/lib/components/player/TrackDialog.svelte': 326,
+	// 415 → 416: поле такту стало `NumberStepper`. Сам компонент винесений і
+	// лежить поза переліком; тут лишився рядок на його імпорт.
+	'src/lib/components/player/TriggerEditor.svelte': 416,
+	// 326 → 321: два поля з власними `oninput` замінені на `NumberStepper`.
+	// Стеля опускається РАЗОМ із файлом — інакше звільнене місце мовчки заповнить
+	// наступна правка.
+	'src/lib/components/player/TrackDialog.svelte': 321,
 	// 329 → 331: по рядку `intent += 1` у `pause()` і `resume()`. Обидві команди
 	// теж кажуть, що має звучати зараз, а лічильник піднімали лише «стоп»,
 	// запуск і вихід — тобто пауза під час читання файлу гасила старий звук, і

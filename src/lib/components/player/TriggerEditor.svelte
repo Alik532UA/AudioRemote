@@ -5,6 +5,7 @@
 	import {
 		defaultSchedule,
 		emptyTrigger,
+		MAX_INTERVAL_SEC,
 		MIN_INTERVAL_SEC,
 		TRIGGER_TESTS,
 		withinSchedule,
@@ -13,6 +14,7 @@
 	import { FAULT_TEXT, triggerWatcher } from '$lib/triggers/watcher.svelte';
 	import type { BoardEditor } from '$lib/board/editor';
 	import Switch from '$lib/components/ui/Switch.svelte';
+	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
 
 	interface Props {
 		trackId: string;
@@ -151,14 +153,13 @@
 
 		<div class="field">
 			<label class="field__label" for="trigger-every">{t('trigger.every')}</label>
-			<input
+			<NumberStepper
 				id="trigger-every"
-				class="input mono"
-				type="number"
+				label={t('trigger.every')}
+				value={draft.everySec}
 				min={MIN_INTERVAL_SEC}
-				max="3600"
-				bind:value={draft.everySec}
-				data-testid="trigger-every"
+				max={MAX_INTERVAL_SEC}
+				onchange={(next) => (draft.everySec = next)}
 			/>
 		</div>
 
