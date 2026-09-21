@@ -32,6 +32,7 @@
 	} from '$lib/panel/apply';
 	import { starterPanel } from '$lib/panel/starter';
 	import { controlOf, fits, moveTo, sizeOf, turned, withSize } from '$lib/panel/layout';
+	import { keepPanel, recallPanel } from '$lib/panel/keep';
 	import { mark } from '$lib/services/breadcrumbs';
 	import { attentionState } from '$lib/services/attention.svelte';
 	import { describeError } from '$lib/net/describeError';
@@ -39,7 +40,7 @@
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import { IconPhone } from '$lib/config/icons';
 	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
-	import PanelEditorGrid from '$lib/components/panel/PanelEditorGrid.svelte';
+	import PanelBuilder from '$lib/components/panel/PanelBuilder.svelte';
 	import PanelLog from '$lib/components/panel/PanelLog.svelte';
 	import ScreenControls, { type View } from '$lib/components/panel/ScreenControls.svelte';
 	import CellDialog from '$lib/components/panel/CellDialog.svelte';
@@ -97,6 +98,8 @@
 	let watch = 0;
 	let notices = $state<(PanelNotice & { id: string; at: number; own: boolean; who: string })[]>([]);
 	let filling = $state(false);
+	/** Чи вже пробували підняти панель із копії. Пробуємо один раз. */
+	let restored = false;
 	/** Режим складання. Поки він увімкнений, сітка показує місця, а не органи. */
 	let editing = $state(false);
 	/** Яку комірку зараз правлять. Порожньо — вікно закрите. */
@@ -143,7 +146,7 @@
 				await ensureBoard(board.key, board.name);
 				await pruneAcks(boardPath(board.key));
 				track(await trackPresence(board.key, 'player'));
-				track(await watchPanel(board.key, (next) => (panel = next ?? emptyPanel())));
+				track(await watchPanel(board.key, (next) => hold(board.key, next)));
 				track(
 					await watchPanelState(board.key, (state) => {
 						levels = state?.levels ?? {};
@@ -168,6 +171,31 @@
 			for (const stop of cleanups.splice(0)) stop();
 		};
 	});
+
+	/**
+	 * ЗНІМОК ПАНЕЛІ ПРИЇХАВ — показати й ЗАПАМ'ЯТАТИ.
+	 *
+	 * Копія лягає в браузер щоразу, і саме тому вузол, який зник із бази, не
+	 * забирає з собою вечір роботи: панель повертається туди сама. Чому «зник»
+	 * і «спорожнили» — різні випадки, сказано в `panel/keep.ts`.
+	 *
+	 * Повернення робиться ОДИН раз на сторінку: інакше людина, яка щойно
+	 * спорожнила панель до нуля комірок, боролася б із власним табло.
+	 */
+	function hold(key: string, next: Panel | null): void {
+		if (next) {
+			panel = next;
+			keepPanel(key, next);
+			return;
+		}
+
+		panel = emptyPanel();
+		if (restored) return;
+		restored = true;
+
+		const kept = recallPanel(key);
+		if (kept) void publishPanel(key, { rev: Date.now(), cells: kept.cells });
+	}
 
 	/**
 	 * ПРОХАННЯ ПРИЙШЛО.
@@ -347,6 +375,18 @@
 		void publishVerdict(board.key, kind, cell, caption);
 	}
 
+	/** Покласти панель цілком — із файлу або звідки завгодно ще. */
+	async function putPanel(next: Panel): Promise<void> {
+		const board = boardSession.current;
+		if (!board) return;
+
+		try {
+			await publishPanel(board.key, { rev: Date.now(), cells: next.cells });
+		} catch (error) {
+			fatal = describeError(error);
+		}
+	}
+
 	/** Скласти типову панель — рівно ті комірки, з яких починають у залі. */
 	async function fill() {
 		const board = boardSession.current;
@@ -432,29 +472,17 @@
 				{#if !ready}
 					<p class="card muted" data-testid="info-wait-text">{t('common.loading')}</p>
 				{:else if editing}
-					<section class="card stack" data-testid="info-editor-section">
-						<p class="muted">{t('panel.editHint')}</p>
-						<p class="muted">{t('panel.dragHint')}</p>
-						<PanelEditorGrid
-							{panel}
-							onpick={(cell) => (picked = cell)}
-							onrotate={(cell) => void rotate(cell)}
-							onmove={(at, to) => void shift(at, to)}
-						/>
-
-						{#if empty}
-							<button
-								class="btn"
-								type="button"
-								disabled={filling}
-								onclick={fill}
-								data-testid="info-fill-btn"
-							>
-								{filling ? t('common.loading') : t('info.fillStarter')}
-							</button>
-							<p class="muted">{t('info.fillStarterHint')}</p>
-						{/if}
-					</section>
+					<PanelBuilder
+						{panel}
+						{empty}
+						{filling}
+						name={board.name || board.id}
+						onpick={(cell) => (picked = cell)}
+						onrotate={(cell) => void rotate(cell)}
+						onmove={(at, to) => void shift(at, to)}
+						onfill={fill}
+						onload={(next) => void putPanel(next)}
+					/>
 				{:else if empty}
 					<!--
 				ПАНЕЛІ ЩЕ НЕМАЄ, і сказано про це прямо разом із виходом. Порожня
