@@ -175,6 +175,10 @@
 							".validate": "$cell.matches(/^([0-9]|1[0-4])$/) && newData.hasChildren(['kind'])",
 							"kind": { ".validate": "newData.val().matches(/^(buttons|slider|check)$/)" },
 							"caption": { ".validate": "newData.isString() && newData.val().length <= 24" },
+							// Назва заготовки, а не код кольору: перелік живе в коді, і
+							// довільний рядок кольору правилом не перевіриш.
+							"color": { ".validate": "newData.val().matches(/^[a-z]{2,12}$/)" },
+							"icon": { ".validate": "newData.isString() && newData.val().length <= 16" },
 							"step": {
 								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50"
 							},

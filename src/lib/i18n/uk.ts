@@ -419,6 +419,8 @@ export const uk = {
 	'panel.addButton': 'Додати кнопку',
 	'panel.step': 'Крок',
 	'panel.stepHint': 'На скільки міняє положення одне натискання.',
+	'panel.icon': 'Значок у підписі',
+	'panel.color': 'Колір віджета',
 	'panel.turn': 'Поворот',
 	'panel.turnDown': 'Стовпчиком',
 	'panel.turnAcross': 'Рядком',

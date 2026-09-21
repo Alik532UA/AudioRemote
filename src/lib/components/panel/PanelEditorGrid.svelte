@@ -2,6 +2,7 @@
 	import { plural, t } from '$lib/i18n/i18n.svelte';
 	import { PANEL_COLS, type Panel, type PanelCell } from '$lib/net/panelTypes';
 	import { layoutPanel, type Placed } from '$lib/panel/layout';
+	import { colorOf } from '$lib/config/trackColors';
 
 	/**
 	 * СІТКА В РЕЖИМІ СКЛАДАННЯ — ОКРЕМА, а не та сама з прапорцем.
@@ -71,10 +72,12 @@
 				`preventDefault` обовʼязковий: інакше сторінка під складальником
 				поїде разом із поворотом.
 			-->
+			{@const hex = colorOf(cell.color)}
 			<button
 				class="slot"
+				class:slot--tinted={hex !== null}
 				type="button"
-				style="grid-area: {spot(at)}"
+				style="grid-area: {spot(at)}{hex ? `; --widget-color: ${hex}` : ''}"
 				onclick={() => onpick(at.cell)}
 				onwheel={(event) => {
 					event.preventDefault();
@@ -82,8 +85,11 @@
 				}}
 				data-testid="panel-slot-{at.cell}-btn"
 			>
-				{#if cell.caption}
-					<span class="slot__caption">{cell.caption}</span>
+				{#if cell.caption || cell.icon}
+					<span class="slot__caption">
+						{#if cell.icon}<span aria-hidden="true">{cell.icon}</span>{/if}
+						{cell.caption}
+					</span>
 				{/if}
 				<span class="slot__what">{summary(cell)}</span>
 			</button>
@@ -124,6 +130,12 @@
 		cursor: pointer;
 		font: inherit;
 		text-align: center;
+	}
+
+	/* Колір — так само, як у живій сітці: складальник показує те, що побачить зал. */
+	.slot--tinted {
+		border-inline-start: 4px solid var(--widget-color);
+		background: color-mix(in oklab, var(--widget-color) 12%, var(--bg-surface-raised));
 	}
 
 	/* Пунктир — те саме, що й у живій сітці: місце, куди щось стане. */

@@ -395,6 +395,8 @@ export const en: Record<TranslationKey, string> = {
 	'panel.addButton': 'Add a button',
 	'panel.step': 'Step',
 	'panel.stepHint': 'How much one press moves it.',
+	'panel.icon': 'Icon in the caption',
+	'panel.color': 'Widget colour',
 	'panel.turn': 'Turn',
 	'panel.turnDown': 'Down a column',
 	'panel.turnAcross': 'Across a row',

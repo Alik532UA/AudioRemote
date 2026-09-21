@@ -2,6 +2,7 @@
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { DEFAULT_LEVEL, type Panel, type PanelCommandType } from '$lib/net/panelTypes';
 	import { layoutPanel, type Placed } from '$lib/panel/layout';
+	import { colorOf } from '$lib/config/trackColors';
 
 	/**
 	 * СІТКА 3×5 — ОДНА НА ОБИДВА ЕКРАНИ.
@@ -109,15 +110,26 @@
 		{@const key = at.cell}
 		{@const cell = panel.cells[key]}
 		{#if cell}
+			{@const hex = colorOf(cell.color)}
+			<!--
+				КОЛІР — СМУГА ЗБОКУ Й ЛЕДЬ ПОМІТНА ПІДКЛАДКА, а не тло під текстом.
+				Те саме рішення, що й у треків: інакше довелося б добирати читабельну
+				пару до кожної з десяти заготовок у кожній темі. Колір тут для того,
+				щоб віджет ЗНАХОДИЛИ оком, а не читали.
+			-->
 			<div
 				class="cell"
 				class:cell--recent={recent === key}
 				class:cell--wide={!at.vertical}
-				style="grid-area: {spot(at)}"
+				class:cell--tinted={hex !== null}
+				style="grid-area: {spot(at)}{hex ? `; --widget-color: ${hex}` : ''}"
 				data-testid="panel-cell-{key}"
 			>
-				{#if cell.caption}
-					<span class="cell__caption">{cell.caption}</span>
+				{#if cell.caption || cell.icon}
+					<span class="cell__caption">
+						{#if cell.icon}<span class="cell__icon" aria-hidden="true">{cell.icon}</span>{/if}
+						{cell.caption}
+					</span>
 				{/if}
 
 				{#if cell.kind === 'buttons'}
@@ -240,6 +252,22 @@
 	.cell--empty {
 		border-style: dashed;
 		background: none;
+	}
+
+	.cell--tinted {
+		border-inline-start: 4px solid var(--widget-color);
+		background: color-mix(in oklab, var(--widget-color) 12%, var(--bg-surface-raised));
+	}
+
+	/* Повернутий віджет: смуга зверху, бо органи стоять у ряд. */
+	.cell--wide.cell--tinted {
+		border-inline-start: 1px solid var(--border);
+		border-block-start: 4px solid var(--widget-color);
+	}
+
+	.cell__icon {
+		font-size: 0.85rem;
+		line-height: 1;
 	}
 
 	/* Що щойно попросили — видно обом, і по тому самому місцю. */

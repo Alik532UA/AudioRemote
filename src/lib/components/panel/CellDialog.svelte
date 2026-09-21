@@ -8,12 +8,15 @@
 		MAX_CAPTION,
 		MAX_LABEL,
 		MAX_STEP,
+		MAX_PANEL_ICON,
 		MIN_STEP,
 		type CellKind,
 		type Panel,
 		type PanelCell
 	} from '$lib/net/panelTypes';
 	import { fits, spanOf } from '$lib/panel/layout';
+	import ColorPalette from '$lib/components/ui/ColorPalette.svelte';
+	import Picker from '$lib/components/ui/Picker.svelte';
 
 	/**
 	 * ЩО ПОСТАВИТИ В КОМІРКУ — одне вікно на всі три роди.
@@ -65,6 +68,8 @@
 	let caption = $state(untrack(() => cell?.caption ?? ''));
 	let step = $state(untrack(() => cell?.step ?? 10));
 	let vertical = $state(untrack(() => cell?.vertical !== false));
+	let color = $state<string | null>(untrack(() => cell?.color ?? null));
+	let icon = $state(untrack(() => cell?.icon ?? ''));
 	/*
 	 * Підписи кнопок живуть окремим масивом рядків, а не масивом об'єктів:
 	 * `bind:value` на полі всередині `{#each}` по об'єктах вимагав би ключа,
@@ -106,6 +111,7 @@
 		...(kind === 'slider' ? { step } : {}),
 		vertical
 	});
+
 	const span = $derived(kind === 'none' ? 1 : spanOf(draft));
 	const roomy = $derived(kind === 'none' || fits(panel, index, span, vertical, index));
 
@@ -116,7 +122,13 @@
 			return;
 		}
 
-		const next: PanelCell = { kind, caption: caption.trim().slice(0, MAX_CAPTION), vertical };
+		const next: PanelCell = {
+			kind,
+			caption: caption.trim().slice(0, MAX_CAPTION),
+			vertical,
+			...(color ? { color } : {}),
+			...(icon.trim() ? { icon: icon.trim().slice(0, MAX_PANEL_ICON) } : {})
+		};
 		if (kind === 'buttons') {
 			// Порожні рядки — це не кнопки: людина лишила запасне поле незаповненим.
 			next.buttons = labels
@@ -156,20 +168,16 @@
 
 		<div class="field">
 			<span class="field__label" id="cell-kind-label">{t('panel.kind')}</span>
-			<div class="picker" role="radiogroup" aria-labelledby="cell-kind-label">
-				{#each KINDS as which (which)}
-					<button
-						class="picker__item"
-						type="button"
-						role="radio"
-						aria-checked={kind === which}
-						onclick={() => (kind = which)}
-						data-testid="cell-kind-{which}-radio"
-					>
-						{t(`panelKind.${which}`)}
-					</button>
-				{/each}
-			</div>
+			<Picker
+				labelledby="cell-kind-label"
+				value={kind}
+				options={KINDS.map((which) => ({
+					value: which,
+					label: t(`panelKind.${which}`),
+					testid: `cell-kind-${which}-radio`
+				}))}
+				onpick={(next) => (kind = next as Choice)}
+			/>
 		</div>
 
 		{#if kind !== 'none'}
@@ -185,37 +193,47 @@
 				/>
 				<p class="muted">{t('panel.captionHint')}</p>
 			</div>
-		{/if}
 
-		{#if kind !== 'none'}
+			<!--
+				ЗНАЧОК І КОЛІР — ті самі, що в треків, і з тієї ж причини: у темному
+				залі шукають очима те, що впізнають, а не читають підпис. Клавіатуру
+				емодзі відкриває сама система (Win+. на компʼютері), тож поле тут
+				звичайне текстове.
+			-->
+			<div class="field">
+				<label class="field__label" for="cell-icon">{t('panel.icon')}</label>
+				<input
+					id="cell-icon"
+					class="input input--icon"
+					type="text"
+					maxlength={MAX_PANEL_ICON}
+					bind:value={icon}
+					placeholder={t('track.emojiHint')}
+					data-testid="cell-icon-input"
+				/>
+			</div>
+
+			<div class="field">
+				<span class="field__label">{t('panel.color')}</span>
+				<ColorPalette value={color} testid="cell-swatch" onpick={(slug) => (color = slug)} />
+			</div>
+
 			<!--
 				ПОВОРОТ — ТУТ, А НЕ ЛИШЕ КОЛЕСОМ МИШІ. Колесом швидше, але його немає
 				ні на телефоні, ні з клавіатури, а без повороту панель не скласти.
 			-->
 			<div class="field">
 				<span class="field__label" id="cell-turn-label">{t('panel.turn')}</span>
-				<div class="picker" role="radiogroup" aria-labelledby="cell-turn-label">
-					<button
-						class="picker__item"
-						type="button"
-						role="radio"
-						aria-checked={vertical}
-						onclick={() => (vertical = true)}
-						data-testid="cell-turn-down-radio"
-					>
-						{t('panel.turnDown')}
-					</button>
-					<button
-						class="picker__item"
-						type="button"
-						role="radio"
-						aria-checked={!vertical}
-						onclick={() => (vertical = false)}
-						data-testid="cell-turn-across-radio"
-					>
-						{t('panel.turnAcross')}
-					</button>
-				</div>
+				<Picker
+					row
+					labelledby="cell-turn-label"
+					value={vertical ? 'down' : 'across'}
+					options={[
+						{ value: 'down', label: t('panel.turnDown'), testid: 'cell-turn-down-radio' },
+						{ value: 'across', label: t('panel.turnAcross'), testid: 'cell-turn-across-radio' }
+					]}
+					onpick={(next) => (vertical = next === 'down')}
+				/>
 				<p class="muted">{t('panel.spanHint', { count: span })}</p>
 			</div>
 		{/if}
@@ -334,46 +352,6 @@
 
 	.dialog__title {
 		font-size: 1.1rem;
-	}
-
-	/* Рід — кнопки в спільній рамці, як вибір запуску в налаштуваннях. */
-	.picker {
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--bg-surface-raised);
-	}
-
-	.picker__item {
-		display: flex;
-		align-items: center;
-		min-height: var(--tap);
-		padding: 0 var(--gap);
-		border: 0;
-		border-top: 1px solid var(--border);
-		background: none;
-		color: var(--text-primary);
-		cursor: pointer;
-		font: inherit;
-		font-size: 0.9rem;
-		text-align: start;
-	}
-
-	.picker__item:first-child {
-		border-top: 0;
-	}
-
-	.picker__item:hover,
-	.picker__item:focus-visible {
-		background: var(--bg-sunken);
-	}
-
-	.picker__item[aria-checked='true'] {
-		box-shadow: inset 3px 0 0 var(--accent);
-		background: var(--accent-soft);
-		font-weight: 600;
 	}
 
 	.acts {
