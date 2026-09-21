@@ -97,16 +97,50 @@ export async function ensureBoard(key: string, name: string): Promise<BoardInfo>
 
 	const infoRef = ref(db, node(key, 'info'));
 	const existing = await get(infoRef);
-	if (existing.exists()) return existing.val() as BoardInfo;
+	if (existing.exists()) {
+		const info = existing.val() as BoardInfo;
+
+		/*
+		 * ПОЗНАЧКА «ДОШКОЮ КОРИСТУЮТЬСЯ» — від неї рахується вік при прибиранні
+		 * (`boardLifetime.ts`). Пише її лише господар: правило інакше й не
+		 * дозволить, та й змісту в чужій позначці немає — забутий увімкнений
+		 * планшет із пультом тримав би дошку вічно.
+		 *
+		 * Не `await`: відкриття плеєра не мусить чекати на запис, а невдача
+		 * тут не мусить заважати грати. Найгірше, що станеться, — дошка
+		 * зістариться на день раніше.
+		 */
+		if (info.ownerUid === uid) {
+			void set(ref(db, node(key, 'info/seenAt')), serverTimestamp()).catch(() => {});
+		}
+
+		return info;
+	}
 
 	await set(infoRef, {
 		name: name.slice(0, 60),
 		ownerUid: uid,
 		createdAt: serverTimestamp(),
+		seenAt: serverTimestamp(),
 		schema: BOARD_SCHEMA
 	});
 
 	return (await get(infoRef)).val() as BoardInfo;
+}
+
+/**
+ * Прочитати опис дошки один раз. `null`, якщо дошки немає.
+ *
+ * Окремо від `boardExists`, бо потрібне не «є чи немає», а сам опис: за
+ * `createdAt` і `seenAt` вирішується, чи дошку вже можна прибрати
+ * (`boardLifetime.ts`). Межі часу тут немає навмисно — це прибирання, воно
+ * робиться у фоні й нікого не тримає, на відміну від пошуку дошки з форми.
+ */
+export async function readInfo(key: string): Promise<BoardInfo | null> {
+	const { db } = await connect();
+	const { get, ref } = await import('firebase/database');
+	const snapshot = await get(ref(db, node(key, 'info')));
+	return snapshot.exists() ? (snapshot.val() as BoardInfo) : null;
 }
 
 /** Підписка на опис дошки. Повертає відписку. */

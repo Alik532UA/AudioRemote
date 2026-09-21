@@ -40,7 +40,22 @@ export interface SavedBoard {
 }
 
 const STORAGE_KEY = 'boards';
-/** Скільки дощок тримати в списку. Далі найстаріші випадають. */
+/**
+ * Скільки ЧУЖИХ дощок тримати в списку. Далі найстаріші випадають.
+ *
+ * СВОЇХ це не стосується, і різниця тут не в зручності. Місцевий запис — ЄДИНЕ
+ * місце, де живе адреса власної дошки: `boards` не перелічується за побудовою,
+ * а відновити адресу з пароля можна лише знаючи ще й ідентифікатор. Тобто
+ * запис, що випав зі списку, означав не «дошки немає в меню», а «дошки більше
+ * не знайде ніхто, і знести її теж не зможе ніхто» — покинутий вузол у базі
+ * назавжди.
+ *
+ * Створити тринадцяту дошку легко: кожен захід із новою парою — нова дошка.
+ * Тож це не гіпотетичний випадок.
+ *
+ * Чужі (пульт) витісняти можна: там немає ні пароля, ні права видаляти, а
+ * адресу однаково продиктують заново.
+ */
 const LIMIT = 12;
 
 export function listBoards(): SavedBoard[] {
@@ -57,7 +72,25 @@ export function listBoards(): SavedBoard[] {
  */
 export function rememberBoard(board: Omit<SavedBoard, 'at'>): void {
 	const rest = listBoards().filter((saved) => saved.key !== board.key);
-	writeJson(STORAGE_KEY, [{ ...board, at: Date.now() }, ...rest].slice(0, LIMIT));
+	const next = [{ ...board, at: Date.now() }, ...rest];
+
+	/*
+	 * Витісняємо лише ЧУЖІ. Доти `slice(0, LIMIT)` різав усе поспіль, і разом
+	 * із тринадцятим записом зникала єдина в світі адреса власної дошки — див.
+	 * докблок до `LIMIT`.
+	 *
+	 * Порядок зберігається такий, яким був: список сортує `listBoards()` за
+	 * часом, а тут ми лише прибираємо зайве, не переставляючи решту.
+	 */
+	const isMine = (saved: SavedBoard): boolean => Boolean(saved.password);
+	let quota = LIMIT;
+	const kept = next.filter((saved) => {
+		if (isMine(saved)) return true;
+		quota -= 1;
+		return quota >= 0;
+	});
+
+	writeJson(STORAGE_KEY, kept);
 }
 
 export function forgetBoard(key: string): void {

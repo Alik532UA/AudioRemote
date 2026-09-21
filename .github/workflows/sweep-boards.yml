@@ -1,0 +1,69 @@
+name: Прибрати покинуті дошки
+
+# ЗАПУСК ЛИШЕ РУКАМИ, і це навмисно.
+#
+# Прогін видаляє дошки з бази, а видалення тут незворотне: адресу дошки
+# відновити неможливо за побудовою — вона хеш від пари з паролем. Таке не
+# робиться як побічний ефект пуша й не робиться за розкладом: рішення ухвалює
+# людина, а прогін лише виконує його й лишає слід у журналі Actions.
+#
+# Як запустити: вкладка Actions → «Прибрати покинуті дошки» → Run workflow.
+# Типово він лише ПОКАЗУЄ, що прострочено; щоб прибрати — перемкнути `apply`
+# на `true` у тому самому вікні.
+#
+# Той самий підхід, що й у сусідньому MindStep (`firestore-ttl.yml`).
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Прибрати (false — лише показати, що прострочено)'
+        type: boolean
+        default: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    env:
+      SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      FIREBASE_DATABASE_URL: ${{ vars.FIREBASE_DATABASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      # Умова перевіряється ПЕРШИМ кроком і валить прогін, а не пропускає його.
+      #
+      # Тут це доречно, на відміну від викладення правил: цей workflow
+      # запускають руками й задля однієї дії, тож «пропущено з попередженням»
+      # виглядало б як «спрацювало».
+      - name: Ключ і адреса бази на місці
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::error title=Немає ключа::Секрет FIREBASE_SERVICE_ACCOUNT не заданий."
+            exit 1
+          fi
+          if [ -z "$FIREBASE_DATABASE_URL" ]; then
+            echo "::error title=Немає адреси бази::Змінна репозиторію FIREBASE_DATABASE_URL не задана (Settings → Variables). Це та сама адреса, що у VITE_FIREBASE_DATABASE_URL."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      # Ключ живе рівно один крок; прибирає його `trap … EXIT`, а не `rm`
+      # наприкінці: скрипт нижче може впасти, і тоді рядок із `rm` не
+      # виконається взагалі (CI-CD-AND-TOOLS-v9 § 2, `CI-SECRET-EPHEMERAL`).
+      #
+      # `umask 077`: типові права на файл у раннері дають читання всім.
+      - name: Прибирання
+        run: |
+          trap 'rm -f "$RUNNER_TEMP/sa.json"' EXIT
+          (umask 077; printf '%s' "$SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json")
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" \
+            node scripts/sweep-boards.mjs ${{ inputs.apply && '--apply' || '' }}

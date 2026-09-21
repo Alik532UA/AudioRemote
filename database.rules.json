@@ -59,6 +59,9 @@
 					// через створення info, тож звуження в одному місці не дає засмічувати
 					// boards довільними вузлами.
 					".write": "auth != null && $key.matches(/^[0-9a-f]{32}$/) && (data.exists() ? data.child('ownerUid').val() === auth.uid : newData.child('ownerUid').val() === auth.uid)",
+					// `seenAt` у переліку обов'язкових НЕМАЄ навмисно: дошки, створені
+					// старішою збіркою, його не мають, і вимога зробила б кожен їхній
+					// наступний запис невалідним.
 					".validate": "newData.hasChildren(['name', 'ownerUid', 'createdAt', 'schema'])",
 					"name": { ".validate": "newData.isString() && newData.val().length <= 60" },
 					"ownerUid": { ".validate": "newData.isString() && newData.val().length <= 128" },
@@ -66,6 +69,19 @@
 					// тож вікно навколо now відкидає підроблене число.
 					"createdAt": {
 						".validate": "newData.isNumber() && newData.val() <= now && newData.val() > now - 60000"
+					},
+					// ПОЗНАЧКА «ДОШКОЮ КОРИСТУЮТЬСЯ», від якої рахується вік при
+					// прибиранні (src/lib/board/boardLifetime.ts). Пише її плеєр при
+					// кожному відкритті, тобто на відміну від createdAt вона оновлюється
+					// все життя дошки — звідси й окреме вікно навколо now.
+					//
+					// Підробити «свіжість» не можна: serverTimestamp() розкривається до
+					// валідації, а число з майбутнього чи з минулого відкидається. Це
+					// важить, бо від цього поля залежить НЕЗВОРОТНЕ видалення: без вікна
+					// дошку можна було б або зробити вічною, або зістарити чужу на рік
+					// уперед.
+					"seenAt": {
+						".validate": "newData.isNumber() && newData.val() <= now + 5000 && newData.val() > now - 60000"
 					},
 					"schema": { ".validate": "newData.isNumber() && newData.val() >= 1" },
 					"$other": { ".validate": false }

@@ -6,6 +6,7 @@
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { forgetBoard, listBoards, type SavedBoard } from '$lib/board/myBoards';
 	import { boardSession, toActive } from '$lib/board/session.svelte';
+	import { sweepOwnExpiredBoards } from '$lib/board/sweepBoards';
 	import { startNotice, type StartNotice } from '$lib/settings/startPage.svelte';
 	import { IconWarning } from '$lib/config/icons';
 
@@ -24,6 +25,20 @@
 	onMount(() => {
 		saved = listBoards();
 		notice = startNotice.take();
+
+		/*
+		 * ПРИБИРАННЯ СВОЇХ ПРОСТРОЧЕНИХ ДОШОК — у фоні й мовчки.
+		 *
+		 * Без `await`: список мусить з'явитися одразу, а прибирання ходить у
+		 * мережу по одному запиту на дошку. Людина відкрила меню, щоб вибрати
+		 * дошку, а не щоб чекати на прибиральника.
+		 *
+		 * Перемальовуємо список лише якщо щось справді знеслося: зайвий
+		 * `listBoards()` під час вибору смикав би розмітку без причини.
+		 */
+		void sweepOwnExpiredBoards().then((result) => {
+			if (result.removed > 0) saved = listBoards();
+		});
 	});
 
 	function reopen(board: SavedBoard) {
