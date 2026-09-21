@@ -139,6 +139,47 @@ describe('сітки безпеки (ERROR-HANDLING-v9 § 2)', () => {
 		).toEqual([]);
 	});
 
+	it('сирий error.message не доходить до екрана', () => {
+		/*
+		 * `error.message` від Firebase — це `auth/network-request-failed`, а від
+		 * браузера — рядок англійською про внутрішній стан. Людині він не каже
+		 * НІЧОГО й не підказує дії; саме проти цього й існує `describeError`,
+		 * який розрізняє відмови за тим, що робити, і чесно каже «щось пішло не
+		 * так» там, де ми не знаємо.
+		 *
+		 * Сторінка створення дошки показувала його дослівно: `failure = error
+		 * instanceof Error ? error.message : …`.
+		 */
+		const ALLOWED: Readonly<Record<string, string>> = {
+			// Помилка САМОГО SvelteKit, а не наша: там `message` — це «Not Found»
+			// чи текст із `load`, тобто рівно те, що людині й треба побачити.
+			'src/routes/+error.svelte': 'помилка навігації від фреймворку'
+		};
+
+		const leaking = walk('src')
+			.filter((file) => /^src\/(routes|lib\/components)\//.test(file) && file.endsWith('.svelte'))
+			.filter((file) => !(file in ALLOWED))
+			.filter((file) =>
+				/\.message\b/.test(
+					readFileSync(file, 'utf8')
+						.replace(/<!--[\s\S]*?-->/g, '')
+						.replace(/\/\*[\s\S]*?\*\//g, '')
+						.replace(/^\s*\/\/.*$/gm, '')
+				)
+			);
+
+		expect(
+			leaking,
+			`технічний рядок замість поради — проведіть через describeError: ${leaking.join(', ')}`
+		).toEqual([]);
+	});
+
+	it('у переліку винятків немає сторінок, які вже не показують message', () => {
+		// Прострочений виняток приховає наступний витік у тому самому файлі.
+		const errorPage = readFileSync(join(ROOT, 'src/routes/+error.svelte'), 'utf8');
+		expect(errorPage, 'виняток для +error.svelte більше не потрібен').toMatch(/\.message\b/);
+	});
+
 	it('кожна межа з await у тілі має сніпет pending', () => {
 		/*
 		 * Призупинення підіймається до найближчої межі, яка вміє його показати.

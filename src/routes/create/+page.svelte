@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { IconCheck, IconCopy, IconDice, IconWarning } from '$lib/config/icons';
-	import { t } from '$lib/i18n/i18n.svelte';
+	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { deriveBoardKey } from '$lib/board/boardPath';
 	import {
 		makeBoardId,
@@ -11,6 +11,8 @@
 		MIN_PASSWORD_LENGTH,
 		normalizePassword
 	} from '$lib/board/secret';
+	import { describeError } from '$lib/net/describeError';
+	import Failure from '$lib/components/ui/Failure.svelte';
 	import { rememberBoard } from '$lib/board/myBoards';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { settings } from '$lib/settings/settings.svelte';
@@ -21,7 +23,7 @@
 	let password = $state('');
 	let copied = $state(false);
 	let busy = $state(false);
-	let failure = $state<string | null>(null);
+	let failure = $state<TranslationKey | null>(null);
 	/** Пара прийшла з налаштувань, а не згенерована. */
 	let fixed = $state(false);
 
@@ -63,9 +65,13 @@
 			copied = true;
 			setTimeout(() => (copied = false), 2000);
 		} catch {
-			// Буфер обміну заборонений політикою — не привід ламати екран:
-			// обидва рядки й так видно на екрані великим шрифтом.
-			failure = t('error.unknown');
+			/*
+			 * Буфер обміну заборонений політикою — і саме тому тут НІЧОГО не
+			 * показується. Обидва рядки й так на екрані великим шрифтом, тож
+			 * «щось пішло не так» сказало б людині, що зламався застосунок, хоча
+			 * зламалася кнопка-зручність. Так само мовчить `copyAll` у вікні
+			 * підключення пульта.
+			 */
 		}
 	}
 
@@ -80,7 +86,13 @@
 			await goto(resolve('/player'));
 		} catch (error) {
 			busy = false;
-			failure = error instanceof Error ? error.message : t('error.unknown');
+			/*
+			 * `error.message` ЛЮДИНІ НЕ ПОКАЗУЮТЬ. Тут це був би технічний рядок
+			 * на кшталт `auth/network-request-failed` — саме той випадок, проти
+			 * якого й існує `describeError`: він розрізняє відмови, у яких ДІЯ
+			 * різна, і на решту чесно каже «щось пішло не так».
+			 */
+			failure = describeError(error);
 		}
 	}
 </script>
@@ -158,7 +170,7 @@
 		<p class="muted">{t('create.hint')}</p>
 
 		{#if failure}
-			<p class="error" role="alert">{failure}</p>
+			<Failure reason={failure} testid="create-error" />
 		{/if}
 
 		<button
