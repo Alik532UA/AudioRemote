@@ -23,8 +23,8 @@ const manifest: Partial<ManifestOptions> = {
 	scope,
 	start_url: scope,
 	display: 'standalone' as Display,
-	background_color: '#101418',
-	theme_color: '#101418',
+	background_color: '#181818',
+	theme_color: '#222222',
 	lang: 'uk',
 	/*
 	 * `any` В ОБОХ, і `maskable` тут БУЛО НЕПРАВДОЮ — заміряно, а не на око.

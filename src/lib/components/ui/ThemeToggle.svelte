@@ -79,7 +79,7 @@
 		padding: 0;
 		border: none;
 		border-radius: var(--switch-h);
-		background: #94a3b8;
+		background: #a3a3a3;
 		cursor: pointer;
 		transition: background var(--transition-normal);
 	}
@@ -99,12 +99,12 @@
 	}
 
 	.theme-switch[aria-checked='true'] {
-		background: #475569;
+		background: #525252;
 	}
 
 	.theme-switch[aria-checked='true']::before {
 		transform: translateX(calc(var(--switch-w) - var(--switch-knob) - var(--switch-pad) * 2));
-		background: #0f172a;
+		background: #242424;
 	}
 
 	.theme-switch:focus-visible {
@@ -126,20 +126,20 @@
 	.theme-switch :global(.theme-switch-sun) {
 		left: calc(var(--switch-h) * 0.25);
 		/* У світлому положенні сонце лежить на білій кульці — звідси темний колір. */
-		color: #334155;
+		color: #404040;
 	}
 
 	.theme-switch :global(.theme-switch-moon) {
 		right: calc(var(--switch-h) * 0.25);
-		color: #f8fafc;
+		color: #fafafa;
 	}
 
 	.theme-switch[aria-checked='true'] :global(.theme-switch-sun) {
-		color: #cbd5e1;
+		color: #d4d4d4;
 	}
 
 	.theme-switch[aria-checked='true'] :global(.theme-switch-moon) {
-		color: #e2e8f0;
+		color: #e5e5e5;
 	}
 
 	@media (prefers-reduced-motion: reduce) {

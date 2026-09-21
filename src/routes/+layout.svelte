@@ -368,10 +368,12 @@
 	.shell__mark,
 	.shell__back,
 	.shell__settings {
-		transition: color var(--transition-fast);
+		transition:
+			background-color var(--transition-fast),
+			color var(--transition-fast);
 		border: 0;
 		border-radius: var(--radius-full);
-		background: var(--bg-surface-raised);
+		background: var(--bg-header-btn);
 	}
 
 	.shell__mark {
@@ -404,6 +406,7 @@
 	.shell__back:focus-visible,
 	.shell__settings:hover,
 	.shell__settings:focus-visible {
+		background: var(--bg-header-btn-hover);
 		color: var(--accent);
 	}
 
