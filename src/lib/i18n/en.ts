@@ -129,6 +129,10 @@ export const en: Record<TranslationKey, string> = {
 		'Your password is shorter than {min} characters. A board lives for months — short passwords get guessed.',
 	'create.warnChange':
 		'The password is part of the board address. It cannot be changed later — you would have to create the board again.',
+	'create.keepCalm':
+		'You do not have to copy these two lines down: the pair stays on this device, and the connect button on the board itself shows it again at any time.',
+	'create.keepCalmHint':
+		'You will need it only to move: on another device the board is opened with this same pair.',
 	'create.submit': 'Create and open the player',
 
 	'connect.title': 'Connect to a board',
