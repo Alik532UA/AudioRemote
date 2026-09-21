@@ -275,6 +275,32 @@ await must('кожен пише присутність про себе', () =>
 	)
 );
 
+// ХТО ТУТ І ЗА ЯКИМ ПУЛЬТОМ. Обидва поля необовʼязкові: без них запис лишається
+// рівно таким, яким був до появи пультів.
+await must('присутність із імʼям і пультом', () =>
+	write(
+		`boards/${KEY}/presence/${stranger.uid}/tab9`,
+		{ role: 'remote', at: SERVER_TIME, name: 'Оля', sheet: 'світло' },
+		stranger.token
+	)
+);
+
+await mustNot('імʼя в присутності довше за дозволене', () =>
+	write(
+		`boards/${KEY}/presence/${stranger.uid}/tab9`,
+		{ role: 'remote', at: SERVER_TIME, name: 'та'.repeat(40) },
+		stranger.token
+	)
+);
+
+await mustNot('чуже поле в присутності', () =>
+	write(
+		`boards/${KEY}/presence/${stranger.uid}/tab9`,
+		{ role: 'remote', at: SERVER_TIME, secret: 'x' },
+		stranger.token
+	)
+);
+
 /*
  * ДВІ ВКЛАДКИ ОДНОГО БРАУЗЕРА — випадок не для повноти, а зі справжнього прогону.
  *

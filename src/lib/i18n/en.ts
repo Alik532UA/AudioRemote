@@ -427,6 +427,10 @@ export const en: Record<TranslationKey, string> = {
 	'panel.important': 'Important action',
 	'panel.importantHint':
 		'A press flips the screen to the opposite theme for a moment. You catch it out of the corner of your eye, even while looking at the desk.',
+	'panel.merge': 'One shared desk',
+	'panel.nobody': 'nobody',
+	'panel.someone': 'unnamed',
+	'panel.roaming': 'Watching the whole board: {count}',
 	'panel.sheet': 'Desk',
 	'panel.sheetAll': 'Shared — everyone sees it',
 	'panel.sheetHint':

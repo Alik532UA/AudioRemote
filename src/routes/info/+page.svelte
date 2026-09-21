@@ -7,7 +7,7 @@
 	import { boardPath } from '$lib/board/boardPath';
 	import { kindOf } from '$lib/board/myBoards';
 	import { ensureBoard } from '$lib/net/board';
-	import { countRemotes, trackPresence, watchPresence } from '$lib/net/presence';
+	import { countRemotes, trackPresence, watchPresence, type PresenceMap } from '$lib/net/presence';
 	import { pruneAcks, watchCommands } from '$lib/net/commands';
 	import {
 		emptyPanel,
@@ -43,7 +43,7 @@
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import { IconPhone } from '$lib/config/icons';
 	import PanelBuilder from '$lib/components/panel/PanelBuilder.svelte';
-	import PanelMirror from '$lib/components/panel/PanelMirror.svelte';
+	import PanelWall from '$lib/components/panel/PanelWall.svelte';
 	import PanelLog from '$lib/components/panel/PanelLog.svelte';
 	import ScreenControls, { type View } from '$lib/components/panel/ScreenControls.svelte';
 	import CellDialog from '$lib/components/panel/CellDialog.svelte';
@@ -80,6 +80,8 @@
 
 	let ready = $state(false);
 	let helpers = $state(0);
+	/** Хто на звʼязку. Потрібен цілим: стіна підписує ним кожен пульт. */
+	let present = $state<PresenceMap>({});
 	let fatal = $state<TranslationKey | null>(null);
 	let view = $state<View>('both');
 
@@ -158,8 +160,9 @@
 					})
 				);
 				track(
-					await watchPresence(board.key, (present) => {
-						helpers = countRemotes(present);
+					await watchPresence(board.key, (next) => {
+						present = next;
+						helpers = countRemotes(next);
 					})
 				);
 				track(await watchCommands<PanelCommandType, PanelCommand>(boardPath(board.key), receive));
@@ -526,7 +529,7 @@
 					</section>
 				{:else}
 					{#if view !== 'log'}
-						<PanelMirror {panel} {levels} {flags} {sheets} {recent} {hot} press={own} />
+						<PanelWall {panel} {levels} {flags} {sheets} {present} {recent} {hot} press={own} />
 					{/if}
 
 					{#if view !== 'panel'}
@@ -608,6 +611,23 @@
 		gap: var(--gap);
 	}
 
+	/*
+	 * ТАБЛО ВИХОДИТЬ ІЗ ЗАГАЛЬНОЇ МЕЖІ ШИРИНИ — і лише воно.
+	 *
+	 * `main.page` обмежений 1280 точками, і це правильно для всього, що ЧИТАЮТЬ:
+	 * рядок, ширший за цю межу, око читає гірше, бо губить початок наступного.
+	 * Табло не читають — на нього дивляться, і кожна зайва точка ширини тут
+	 * означає ще один видимий пульт замість ще одного за прокруткою. Заміряно на
+	 * 1800: із межею стіні діставалося 480 при потрібних 848, тобто обидві
+	 * панелі стояли за краєм на моніторі, де вони вміщаються вдвічі.
+	 *
+	 * Через `:has()` на власному локаторі, а не класом в оболонці: оболонка не
+	 * мусить знати, які сторінки широкі, а сторінка не мусить лізти в її розмітку.
+	 */
+	:global(main.page:has([data-testid='info-wall-list'])) {
+		max-width: none;
+	}
+
 	.desk {
 		display: grid;
 		grid-template-columns: minmax(220px, 20rem) 1fr;
@@ -615,10 +635,19 @@
 		align-items: start;
 	}
 
-	/* Усередині — панель і журнал поруч; коли обрано щось одне, воно саме. */
+	/*
+	 * УСЕРЕДИНІ — СТІНА ПАНЕЛЕЙ І ЖУРНАЛ ПОРУЧ, і вільне місце дістається СТІНІ.
+	 *
+	 * Доти було навпаки: панель ≤24rem, журнал забирає решту. Для однієї панелі
+	 * це правильно — вона й так не ширша за 26rem, а журнал росте текстом. Для
+	 * стіни — ні: панелей стало кілька, вони стоять у ряд, і кожна зайва точка
+	 * ширини означає ще один видимий пульт замість ще одного за прокруткою.
+	 * Журнал натомість дістав межу: рядок ширший за 26rem читається гірше, бо
+	 * око губить початок наступного.
+	 */
 	.desk__main {
 		display: grid;
-		grid-template-columns: minmax(240px, 24rem) 1fr;
+		grid-template-columns: minmax(0, 1fr) minmax(260px, 26rem);
 		gap: var(--gap);
 		align-items: start;
 	}

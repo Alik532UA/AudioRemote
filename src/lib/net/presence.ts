@@ -68,22 +68,66 @@ const TAB_ID = Math.random().toString(36).slice(2, 10);
 export interface Presence {
 	role: BoardRole;
 	at: number;
+	/** Як назвався той, хто тут. Порожньо — не називався. */
+	name?: string;
+	/** Який пульт він обрав. Порожньо — дивиться всю дошку. */
+	sheet?: string;
 }
+
+/**
+ * ЩО ПРИСУТНІЙ ПРО СЕБЕ КАЖЕ — і чому це їде саме присутністю.
+ *
+ * Табло малює по панелі на кожен пульт, і поруч із кожною мусить стояти, хто
+ * за ним зараз. Дізнатися це нізвідки більше: імʼя лежить у налаштуваннях
+ * телефона, обраний пульт — у його ж сховищі, і жодне з двох до дошки не
+ * доїжджає. Команда їх не несе теж: вона буває раз на десять хвилин, а питання
+ * «хто на звʼязку» має відповідь щосекунди.
+ *
+ * Обидва поля НЕОБОВʼЯЗКОВІ й порожніми не пишуться: анонімний помічник, який
+ * дивиться всю дошку, лишає рівно той самий запис, що й раніше.
+ */
+export interface PresenceAbout {
+	name?: string;
+	sheet?: string;
+}
+
+/**
+ * Останнє, що ця вкладка про себе сказала, — по дошці.
+ *
+ * Потрібне тому, що зʼявлення ПОВТОРЮЄТЬСЯ на кожному відновленні звʼязку (див.
+ * вище), і повторне мусить нести те, що правда ЗАРАЗ, а не те, що було при
+ * відкритті сторінки. Інакше помічник, який змінив пульт і пережив блимання
+ * мережі, повертався б на екран табла під старим пультом.
+ */
+const said = new Map<string, PresenceAbout>();
+
+/** Порожні поля не пишуться: `undefined` база не приймає, а `''` — це брехня. */
+const trim = (about: PresenceAbout): Record<string, string> => {
+	const out: Record<string, string> = {};
+	if (about.name?.trim()) out.name = about.name.trim();
+	if (about.sheet?.trim()) out.sheet = about.sheet.trim();
+	return out;
+};
 
 /** `presence/{uid}/{вкладка}` — два рівні, тому й тип вкладений. */
 export type PresenceMap = Record<string, Record<string, Presence>>;
 
 /** Тримати присутність, поки жива вкладка. Повертає функцію «піти явно». */
-export async function trackPresence(key: string, role: BoardRole): Promise<() => void> {
+export async function trackPresence(
+	key: string,
+	role: BoardRole,
+	about: PresenceAbout = {}
+): Promise<() => void> {
 	const { db, uid } = await connect();
 	const { onDisconnect, onValue, ref, remove, serverTimestamp, set } =
 		await import('firebase/database');
 
+	said.set(key, about);
 	const mine = ref(db, `${presencePath(key)}/${uid}/${TAB_ID}`);
 
 	const announce = async (): Promise<void> => {
 		await onDisconnect(mine).remove();
-		await set(mine, { role, at: serverTimestamp() });
+		await set(mine, { role, at: serverTimestamp(), ...trim(said.get(key) ?? {}) });
 	};
 
 	/*
@@ -97,8 +141,31 @@ export async function trackPresence(key: string, role: BoardRole): Promise<() =>
 
 	return () => {
 		unwatch();
+		said.delete(key);
 		void remove(mine);
 	};
+}
+
+/**
+ * ПЕРЕКАЗАТИ ПРО СЕБЕ ЩЕ РАЗ — коли імʼя чи пульт змінилися на ходу.
+ *
+ * Окремою функцією, а не другим викликом `trackPresence`: той наново
+ * домовляється про `onDisconnect`, і між зняттям старої домовленості й новою
+ * існує вікно, у якому зникнення вкладки лишає привида назавжди.
+ *
+ * Мовчки виходить, якщо про цю дошку ще не зʼявлялися: писати присутність, не
+ * тримаючи її, означало б лишити запис, який нікому прибрати.
+ */
+export async function tellPresence(key: string, about: PresenceAbout): Promise<void> {
+	if (!said.has(key)) return;
+	said.set(key, about);
+
+	const { db, uid } = await connect();
+	const { ref, update } = await import('firebase/database');
+	await update(ref(db, `${presencePath(key)}/${uid}/${TAB_ID}`), {
+		name: about.name?.trim() || null,
+		sheet: about.sheet?.trim() || null
+	});
 }
 
 /** Хто зараз на дошці. Повертає відписку. */

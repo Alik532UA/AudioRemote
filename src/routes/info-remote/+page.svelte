@@ -7,7 +7,7 @@
 	import { boardPath } from '$lib/board/boardPath';
 	import { kindOf } from '$lib/board/myBoards';
 	import { watchInfo } from '$lib/net/board';
-	import { hasPlayer, trackPresence, watchPresence } from '$lib/net/presence';
+	import { hasPlayer, tellPresence, trackPresence, watchPresence } from '$lib/net/presence';
 	import { sendCommand, waitForAck } from '$lib/net/commands';
 	import { emptyPanel, watchPanel, watchPanelState, watchVerdict } from '$lib/net/panel';
 	import {
@@ -118,7 +118,14 @@
 
 		void (async () => {
 			try {
-				track(await trackPresence(board.key, 'remote'));
+				// Імʼя й пульт їдуть разом із присутністю: інакше табло не має
+				// звідки дізнатися, хто за яким пультом сидить (`presence.ts`).
+				track(
+					await trackPresence(board.key, 'remote', {
+						name: settings.displayName,
+						sheet: sheet ?? ''
+					})
+				);
 				track(await watchInfo(board.key, (next) => (info = next)));
 				track(await watchPanel(board.key, (next) => (panel = next ?? emptyPanel())));
 				track(
@@ -268,6 +275,10 @@
 				onpick={(next) => {
 					sheet = next;
 					writeItem(SHEET_KEY, next ?? '');
+					const board = boardSession.current;
+					if (board) {
+						void tellPresence(board.key, { name: settings.displayName, sheet: next ?? '' });
+					}
 				}}
 			/>
 

@@ -331,6 +331,12 @@
 								".validate": "newData.isString() && newData.val().matches(/^(player|remote)$/)"
 							},
 							"at": { ".validate": "newData.isNumber() && newData.val() <= now + 5000" },
+							// ХТО САМЕ ТУТ І ЗА ЯКИМ ПУЛЬТОМ. Обидва поля необовʼязкові:
+							// анонімний помічник, який дивиться всю дошку, лишає той самий
+							// запис, що й раніше. Межі ті самі, що в підпису команди й у
+							// назві пульта на віджеті — числа не мають розходитися.
+							"name": { ".validate": "newData.isString() && newData.val().length <= 24" },
+							"sheet": { ".validate": "newData.isString() && newData.val().length <= 16" },
 							"$other": { ".validate": false }
 						}
 					}
