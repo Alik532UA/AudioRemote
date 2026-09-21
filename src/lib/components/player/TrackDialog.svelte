@@ -4,7 +4,7 @@
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { colorNumber, TRACK_COLORS } from '$lib/config/trackColors';
 	import { MAX_GAP_SEC, MAX_ICON, MAX_PLAYS } from '$lib/audio/boardConfig';
-	import { isAssignable, labelForCode } from '$lib/hotkeys/hotkeys';
+	import { isAssignable, labelForCode, ordinalKey } from '$lib/hotkeys/hotkeys';
 	import type { BoardEditor, BoardTrack } from '$lib/board/editor';
 	import TriggerEditor from './TriggerEditor.svelte';
 	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
@@ -223,7 +223,7 @@
 							{:else if track.hotkey}
 								{labelForCode(track.hotkey)}
 							{:else if byOrder}
-								{t('hotkeys.byOrder', { key: byOrder })}
+								{t('hotkeys.byOrder', { key: byOrder, nth: t(ordinalKey(byOrder)) })}
 							{:else}
 								{t('hotkeys.none')}
 							{/if}

@@ -30,6 +30,8 @@
  * працює».
  */
 
+import type { TranslationKey } from '$lib/i18n/i18n.svelte';
+
 export type HotkeyAction =
 	/** Запустити трек за порядковим номером серед показаних, з нуля. */
 	| { kind: 'play'; index: number }
@@ -172,6 +174,15 @@ export function keyLabelsFor(
 
 	return labels;
 }
+
+/**
+ * Ключ порядкового числівника для цифри за порядком: `'3'` → `'ordinal.3'`.
+ *
+ * Живе тут, а не у вікні треку, з тієї ж причини, що й `keyLabelsFor`: межа
+ * «лише перші дев'ять» задана саме тут (`HOTKEY_SLOTS`), і перелік слів у
+ * словнику мусить збігатися з нею, а не з чиїмось припущенням.
+ */
+export const ordinalKey = (digit: string): TranslationKey => `ordinal.${digit}` as TranslationKey;
 
 /** Цифра з фізичної клавіші, або `null`. Основний ряд і цифровий блок. */
 function digitFromCode(code: string): number | null {
