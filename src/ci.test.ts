@@ -53,14 +53,13 @@ const workflows = files.map((f) => ({ name: f, text: readWorkflow(f) }));
  * називає крок, звітувало б про крок, якого вже немає. У цьому workflow прози
  * більше, ніж коду, тож фільтр тут не запобіжник, а умова роботи.
  */
-const all = workflows
-	.map((w) =>
-		w.text
-			.split('\n')
-			.filter((line) => !/^\s*#/.test(line))
-			.join('\n')
-	)
-	.join('\n');
+const bare = (text: string): string =>
+	text
+		.split('\n')
+		.filter((line) => !/^\s*#/.test(line))
+		.join('\n');
+
+const all = workflows.map((w) => bare(w.text)).join('\n');
 
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
 	scripts?: Record<string, string>;
@@ -303,6 +302,57 @@ describe('CI (CI-CD-AND-TOOLS-v9 § 1)', () => {
 		const topLevel = /^permissions:/m.test(all);
 		expect(topLevel, 'permissions на рівні workflow — права дістають усі jobʼи').toBe(false);
 		expect((all.match(/^\s{4}permissions:/gm) ?? []).length).toBeGreaterThan(1);
+	});
+
+	it('повний набір гейтів біжить і на pull request', () => {
+		/*
+		 * `CI-PRE-MERGE-GATE`. Робота тут іде просто в `main`, тож «PR не буває»
+		 * здавалося правдою. Вони є, і щотижня: Dependabot приносить нові версії
+		 * того, що їде у браузер відвідувача. Доки цей workflow слухав лише
+		 * `push`, такий PR не запускав нічого — ні типів, ні лінта, ні юнітів,
+		 * ні гейта над збіркою.
+		 *
+		 * Перевіряється саме ТОЙ workflow, у якому лежать гейти: `pull_request`
+		 * у сусідньому (оболонка) нічого про них не каже.
+		 */
+		const gated = workflows.find((w) => /npm run check:build/.test(bare(w.text)));
+		expect(gated, 'немає workflow з гейтами над збіркою').toBeDefined();
+
+		// Блок `on:` — саме свого файлу й без коментарів: `pull_request` у
+		// сусідньому workflow (оболонка) про гейти не каже нічого, а проза —
+		// тим паче.
+		const triggers = /^on:\s*\n((?:[ \t]+.*\n|\n)*)/m.exec(bare(gated?.text ?? ''))?.[1] ?? '';
+		expect(triggers.length, 'розбір блоку `on:` зламався').toBeGreaterThan(10);
+		expect(
+			/^\s+pull_request:/m.test(triggers),
+			'гейти виконуються лише після мержу — PR зливають, не подивившись'
+		).toBe(true);
+	});
+
+	it('на pull request нічого не публікується', () => {
+		/*
+		 * Друга половина того самого рішення, і без неї воно було б гіршим за
+		 * відсутнє: прогін на гілці, якої ніхто не дивився, виклав би її на
+		 * хостинг школи. Обидва кроки з побічним ефектом — викладання правил у
+		 * бойову базу й публікація збірки — мусять називати подію.
+		 */
+		const ONLY_PUSH = /github\.event_name != 'pull_request'/;
+
+		const publish = jobs
+			.flatMap((job) => job.steps)
+			.find((step) => step.command.includes('peaceiris/actions-gh-pages'));
+		expect(publish, 'кроку публікації не знайдено — перевірка мертва').toBeDefined();
+		expect(
+			ONLY_PUSH.test(publish?.condition ?? ''),
+			'публікація не питає про подію — на хостинг поїхала б непереглянута гілка'
+		).toBe(true);
+
+		const rules = jobs.find((job) => job.name === 'publish-rules');
+		expect(rules, "job'а publish-rules не знайдено — перевірка мертва").toBeDefined();
+		expect(
+			(rules?.lines ?? []).some((line) => /^\s+if:/.test(line) && ONLY_PUSH.test(line)),
+			'правила виклалися б у бойову базу з непереглянутої гілки'
+		).toBe(true);
 	});
 
 	it('правила бази викладаються ПЕРЕД збіркою коду', () => {
