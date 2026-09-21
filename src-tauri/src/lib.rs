@@ -42,22 +42,141 @@ pub fn run() {
         .plugin(tauri_plugin_persisted_scope::init())
         .plugin(tauri_plugin_process::init());
 
+    let context = tauri::generate_context!();
+
     /*
-     * Оновлювач — лише там, де він існує.
+     * ОНОВЛЮВАЧ — ЛИШЕ ТАМ, ДЕ НАЛАШТОВАНИЙ ЙОГО КАНАЛ.
      *
-     * Крейт підключений під `cfg(not(android|ios))`, тож на мобільних цього
-     * рядка не має бути взагалі: інакше збірка падає на невідомому імені, а не
-     * на зрозумілій відмові.
+     * Умов тут дві, і вони про різне.
+     *
+     * `cfg(desktop)` — про збірку: крейт підключений під
+     * `cfg(not(android|ios))`, тож на мобільних цього рядка не має бути
+     * взагалі, інакше падає компіляція.
+     *
+     * `updater_configured` — про ЗАПУСК, і без нього застосунок не стартував
+     * узагалі. Адреса `latest.json` і відкритий ключ живуть в окремій
+     * накладці `tauri.conf.release.json`, яку накладає лише робочий процес
+     * релізу: інакше кожна локальна збірка вимагала б ключа підпису. Але
+     * плагін, зареєстрований без свого розділу в конфігу, не пропускає `null`
+     * повз себе — він валить старт:
+     *
+     *     PluginInitialization("updater", "Error deserializing
+     *     'plugins.updater' … invalid type: null, expected struct Config")
+     *
+     * Тобто `npm run tauri:dev`, `rebuild-exe.mjs` і вже зібраний exe
+     * відкривалися рівно ніколи, а `cargo build` при цьому був зелений:
+     * ламалося не збирання, а перший рядок виконання.
      */
     #[cfg(desktop)]
-    {
+    if updater_configured(context.config()) {
         builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
     }
 
     builder
         .invoke_handler(tauri::generate_handler![allow_folder])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("не вдалося запустити AudioRemote");
+}
+
+/// Чи є в конфігу розділ `plugins.updater` — тобто чи вміє ця збірка оновлюватися.
+///
+/// Рішення винесене у функцію, а не написане рядком на місці, рівно щоб його
+/// можна було перевірити прогоном на справжніх файлах конфігу.
+#[cfg(desktop)]
+fn updater_configured(config: &tauri::utils::config::Config) -> bool {
+    config.plugins.0.contains_key("updater")
+}
+
+/// КАНАЛ ОНОВЛЕННЯ ЖИВЕ В НАКЛАДЦІ — А ПЛАГІН РЕЄСТРУВАВСЯ ЗАВЖДИ.
+///
+/// Розбіжність між цими двома реченнями коштувала повної непрацездатності
+/// застосунку: `cargo build` зелений, а exe не відкривається зовсім і падає
+/// першим рядком виконання з `PluginInitialization("updater", … invalid type:
+/// null …)`. Перевірити це читанням коду складно — рішення «реєструвати чи ні»
+/// було написане рядком на місці, а конфіг, якого воно стосується, лежить у
+/// сусідньому файлі й застосовується лише в CI.
+///
+/// Тому рішення винесене у `updater_configured`, а тут воно звіряється з
+/// ОБОМА справжніми файлами: базовим конфігом (каналу немає — плагін не
+/// реєструється) і накладкою релізу (канал є — реєструється).
+#[cfg(all(test, desktop))]
+mod updater_channel {
+    use tauri::utils::config::Config;
+
+    fn read(name: &str) -> serde_json::Value {
+        let raw =
+            std::fs::read_to_string(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(name))
+                .unwrap_or_else(|_| panic!("{name} не прочитано"));
+        serde_json::from_str(&raw).unwrap_or_else(|_| panic!("{name} не розібрано"))
+    }
+
+    /// Конфіг із розділом плагіна або без нього — тим самим типом, що в застосунку.
+    fn config(plugins: serde_json::Value) -> Config {
+        serde_json::from_value(serde_json::json!({
+            "identifier": "проба",
+            "plugins": plugins
+        }))
+        .expect("конфіг проби не розібрано")
+    }
+
+    #[test]
+    fn рішення_читає_саме_розділ_плагіна() {
+        assert!(!super::updater_configured(&config(serde_json::json!({}))));
+        assert!(super::updater_configured(&config(
+            serde_json::json!({ "updater": { "endpoints": [] } })
+        )));
+    }
+
+    #[test]
+    fn плагін_реєструється_лише_під_умовою() {
+        /*
+         * Два описи вище перевіряють ФАЙЛИ, і обидва лишилися б зеленими, якби
+         * хтось прибрав саму умову — а саме її відсутність і не давала
+         * застосунку відкритися. Тому тут перевіряється РЯДОК, що реєструє
+         * плагін: він мусить стояти під `if updater_configured(...)`, а не сам
+         * по собі.
+         */
+        let source = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/lib.rs"),
+        )
+        .expect("src/lib.rs не прочитано");
+
+        let guard = source
+            .find("if updater_configured(")
+            .expect("умову реєстрації прибрано — застосунок не відкриється взагалі");
+        let register = source
+            .find(".plugin(tauri_plugin_updater::Builder::new()")
+            .expect("рядок реєстрації оновлювача не знайдено — перевірка шукає не те");
+
+        assert!(
+            guard < register && register - guard < 200,
+            "реєстрація оновлювача не під умовою: плагін без розділу в конфігу              валить старт із PluginInitialization(\"updater\", … invalid type: null …)"
+        );
+    }
+
+    #[test]
+    fn базовий_конфіг_каналу_не_має() {
+        // Саме тому реєстрація й мусить бути умовною: кожна локальна збірка
+        // (`tauri:dev`, `rebuild-exe.mjs`, зібраний exe) бере лише цей файл.
+        let base = read("tauri.conf.json");
+        assert!(
+            base["plugins"]["updater"].is_null(),
+            "у базовому конфігу зʼявився канал оновлення — тоді ключ підпису              став потрібен на кожній локальній збірці"
+        );
+    }
+
+    #[test]
+    fn накладка_релізу_канал_має() {
+        // Інакше опублікований застосунок ніколи не оновиться, і помітити це
+        // можна було б лише через місяць на живій машині.
+        let release = read("tauri.conf.release.json");
+        assert!(
+            release["plugins"]["updater"]["endpoints"]
+                .as_array()
+                .is_some_and(|list| !list.is_empty()),
+            "у накладці релізу немає адреси latest.json"
+        );
+    }
 }
 
 /// МЕЖА, ЗА ЯКОЮ ПОЧИНАЄТЬСЯ ДИСК, — І ЄДИНИЙ СПОСІБ ЇЇ ПЕРЕВІРИТИ.
