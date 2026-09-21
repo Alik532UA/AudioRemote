@@ -24,7 +24,7 @@
 		type PanelOutcome
 	} from '$lib/panel/apply';
 	import { starterPanel } from '$lib/panel/starter';
-	import { fits, isVertical, spanOf } from '$lib/panel/layout';
+	import { fits, isVertical, moveTo, spanOf } from '$lib/panel/layout';
 	import { mark } from '$lib/services/breadcrumbs';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
@@ -247,6 +247,27 @@
 		await putCell(at, { ...cell, vertical: wanted });
 	}
 
+	/**
+	 * ПЕРЕТЯГНУЛИ ВІДЖЕТ. Мовчки, якщо так не виходить.
+	 *
+	 * Перетягування — жест, а не команда: людина бачить, куди тягне, і бачить,
+	 * що віджет не поїхав. Повідомлення на кожну невдалу спробу заважало б
+	 * більше, ніж допомагало; підсвітка цілі й так каже, що під пальцем.
+	 */
+	async function shift(at: string, to: string) {
+		const board = boardSession.current;
+		if (!board) return;
+
+		const cells = moveTo(panel, at, to);
+		if (!cells) return;
+
+		try {
+			await publishPanel(board.key, { rev: Date.now(), cells });
+		} catch (error) {
+			fatal = describeError(error);
+		}
+	}
+
 	/** Скласти типову панель — рівно ті комірки, з яких починають у залі. */
 	async function fill() {
 		const board = boardSession.current;
@@ -267,20 +288,31 @@
 		<Failure reason={fatal} block testid="info-fatal-error" />
 	{:else if boardSession.current}
 		{@const board = boardSession.current}
-		<header class="head card" data-testid="board-head">
-			<div class="head__who">
-				<h1 class="head__role" data-testid="board-role-title">{t('info.boardTitle')}</h1>
-				{#if board.name}
-					<p class="head__title">{board.name}</p>
-				{/if}
-				<p class="muted mono">{board.id}</p>
-			</div>
-			<div class="head__side">
-				<p class="muted" data-testid="info-helpers-count">
-					{t('info.helpers', { count: `${helpers}` })}
-				</p>
+		<!--
+			СТІЛ ЗВУКОРЕЖИСЕРА — ТРИ КОЛОНКИ, а не смуга на всю ширину й порожнеча
+			під нею.
 
-				<!--
+			Доти шапка тяглася через увесь екран, а під нею лишалося три чверті
+			порожнього місця: сітка стояла в лівому кутку, журнал — карткою посеред
+			пустки. Кожна з трьох речей на цьому екрані має свою ширину й не має
+			жодної причини ділити рядок із рештою: дошка вузька, панель своєї
+			форми, журнал — те, що росте й заповнює.
+		-->
+		<div class="desk" class:desk--one={view !== 'both'}>
+			<header class="head card desk__who" data-testid="board-head">
+				<div class="head__who">
+					<h1 class="head__role" data-testid="board-role-title">{t('info.boardTitle')}</h1>
+					{#if board.name}
+						<p class="head__title">{board.name}</p>
+					{/if}
+					<p class="muted mono">{board.id}</p>
+				</div>
+				<div class="head__side">
+					<p class="muted" data-testid="info-helpers-count">
+						{t('info.helpers', { count: `${helpers}` })}
+					</p>
+
+					<!--
 					ЯК ПОКЛИКАТИ ПОМІЧНИКА — там само, де в плеєра «Підключити пульт».
 					Без цієї кнопки дошка була глухим кутом: ідентифікатор на екрані є,
 					пароль знає лише той, хто створював, а звідки його взяти вдруге —
@@ -290,19 +322,19 @@
 					Лише для СВОЄЇ дошки: пароля в чужому записі немає, і показувати
 					порожнє вікно нема сенсу.
 				-->
-				{#if board.password}
-					<button
-						class="btn btn--sm"
-						type="button"
-						onclick={() => (inviteOpen = true)}
-						data-testid="info-open-remote-btn"
-					>
-						<IconPhone size={18} aria-hidden="true" />
-						{t('info.connectHelper')}
-					</button>
-				{/if}
+					{#if board.password}
+						<button
+							class="btn btn--sm"
+							type="button"
+							onclick={() => (inviteOpen = true)}
+							data-testid="info-open-remote-btn"
+						>
+							<IconPhone size={18} aria-hidden="true" />
+							{t('info.connectHelper')}
+						</button>
+					{/if}
 
-				<!--
+					<!--
 					СКЛАДАННЯ — ОКРЕМИЙ РЕЖИМ, а не олівець біля кожної комірки.
 					Складають панель раз на сезон, а дивляться на неї щовечора; олівці
 					стояли б на екрані весь той час, поки вони не потрібні.
@@ -311,111 +343,114 @@
 					картки, яка пояснює, чому екран порожній, — і двічі одне й те саме
 					питає, чим воно відрізняється.
 				-->
-				{#if !empty || editing}
-					<button
-						class="btn btn--sm"
-						type="button"
-						aria-pressed={editing}
-						onclick={() => {
-							editing = !editing;
-							picked = null;
-						}}
-						data-testid="info-edit-btn"
-					>
-						<IconSliders size={18} aria-hidden="true" />
-						{editing ? t('panel.editDone') : t('panel.edit')}
-					</button>
-				{/if}
+					{#if !empty || editing}
+						<button
+							class="btn btn--sm"
+							type="button"
+							aria-pressed={editing}
+							onclick={() => {
+								editing = !editing;
+								picked = null;
+							}}
+							data-testid="info-edit-btn"
+						>
+							<IconSliders size={18} aria-hidden="true" />
+							{editing ? t('panel.editDone') : t('panel.edit')}
+						</button>
+					{/if}
 
-				<!--
+					<!--
 					Вибір стоїть у шапці, а не над сіткою: це не дія над панеллю, а
 					налаштування ЦЬОГО екрана. За широким пультом видно обидві половини,
 					за вузьким доводиться обирати.
 				-->
-				<div class="views" role="group" aria-label={t('panel.viewTitle')}>
-					{#each VIEWS as which (which)}
-						<button
-							class="views__item"
-							type="button"
-							aria-pressed={view === which}
-							onclick={() => (view = which)}
-							data-testid="info-view-{which}-btn"
-						>
-							{t(`panelView.${which}`)}
-						</button>
-					{/each}
+					<div class="views" role="group" aria-label={t('panel.viewTitle')}>
+						{#each VIEWS as which (which)}
+							<button
+								class="views__item"
+								type="button"
+								aria-pressed={view === which}
+								onclick={() => (view = which)}
+								data-testid="info-view-{which}-btn"
+							>
+								{t(`panelView.${which}`)}
+							</button>
+						{/each}
+					</div>
 				</div>
-			</div>
-		</header>
+			</header>
 
-		{#if !ready}
-			<p class="card muted" data-testid="info-wait-text">{t('common.loading')}</p>
-		{:else if editing}
-			<section class="card stack" data-testid="info-editor-section">
-				<p class="muted">{t('panel.editHint')}</p>
-				<PanelEditorGrid
-					{panel}
-					onpick={(cell) => (picked = cell)}
-					onrotate={(cell) => void rotate(cell)}
-				/>
+			<div class="desk__main">
+				{#if !ready}
+					<p class="card muted" data-testid="info-wait-text">{t('common.loading')}</p>
+				{:else if editing}
+					<section class="card stack" data-testid="info-editor-section">
+						<p class="muted">{t('panel.editHint')}</p>
+						<p class="muted">{t('panel.dragHint')}</p>
+						<PanelEditorGrid
+							{panel}
+							onpick={(cell) => (picked = cell)}
+							onrotate={(cell) => void rotate(cell)}
+							onmove={(at, to) => void shift(at, to)}
+						/>
 
-				{#if empty}
-					<button
-						class="btn"
-						type="button"
-						disabled={filling}
-						onclick={fill}
-						data-testid="info-fill-btn"
-					>
-						{filling ? t('common.loading') : t('info.fillStarter')}
-					</button>
-					<p class="muted">{t('info.fillStarterHint')}</p>
-				{/if}
-			</section>
-		{:else if empty}
-			<!--
+						{#if empty}
+							<button
+								class="btn"
+								type="button"
+								disabled={filling}
+								onclick={fill}
+								data-testid="info-fill-btn"
+							>
+								{filling ? t('common.loading') : t('info.fillStarter')}
+							</button>
+							<p class="muted">{t('info.fillStarterHint')}</p>
+						{/if}
+					</section>
+				{:else if empty}
+					<!--
 				ПАНЕЛІ ЩЕ НЕМАЄ, і сказано про це прямо разом із виходом. Порожня
 				сітка без пояснення читається як поломка, а порожній екран — як
 				незавантажена сторінка.
 			-->
-			<section class="card stack" data-testid="info-empty-section">
-				<p>{t('info.noPanel')}</p>
-				<!--
+					<section class="card stack" data-testid="info-empty-section">
+						<p>{t('info.noPanel')}</p>
+						<!--
 					ОДИН ВИХІД, А НЕ ДВА. «Скласти типову панель» живе в самому
 					складальнику, поруч із сіткою, яку вона заповнить: дві кнопки тут
 					питали б у людини, яка ще не бачила жодної комірки, чим типова
 					панель відрізняється від власної.
 				-->
-				<button
-					class="btn btn--primary"
-					type="button"
-					onclick={() => (editing = true)}
-					data-testid="info-start-edit-btn"
-				>
-					{t('panel.edit')}
-				</button>
-			</section>
-		{:else}
-			<div class="halves" class:halves--one={view !== 'both'}>
-				{#if view !== 'log'}
-					<section class="card mirror" data-testid="info-panel-section">
-						<!--
+						<button
+							class="btn btn--primary"
+							type="button"
+							onclick={() => (editing = true)}
+							data-testid="info-start-edit-btn"
+						>
+							{t('panel.edit')}
+						</button>
+					</section>
+				{:else}
+					{#if view !== 'log'}
+						<section class="card mirror" data-testid="info-panel-section">
+							<!--
 							НЕ ДЗЕРКАЛО: та сама панель, і тиснеться вона так само. Ручки
 							крутить саме звукорежисер, а кнопку з підписом він тисне, щоб
 							позначити зроблене — і рядок про це лягає в той самий журнал.
 						-->
-						<PanelGrid {panel} {levels} {flags} {recent} press={own} />
-					</section>
-				{/if}
+							<PanelGrid {panel} {levels} {flags} {recent} press={own} />
+						</section>
+					{/if}
 
-				{#if view !== 'panel'}
-					<section class="card stack" data-testid="info-log-section">
-						<h2 class="subtitle">{t('panel.logTitle')}</h2>
-						<PanelLog {notices} />
-					</section>
+					{#if view !== 'panel'}
+						<section class="card stack log" data-testid="info-log-section">
+							<h2 class="subtitle">{t('panel.logTitle')}</h2>
+							<PanelLog {notices} />
+						</section>
+					{/if}
 				{/if}
 			</div>
-		{/if}
+		</div>
 
 		{#if inviteOpen && board.password}
 			<RemoteDialog
@@ -444,10 +479,19 @@
 </div>
 
 <style>
+	/*
+	 * Шапка стовпчиком, а не в два кінці рядка: у вузькій колонці «в два кінці»
+	 * означає «майже впритул», і роль злипалася б із лічильником.
+	 */
+	.desk__who {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
 	.head__side {
 		display: flex;
 		flex-direction: column;
-		align-items: end;
+		align-items: stretch;
 		gap: var(--gap-xs);
 	}
 
@@ -502,21 +546,47 @@
 		block-size: min(70dvh, 38rem);
 	}
 
-	.halves {
+	/*
+	 * ДОШКА ВУЗЬКА, РЕШТА ЗАБИРАЄ ЩО ЛИШИЛОСЯ.
+	 *
+	 * У шапки немає причини бути ширшою за свій вміст: у ній ідентифікатор,
+	 * лічильник підказок і три кнопки. Ширина потрібна журналу — саме його
+	 * читають через увесь стіл.
+	 */
+	.desk {
 		display: grid;
-		grid-template-columns: minmax(240px, 22rem) 1fr;
+		grid-template-columns: minmax(220px, 20rem) 1fr;
 		gap: var(--gap);
 		align-items: start;
 	}
 
-	.halves--one {
+	/* Усередині — панель і журнал поруч; коли обрано щось одне, воно саме. */
+	.desk__main {
+		display: grid;
+		grid-template-columns: minmax(240px, 24rem) 1fr;
+		gap: var(--gap);
+		align-items: start;
+	}
+
+	.desk--one .desk__main {
 		grid-template-columns: 1fr;
 	}
 
-	@media (max-width: 899px) {
-		.halves {
+	/*
+	 * На вузькому екрані колонка одна: три поруч перетворилися б на три смужки,
+	 * у кожній з яких не вміщається навіть підпис віджета.
+	 */
+	@media (max-width: 1099px) {
+		.desk,
+		.desk__main {
 			grid-template-columns: 1fr;
 		}
+	}
+
+	/* Журнал росте вниз, а не розтягує сусідів: у нього своя прокрутка. */
+	.log {
+		max-block-size: min(80dvh, 46rem);
+		overflow: auto;
 	}
 
 	.subtitle {

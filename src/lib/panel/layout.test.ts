@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fits, layoutPanel, spanOf } from './layout';
+import { fits, layoutPanel, moveTo, spanOf } from './layout';
 import type { Panel, PanelCell } from '$lib/net/panelTypes';
 
 /**
@@ -102,5 +102,52 @@ describe('чи стане віджет на місце', () => {
 		// Без цього змінити поворот на місці було б неможливо ніколи: віджет
 		// натикався б на власні клітинки.
 		expect(fits(panel, '0', 3, false, '0')).toBe(true);
+	});
+});
+
+describe('пересування віджета', () => {
+	it('на вільне місце — переїжджає', () => {
+		const cells = moveTo(panelOf({ '0': buttons(2) }), '0', '1');
+		expect(cells && Object.keys(cells)).toEqual(['1']);
+	});
+
+	it('на зайняте — міняються місцями', () => {
+		const panel = panelOf({ '0': buttons(2), '1': { kind: 'check', caption: 'c' } });
+		const cells = moveTo(panel, '0', '1');
+		expect(cells?.['1'].kind).toBe('buttons');
+		expect(cells?.['0'].kind).toBe('check');
+	});
+
+	it('обмін, після якого другий не влазить, не відбувається зовсім', () => {
+		// Перемикач стоїть в останньому ряду; група на три кнопки туди не стане
+		// ні стовпчиком (треба три ряди, є один), ні рядком (сусіди зайняті).
+		const panel = panelOf({
+			'0': buttons(3),
+			'12': { kind: 'check', caption: 'c' },
+			'13': { kind: 'check', caption: 'd' },
+			'14': { kind: 'check', caption: 'e' }
+		});
+		expect(moveTo(panel, '0', '12')).toBeNull();
+	});
+
+	it('на саме себе — нічого', () => {
+		expect(moveTo(panelOf({ '0': buttons(2) }), '0', '0')).toBeNull();
+	});
+
+	it('порожню клітинку не пересунути', () => {
+		expect(moveTo(panelOf({ '0': buttons(2) }), '5', '6')).toBeNull();
+	});
+
+	it('не влазить у своєму повороті — повертається сам', () => {
+		// Ряд 3: стовпчиком треба три ряди, лишилося два. Рядком — три стовпці,
+		// і всі вільні. Відмовити тут означало б вимагати спершу повернути.
+		const cells = moveTo(panelOf({ '0': buttons(3) }), '0', '9');
+		expect(cells?.['9'].vertical).toBe(false);
+	});
+
+	it('не влазить у жодному повороті — не пересувається', () => {
+		// Останній ряд, середній стовпець: стовпчиком немає рядів, рядком —
+		// лише два стовпці з трьох потрібних.
+		expect(moveTo(panelOf({ '0': buttons(3) }), '0', '13')).toBeNull();
 	});
 });

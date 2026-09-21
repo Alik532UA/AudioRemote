@@ -385,6 +385,8 @@ export const en: Record<TranslationKey, string> = {
 	'panel.editDone': 'Done',
 	'panel.editHint':
 		'Tap a cell to put buttons, a slider or a switch into it. Empty places stay empty — they are what keeps the grid steady.',
+	'panel.dragHint':
+		'A widget can be dragged elsewhere. If something is already there, the two swap places.',
 	'panel.cellTitle': 'Cell {n}',
 	'panel.kind': 'What is in the cell',
 	'panelKind.none': 'Empty',

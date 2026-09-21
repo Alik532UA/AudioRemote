@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { plural, t } from '$lib/i18n/i18n.svelte';
-	import { PANEL_COLS, type Panel, type PanelCell } from '$lib/net/panelTypes';
+	import { PANEL_COLS, PANEL_ROWS, type Panel, type PanelCell } from '$lib/net/panelTypes';
 	import { layoutPanel, type Placed } from '$lib/panel/layout';
 	import { colorOf } from '$lib/config/trackColors';
 
@@ -22,11 +22,85 @@
 		onpick: (cell: string) => void;
 		/** Повернути віджет на місці — колесом миші або кнопкою у вікні. */
 		onrotate: (cell: string) => void;
+		/** Перетягнули віджет на інше місце. Чи стане він туди, вирішує той, хто кличе. */
+		onmove: (from: string, to: string) => void;
 	}
 
-	let { panel, onpick, onrotate }: Props = $props();
+	let { panel, onpick, onrotate, onmove }: Props = $props();
 
 	const board = $derived(layoutPanel(panel));
+
+	/**
+	 * ПЕРЕТЯГУВАННЯ — НА ВКАЗІВНИКУ, а не на HTML5 drag-and-drop.
+	 *
+	 * Рідний механізм браузера не працює на дотик узагалі: на планшеті, який
+	 * стоїть біля пульта, віджет не зрушити б із місця. Події вказівника
+	 * однакові для миші, пальця й пера, і `setPointerCapture` доводить рух до
+	 * кінця навіть тоді, коли палець вийшов за межі віджета.
+	 *
+	 * ПОРІГ У ВІСІМ ТОЧОК відрізняє перетягування від натискання. Без нього
+	 * будь-яке тремтіння руки на дотику перетворювало б відкриття віджета на
+	 * переїзд — і навпаки, суворіший поріг робив би короткий переїзд
+	 * неможливим.
+	 */
+	const THRESHOLD = 8;
+
+	let grid = $state<HTMLElement | null>(null);
+	/** Звідки тягнемо. Порожньо — не тягнемо. */
+	let from = $state<string | null>(null);
+	/** Куди націлилися. Підсвічується, поки палець над нею. */
+	let over = $state<string | null>(null);
+	let start = { x: 0, y: 0 };
+	/**
+	 * Чи вже був рух: натискання після перетягування не рахується.
+	 *
+	 * `$state`, бо від нього залежить вигляд — те, що тягнуть, напівпрозоре.
+	 */
+	let dragged = $state(false);
+
+	/** Номер клітинки під точкою. `null` — поза сіткою. */
+	function cellAt(x: number, y: number): string | null {
+		if (!grid) return null;
+		const box = grid.getBoundingClientRect();
+		if (x < box.left || x > box.right || y < box.top || y > box.bottom) return null;
+
+		const col = Math.floor(((x - box.left) / box.width) * PANEL_COLS);
+		const row = Math.floor(((y - box.top) / box.height) * PANEL_ROWS);
+		const at =
+			Math.min(PANEL_ROWS - 1, Math.max(0, row)) * PANEL_COLS +
+			Math.min(PANEL_COLS - 1, Math.max(0, col));
+		return String(at);
+	}
+
+	function grab(event: PointerEvent, cell: string) {
+		// Лише основна кнопка: правою відкривають контекстне меню.
+		if (event.button !== 0) return;
+		from = cell;
+		over = null;
+		dragged = false;
+		start = { x: event.clientX, y: event.clientY };
+		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+	}
+
+	function drag(event: PointerEvent) {
+		if (from === null) return;
+		if (!dragged) {
+			const far =
+				Math.abs(event.clientX - start.x) > THRESHOLD ||
+				Math.abs(event.clientY - start.y) > THRESHOLD;
+			if (!far) return;
+			dragged = true;
+		}
+		over = cellAt(event.clientX, event.clientY);
+	}
+
+	function drop() {
+		const source = from;
+		const target = over;
+		from = null;
+		over = null;
+		if (dragged && source !== null && target !== null && target !== source) onmove(source, target);
+	}
 
 	const spot = (at: Placed) => `${at.row + 1} / ${at.col + 1} / span ${at.rows} / span ${at.cols}`;
 
@@ -46,10 +120,11 @@
 	};
 </script>
 
-<div class="grid" data-testid="panel-editor-list">
+<div class="grid" bind:this={grid} data-testid="panel-editor-list">
 	{#each board.free as key (key)}
 		<button
 			class="slot slot--empty"
+			class:slot--over={over === key && from !== null}
 			type="button"
 			style="grid-area: {hole(key)}"
 			onclick={() => onpick(key)}
@@ -74,11 +149,25 @@
 			-->
 			{@const hex = colorOf(cell.color)}
 			<button
-				class="slot"
+				class="slot slot--movable"
 				class:slot--tinted={hex !== null}
+				class:slot--dragged={from === at.cell && dragged}
+				class:slot--over={over === at.cell && from !== null && from !== at.cell}
 				type="button"
 				style="grid-area: {spot(at)}{hex ? `; --widget-color: ${hex}` : ''}"
-				onclick={() => onpick(at.cell)}
+				onclick={() => {
+					// Перетягування закінчується натисканням — і воно не мусить
+					// відкривати вікно віджета, який щойно переїхав.
+					if (dragged) {
+						dragged = false;
+						return;
+					}
+					onpick(at.cell);
+				}}
+				onpointerdown={(event) => grab(event, at.cell)}
+				onpointermove={drag}
+				onpointerup={drop}
+				onpointercancel={drop}
 				onwheel={(event) => {
 					event.preventDefault();
 					onrotate(at.cell);
@@ -134,7 +223,7 @@
 
 	/* Колір — так само, як у живій сітці: складальник показує те, що побачить зал. */
 	.slot--tinted {
-		border-inline-start: 4px solid var(--widget-color);
+		border: 4px solid var(--widget-color);
 		background: color-mix(in oklab, var(--widget-color) 12%, var(--bg-surface-raised));
 	}
 
@@ -148,6 +237,27 @@
 	.slot:hover,
 	.slot:focus-visible {
 		border-color: var(--accent);
+	}
+
+	/*
+	 * `touch-action: none` — без нього палець на віджеті прокручує сторінку, і
+	 * перетягування на планшеті не починається ніколи. Ціна названа: прокрутити
+	 * сторінку, поклавши палець саме на віджет, не вийде — але складальник
+	 * однаково вміщається в екран цілком.
+	 */
+	.slot--movable {
+		touch-action: none;
+	}
+
+	/* Те, що тягнуть, — напівпрозоре: під ним видно, куди воно стане. */
+	.slot--dragged {
+		opacity: 0.45;
+	}
+
+	/* Місце, куди впаде. Підсвічується й порожнє, і зайняте — обмін теж законний. */
+	.slot--over {
+		border-color: var(--accent);
+		box-shadow: 0 0 0 2px var(--accent-soft);
 	}
 
 	.slot__caption {

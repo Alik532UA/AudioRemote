@@ -148,3 +148,61 @@ export function fits(
 
 	return areaOf(Number(at), span, vertical, taken) !== null;
 }
+
+/**
+ * ПЕРЕСУНУТИ ВІДЖЕТ — або помінятися місцями, якщо там уже хтось є.
+ *
+ * Повертає НОВУ мапу комірок, або `null`, коли так не вийде. `null` означає
+ * «нічого не сталося», і саме тому перевірок тут дві, а не одна: віджет мусить
+ * стати на нове місце, а той, кого він звідти зрушив, — на звільнене. Одна
+ * перевірка дала б обмін, після якого другий віджет не влазить і мовчки
+ * зникає.
+ *
+ * Обидві перевірки робляться на панелі БЕЗ обох учасників: інакше кожен із них
+ * заважав би сам собі — свої ж клітинки рахувалися б за зайняті.
+ */
+export function moveTo(panel: Panel, from: string, to: string): Panel['cells'] | null {
+	if (from === to) return null;
+
+	const source = panel.cells[from];
+	if (!source) return null;
+	const target = panel.cells[to];
+
+	const rest: Panel = { rev: panel.rev, cells: { ...panel.cells } };
+	delete rest.cells[from];
+	delete rest.cells[to];
+
+	const landed = turnedInto(rest, to, source);
+	if (!landed) return null;
+
+	let swapped: PanelCell | null = null;
+	if (target) {
+		// Джерело вже на новому місці — звідти й дивимося, чи стане другий.
+		const moved: Panel = { rev: rest.rev, cells: { ...rest.cells, [to]: landed } };
+		swapped = turnedInto(moved, from, target);
+		if (!swapped) return null;
+	}
+
+	const cells = { ...panel.cells };
+	delete cells[from];
+	cells[to] = landed;
+	if (swapped) cells[from] = swapped;
+	return cells;
+}
+
+/**
+ * Віджет у новому місці — із поворотом, у якому він туди стає.
+ *
+ * Спершу пробується той поворот, який у віджета вже є: переїзд не мусить
+ * міняти його вигляд без потреби. Якщо так не влазить — протилежний, бо
+ * відмовити в переїзді на вільне місце лише через поворот означало б вимагати
+ * від людини спершу повернути, а потім тягнути. `null` — не влазить ніяк.
+ */
+function turnedInto(panel: Panel, at: string, cell: PanelCell): PanelCell | null {
+	const span = spanOf(cell);
+	const wanted = isVertical(cell);
+
+	if (fits(panel, at, span, wanted)) return cell;
+	if (fits(panel, at, span, !wanted)) return { ...cell, vertical: !wanted };
+	return null;
+}
