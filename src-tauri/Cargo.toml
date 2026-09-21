@@ -14,6 +14,21 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
+# ТІЛЬКИ ДЛЯ ПЕРЕВІРКИ МЕЖІ, і саме тому в dev-залежностях.
+#
+# `capabilities/default.json` називає єдину адресу, якій видано читання й запис
+# файлів. Прочитати цей рядок очима недостатньо: він тлумачиться як URLPattern,
+# а в URLPattern порожній шлях мовчки перетворюється на `*` (див.
+# `tauri-utils-2.9.3/src/acl/mod.rs`, `RemoteUrlPattern::from_str`). Тобто
+# «звужено» й «виглядає звуженим» — різні речі, і різницю видно лише прогоном.
+#
+# Версія збігається з тією, яку тягне `tauri` (див. Cargo.lock): перевіряти
+# треба ТИМ САМИМ кодом, що судитиме в застосунку, а не схожим.
+[dev-dependencies]
+tauri-utils = "2.9.3"
+url = "2"
+serde_json = "1"
+
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
