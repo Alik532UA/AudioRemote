@@ -1,2 +1,0 @@
-import"./Dof2PsIB.js";import{s as a,r as o}from"./B6fKNT3t.js";import{I as p}from"./CH--JC4N.js";var h=new Set(["$$slots","$$events","$$legacy"]);function d(t,e){let r=o(e,h);const s={name:"dices",size:24,node:[["rect",{width:"12",height:"12",x:"2",y:"10",rx:"2",ry:"2"}],["path",{d:"m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6"}],["path",{d:"M6 18h.01"}],["path",{d:"M10 14h.01"}],["path",{d:"M15 6h.01"}],["path",{d:"M18 9h.01"}]]};p(t,a(()=>r,{get icon(){return s}}))}export{d as D};
-//# sourceMappingURL=BYsRmaQu.js.map
