@@ -31,6 +31,8 @@ serde_json = "1"
 
 [dependencies]
 tauri = { version = "2", features = [] }
+# Розбір адрес у `stays_in_app`: той самий тип, яким адресу подає Tauri.
+url = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
 # ПАПКА МУСИТЬ ПЕРЕЖИТИ ПЕРЕЗАПУСК ЗАСТОСУНКУ.

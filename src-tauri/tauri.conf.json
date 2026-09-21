@@ -7,20 +7,6 @@
 		"frontendDist": "https://alik532ua.github.io/AudioRemote/"
 	},
 	"app": {
-		"windows": [
-			{
-				"label": "main",
-				"url": "https://alik532ua.github.io/AudioRemote/",
-				"title": "AudioRemote — плеєр",
-				"width": 1280,
-				"height": 860,
-				"minWidth": 380,
-				"minHeight": 480,
-				"resizable": true,
-				"center": true,
-				"additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required"
-			}
-		],
 		"security": {
 			"csp": null,
 			"capabilities": ["default"]

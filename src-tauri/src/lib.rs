@@ -31,6 +31,34 @@ fn allow_folder(app: tauri::AppHandle, path: String) -> Result<(), String> {
         .map_err(|error| error.to_string())
 }
 
+/// Сторінка застосунку. Одне місце, з якого беруть і адресу вікна, і межу.
+const APP_URL: &str = "https://alik532ua.github.io/AudioRemote/";
+
+/// Що вважається «всередині застосунку» — за адресою, а не за походженням.
+const APP_PREFIX: &str = "https://alik532ua.github.io/AudioRemote/";
+
+/// ЧИ МОЖНА ВЕБВʼЮ ТУДИ ПІТИ — і чому це не те саме, що `remote.urls`.
+///
+/// `remote.urls` дає дозволи ПОХОДЖЕННЮ, бо більшого на звірку не приходить
+/// (див. `remote_scope` нижче). А GitHub Pages віддає з одного походження всі
+/// проєкти автора. Отже саме походження не розрізняє «наша сторінка» й
+/// «сусідній проєкт», і зробити це там неможливо.
+///
+/// Зате можна зробити тут. Небезпечним сусід стає лише тоді, коли його
+/// сторінка опиняється в ЦЬОМУ вебвʼю — і саме цього не буде: вікно не
+/// переходить нікуди, крім `/AudioRemote/`. Зовнішніх посилань у застосунку
+/// немає жодного, тож ціна рішення — нуль.
+///
+/// Схеми, які не є вебом (`about:`, `devtools:`, `blob:`), пропускаються:
+/// походженням вони не стають, тож дозволів із `remote.urls` не успадковують,
+/// а заборона зламала б службові переходи самого вебвʼю.
+fn stays_in_app(url: &url::Url) -> bool {
+    match url.scheme() {
+        "http" | "https" => url.as_str().starts_with(APP_PREFIX),
+        _ => true,
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[allow(unused_mut)]
@@ -74,6 +102,38 @@ pub fn run() {
 
     builder
         .invoke_handler(tauri::generate_handler![allow_folder])
+        /*
+         * ВІКНО БУДУЄТЬСЯ ТУТ, А НЕ В КОНФІГУ, — рівно заради одного рядка.
+         *
+         * `on_navigation` існує лише в будівника; вікну, оголошеному в
+         * `tauri.conf.json`, його потім не додати. Решта полів переїхала слово
+         * в слово, і жодне з них не має власної думки: розміри, заголовок,
+         * прапорці вебвʼю.
+         *
+         * `--autoplay-policy=no-user-gesture-required` лишається обовʼязковим:
+         * без нього приймач мовчить, доки в нього не клацнуть, — а клацати
+         * нікому, комп'ютер стоїть біля колонок.
+         */
+        .setup(|app| {
+            tauri::WebviewWindowBuilder::new(
+                app,
+                "main",
+                tauri::WebviewUrl::External(APP_URL.parse().expect("APP_URL не є адресою")),
+            )
+            .title("AudioRemote — плеєр")
+            .inner_size(1280.0, 860.0)
+            .min_inner_size(380.0, 480.0)
+            .resizable(true)
+            .center()
+            .additional_browser_args(
+                "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection \
+                 --autoplay-policy=no-user-gesture-required",
+            )
+            .on_navigation(stays_in_app)
+            .build()?;
+
+            Ok(())
+        })
         .run(context)
         .expect("не вдалося запустити AudioRemote");
 }
@@ -179,23 +239,89 @@ mod updater_channel {
     }
 }
 
+/// ВЕБВʼЮ НЕ ВИХОДИТЬ ЗА МЕЖІ ЗАСТОСУНКУ.
+///
+/// Це друга половина рішення про межу (перша — `remote_scope` нижче). Дозволи
+/// видані ПОХОДЖЕННЮ, бо більшого на звірку не приходить, а походження в
+/// GitHub Pages спільне для всіх проєктів автора. Отже єдине місце, де «наша
+/// сторінка» ще відрізняється від «сусіднього проєкту», — це рішення, куди
+/// вебвʼю взагалі можна піти.
+#[cfg(test)]
+mod navigation {
+    use super::stays_in_app;
+    use url::Url;
+
+    fn go(url: &str) -> bool {
+        stays_in_app(&Url::parse(url).expect("некоректна адреса в перевірці"))
+    }
+
+    #[test]
+    fn власні_сторінки_проходять() {
+        // Без цього решта була б зеленою на межі, яка не пускає нікуди, —
+        // тобто на застосунку з порожнім вікном.
+        assert!(go(super::APP_URL), "початкова адреса заблокована — вікно буде порожнє");
+        assert!(go("https://alik532ua.github.io/AudioRemote/player"));
+        assert!(go("https://alik532ua.github.io/AudioRemote/remote?x=1#y"));
+    }
+
+    #[test]
+    fn сусідній_проєкт_і_корінь_домену_не_проходять() {
+        // САМЕ ЦЕ Й Є МЕЖА: походження в них те саме, що в нас, тож дозволи
+        // вони успадкували б цілком.
+        for foreign in [
+            "https://alik532ua.github.io/Slovko/",
+            "https://alik532ua.github.io/MindStep/",
+            "https://alik532ua.github.io/",
+            "https://alik532ua.github.io/AudioRemoteEvil/",
+            "https://example.com/AudioRemote/",
+            "http://alik532ua.github.io/AudioRemote/",
+        ] {
+            assert!(!go(foreign), "{foreign} пускають у вебвʼю застосунку");
+        }
+    }
+
+    #[test]
+    fn службові_схеми_не_чіпаємо() {
+        /*
+         * Вони не стають веб-походженням, тож дозволів із `remote.urls` не
+         * успадковують. Заборона тут не додала б безпеки, зате зламала б
+         * службові переходи самого вебвʼю.
+         */
+        assert!(go("about:blank"));
+        assert!(go("devtools://devtools/bundled/inspector.html"));
+    }
+}
+
 /// МЕЖА, ЗА ЯКОЮ ПОЧИНАЄТЬСЯ ДИСК, — І ЄДИНИЙ СПОСІБ ЇЇ ПЕРЕВІРИТИ.
 ///
 /// `remote.urls` у capability вирішує, чия сторінка дістає `fs:allow-read-file`
-/// і `fs:allow-write-text-file` на машині, де стоїть плеєр. Довго вважалося,
-/// що звузити це можна лише до домену: у самій capability так і було написано
-/// («звіряється ПОХОДЖЕННЯ, а не шлях»). Це НЕПРАВДА, і ціна помилки була
-/// висока — `https://alik532ua.github.io/*` це весь GitHub Pages автора, тобто
-/// XSS у будь-якому сусідньому проєкті отримував доступ до файлів.
+/// і `fs:allow-write-text-file` на машині, де стоїть плеєр.
 ///
-/// Насправді рядок тлумачиться як [URLPattern], і шлях у ньому працює. Але
-/// перевіряти це читанням не можна через одну тиху деталь реалізації
-/// (`tauri-utils/src/acl/mod.rs`, `RemoteUrlPattern::from_str`): якщо шлях у
-/// патерні порожній або дорівнює `/`, він МОВЧКИ замінюється на `*`. Тобто
-/// `https://host` і `https://host/` означають «весь домен», а виглядають як
-/// точна адреса.
+/// ## Що тут двічі розуміли неправильно
 ///
-/// Тому межа перевіряється прогоном, тим самим типом, що судитиме в застосунку.
+/// Спершу стояло «звіряється ПОХОДЖЕННЯ, а не шлях, точніше обмежити
+/// неможливо». Потім це визнали неправдою: `RemoteUrlPattern` справді будує
+/// [URLPattern], і `test()` на повній адресі шлях розрізняє. Межу звузили до
+/// `https://alik532ua.github.io/AudioRemote/*`, а цей модуль «довів», що
+/// сусідні проєкти більше не підпадають.
+///
+/// Довів він не те. Застосунок звіряє НЕ повну адресу: у
+/// `tauri-2.11.6/src/ipc/protocol.rs` адреса для ACL береться із ЗАГОЛОВКА
+/// `Origin`, а заголовок `Origin` за означенням не має шляху. Тобто на звірку
+/// приходить `https://alik532ua.github.io/`, і патерн зі шляхом не збігається
+/// НІКОЛИ — жодна нативна команда не проходить. Журнал застосунку сказав це
+/// дослівно: `dialog.open not allowed on window "main", URL:
+/// https://alik532ua.github.io/`.
+///
+/// Висновок, який тепер тримає цей модуль: **межа тут — походження**, і
+/// звузити її нижче неможливо не через незнання, а через те, ЩО САМЕ
+/// приходить на звірку. Тому перевірка годує патерн ПОХОДЖЕННЯМ — рівно тим,
+/// чим його годує застосунок, — і окремо вимагає, щоб у патерні не було шляху:
+/// шлях тут не звужує межу, він її ВИМИКАЄ.
+///
+/// Те, чого ця межа не закриває (сторінка сусіднього проєкту, яка опинилася б
+/// у цьому вебвʼю), закривається в іншому місці — забороною вебвʼю виходити за
+/// `/AudioRemote/`. Справжнє звуження самої межі коштувало б власного домену.
 ///
 /// [URLPattern]: https://urlpattern.spec.whatwg.org/
 #[cfg(test)]
@@ -204,11 +330,11 @@ mod remote_scope {
     use tauri_utils::acl::RemoteUrlPattern;
     use url::Url;
 
-    /// Патерни з `capabilities/default.json` — читаємо ФАЙЛ, а не копію.
+    /// Рядки з `capabilities/default.json` — читаємо ФАЙЛ, а не копію.
     ///
     /// Копія рядка в тесті перевіряла б саму себе: правку в capability вона
     /// пережила б зеленою.
-    fn patterns() -> Vec<RemoteUrlPattern> {
+    fn raw_urls() -> Vec<String> {
         let raw = std::fs::read_to_string(
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("capabilities/default.json"),
         )
@@ -226,59 +352,105 @@ mod remote_scope {
 
         urls.iter()
             .map(|value| {
-                let text = value.as_str().expect("remote.urls містить не рядок");
+                value
+                    .as_str()
+                    .expect("remote.urls містить не рядок")
+                    .to_owned()
+            })
+            .collect()
+    }
+
+    fn patterns() -> Vec<RemoteUrlPattern> {
+        raw_urls()
+            .iter()
+            .map(|text| {
                 RemoteUrlPattern::from_str(text)
                     .unwrap_or_else(|_| panic!("{text} не є коректним URLPattern"))
             })
             .collect()
     }
 
-    fn matches(url: &str) -> bool {
-        let parsed = Url::parse(url).expect("некоректна адреса в перевірці");
-        patterns().iter().any(|pattern| pattern.test(&parsed))
+    /// ЗВІРКА ЙДЕ ПОХОДЖЕННЯМ, а не повною адресою — так само, як у застосунку.
+    ///
+    /// Саме на цій різниці попередня редакція модуля й «довела» звуження,
+    /// якого не було: вона подавала сюди `…/AudioRemote/`, а застосунок подає
+    /// `…/`.
+    fn origin_matches(page: &str) -> bool {
+        let parsed = Url::parse(page).expect("некоректна адреса в перевірці");
+        let origin = Url::parse(&parsed.origin().ascii_serialization())
+            .expect("походження не розібралося назад в адресу");
+        patterns().iter().any(|pattern| pattern.test(&origin))
     }
 
     #[test]
     fn сторінка_застосунку_проходить() {
         // Без цього решта перевірок була б зеленою на порожній межі.
         assert!(
-            matches("https://alik532ua.github.io/AudioRemote/"),
-            "власна сторінка не підпадає під remote.urls — застосунок не дістане доступу до тек"
+            origin_matches("https://alik532ua.github.io/AudioRemote/"),
+            "власна сторінка не підпадає під remote.urls — застосунок не дістане ні \
+             діалогу, ні файлів, і виглядатиме це як зламана кнопка «Обрати папку»"
         );
         // SvelteKit ходить маршрутами всередині того самого шляху.
         assert!(
-            matches("https://alik532ua.github.io/AudioRemote/board/abc"),
+            origin_matches("https://alik532ua.github.io/AudioRemote/player"),
             "внутрішній маршрут не підпадає — команди відмовлять після першого переходу"
         );
     }
 
     #[test]
-    fn сусідні_проєкти_на_тому_самому_домені_не_проходять() {
-        // САМЕ ЦЕ Й БУЛО ДІРКОЮ. GitHub Pages віддає всі проєкти автора з
-        // одного домену, тож поки межа була доменом, XSS у будь-якому з них
-        // отримував читання й запис файлів на машині з плеєром.
-        for foreign in [
-            "https://alik532ua.github.io/Slovko/",
-            "https://alik532ua.github.io/MindStep/",
-            "https://alik532ua.github.io/HotPaste/",
-            "https://alik532ua.github.io/",
-            "https://alik532ua.github.io/AudioRemoteEvil/",
-        ] {
+    fn шлях_у_патерні_вимикає_застосунок() {
+        /*
+         * ЦЕ НЕ СТИЛЬ, А ПРАЦЕЗДАТНІСТЬ. Заголовок `Origin` шляху не має, тож
+         * патерн зі шляхом не збігається з нічим і мовчки знімає всі дозволи.
+         * Перевіряється САМ РЯДОК конфігу: `test()` на походженні тут сказав би
+         * лише «не збіглося», не назвавши причини.
+         */
+        for url in raw_urls() {
+            let path = url
+                .split_once("://")
+                .and_then(|(_, rest)| rest.split_once('/'))
+                .map(|(_, path)| path.to_owned())
+                .unwrap_or_default();
+
             assert!(
-                !matches(foreign),
-                "{foreign} підпадає під remote.urls — межа ширша за застосунок"
+                path.is_empty() || path == "*",
+                "{url}: шлях у remote.urls не звужує межу, а вимикає застосунок — \
+                 на звірку приходить лише походження"
             );
         }
     }
 
     #[test]
     fn чужий_домен_і_http_не_проходять() {
+        // Це те, що межа справді ловить, і саме це вона мусить ловити далі.
         for foreign in [
             "https://example.com/AudioRemote/",
             "http://alik532ua.github.io/AudioRemote/",
             "https://alik532ua.github.io.evil.com/AudioRemote/",
+            "http://localhost:5173/",
         ] {
-            assert!(!matches(foreign), "{foreign} підпадає під remote.urls");
+            assert!(!origin_matches(foreign), "{foreign} підпадає під remote.urls");
         }
+    }
+
+    #[test]
+    fn сусідній_проєкт_підпадає_і_це_названо() {
+        /*
+         * НЕПРИЄМНА ПРАВДА, ЗАПИСАНА ПРОГОНОМ.
+         *
+         * GitHub Pages віддає всі проєкти автора з одного походження, тож межа
+         * capability їх не розрізняє й розрізнити не може. Раніше це намагалися
+         * приховати шляхом у патерні — і ціною був непрацездатний застосунок.
+         *
+         * Опис стоїть тут, щоб наступна спроба «звузити» почалася з падіння на
+         * ньому, а не з тижня пошуку, чому не відкривається діалог. Закриває цю
+         * діру не capability, а заборона вебвʼю йти за межі `/AudioRemote/`.
+         */
+        assert!(
+            origin_matches("https://alik532ua.github.io/Slovko/"),
+            "сусідній проєкт перестав підпадати — якщо це зробили шляхом у \
+             remote.urls, то застосунок зараз не працює зовсім; межу тримає \
+             on_navigation, а не цей рядок"
+        );
     }
 }
