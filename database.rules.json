@@ -185,12 +185,20 @@
 							// Стовпчиком чи рядком. Скільки клітинок займе віджет, рахує
 							// клієнт (`panel/layout.ts`): сітка — не дані, а розкладка.
 							"vertical": { ".validate": "newData.isBoolean()" },
+							// Свій розмір у клітинках. Межі — сама сітка 3×5; чи не
+							// наступає віджет на сусіда, однаково вирішує клієнт.
+							"rows": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5" },
+							"cols": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3" },
+							// Гучне натискання: спалах на весь екран табла.
+							"important": { ".validate": "newData.isBoolean()" },
 							"buttons": {
 								// Не більше п'яти: стільки рядів у сітці, тобто віджет
 								// стовпчиком може бути заввишки з колонку й не довше.
 								"$index": {
 									".validate": "$index.matches(/^[0-4]$/) && newData.hasChildren(['label'])",
 									"label": { ".validate": "newData.isString() && newData.val().length <= 24" },
+									// Свій колір кнопки — назва заготовки, як і в віджета.
+									"color": { ".validate": "newData.val().matches(/^[a-z]{2,12}$/)" },
 									"$other": { ".validate": false }
 								}
 							},

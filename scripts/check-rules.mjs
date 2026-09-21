@@ -751,6 +751,46 @@ await mustNot('поворот не булевий', () =>
 	patch(`boards/${KEY}/panel/cells`, { 1: { kind: 'check', vertical: 'так' } }, owner.token)
 );
 
+// Свій розмір віджета. Межі — сама сітка: більше рядів, ніж у ній є, означало
+// б віджет, який не стане нікуди, і клієнт мовчки зменшив би його до клітинки.
+await must('віджет зі своїм розміром', () =>
+	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 2, cols: 2 } }, owner.token)
+);
+
+await mustNot('рядів більше, ніж у сітці', () =>
+	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 9, cols: 1 } }, owner.token)
+);
+
+await mustNot('стовпців більше, ніж у сітці', () =>
+	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 1, cols: 4 } }, owner.token)
+);
+
+await mustNot('розмір не числом', () =>
+	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 'два' } }, owner.token)
+);
+
+await must('важливий віджет', () =>
+	patch(`boards/${KEY}/panel/cells`, { 3: { kind: 'check', important: true } }, owner.token)
+);
+
+await mustNot('важливість не булева', () =>
+	patch(`boards/${KEY}/panel/cells`, { 3: { kind: 'check', important: 'дуже' } }, owner.token)
+);
+
+// Колір кнопки — назва заготовки, як і в віджета: довільний рядок пустив би
+// у базу `rgb(...)`, якого палітра не знає й намалювати не зможе.
+await must('своя барва кнопки', () =>
+	patch(`boards/${KEY}/panel/cells/0/buttons`, { 0: { label: 'стоп', color: 'ruby' } }, owner.token)
+);
+
+await mustNot('барва кнопки не із заготовок', () =>
+	patch(
+		`boards/${KEY}/panel/cells/0/buttons`,
+		{ 0: { label: 'стоп', color: '#ff0000' } },
+		owner.token
+	)
+);
+
 await mustNot('рівень повзунка поза межами', () =>
 	patch(`boards/${KEY}/panelState/levels`, { 4: 140 }, owner.token)
 );
