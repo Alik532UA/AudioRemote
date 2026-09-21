@@ -56,6 +56,8 @@ export const en: Record<TranslationKey, string> = {
 	'settings.app': 'App settings',
 	'settings.lookTitle': 'Appearance',
 	'settings.launchTitle': 'Launch',
+	'settings.showTitle': 'What to show',
+	'settings.extraTitle': 'More',
 	'settings.diagTitle': 'Diagnostics',
 	'settings.startTitle': 'What to open on launch',
 	'settings.autoStart': 'Start with the system',
@@ -464,6 +466,12 @@ export const en: Record<TranslationKey, string> = {
 		'The board changed elsewhere just now. Reopen the track settings for fresh values.',
 	'admin.badPatch': 'The player did not understand the change.',
 	'admin.noFolder': 'The folder can only be chosen on the device that plays.',
+
+	'contact.title': 'Get in touch',
+	'contact.lead': 'One person made this app. Write — I answer.',
+	'contact.what1': 'Something is broken or behaves oddly',
+	'contact.what2': 'A feature you need is missing',
+	'contact.what3': 'You need an app or a site of your own',
 
 	'error.network': 'No connection to the database. Check the internet.',
 	'error.emulatorDown':

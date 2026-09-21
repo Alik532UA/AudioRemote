@@ -16,6 +16,7 @@
 	import DiagnosticsTrail from './DiagnosticsTrail.svelte';
 	import HardResetButton from './HardResetButton.svelte';
 	import MusicFolderCard from './MusicFolderCard.svelte';
+	import ContactCard from './ContactCard.svelte';
 	import AutoStartSwitch from './AutoStartSwitch.svelte';
 	import { IconCheck, IconDice, IconTrash, IconWarning } from '$lib/config/icons';
 	import { i18n, LOCALES, t, type Locale } from '$lib/i18n/i18n.svelte';
@@ -39,6 +40,16 @@
 	import { isEmulator } from '$lib/net/firebase';
 
 	const LOCALE_NAMES: Record<Locale, string> = { uk: 'Українська', en: 'English' };
+
+	/**
+	 * Чи це збірка для розробки.
+	 *
+	 * `import.meta.env.DEV` — прапорець Vite, який стає літералом на складанні,
+	 * тож у бойовій збірці гілка під ним не лишається навіть кодом. Це не
+	 * налаштування й не змінна конфігу: питання тут одне — «нас зараз
+	 * розробляють».
+	 */
+	const DEV = import.meta.env.DEV;
 
 	let boardId = $state('');
 	let password = $state('');
@@ -173,31 +184,6 @@
 			-->
 			<AutoStartSwitch />
 
-			<div class="field">
-				<Switch
-					checked={settings.showTrigger}
-					label={t('settings.showTrigger')}
-					testid="settings-show-trigger"
-					onchange={(next) => settings.save({ showTrigger: next })}
-				/>
-				<p class="muted">{t('settings.showTriggerHint')}</p>
-			</div>
-
-			<!--
-				Перемикач ховає ВХІД у меню, а не самі сторінки: інфодошка вже жива,
-				просто ще недороблена, і той, хто її вмикає, мусить мати змогу й
-				вимкнути назад — не перевстановлюючи застосунок.
-			-->
-			<div class="field">
-				<Switch
-					checked={settings.showInfoBoards}
-					label={t('settings.showInfoBoards')}
-					testid="settings-show-info-boards"
-					onchange={(next) => settings.save({ showInfoBoards: next })}
-				/>
-				<p class="muted">{t('settings.showInfoBoardsHint')}</p>
-			</div>
-
 			{#if boardChoiceShown}
 				<div class="field">
 					<span class="field__label" id="start-board-label">{t('settings.startBoardTitle')}</span>
@@ -253,6 +239,43 @@
 					</button>
 				{/if}
 			{/if}
+		</section>
+
+		<!--
+			«ЩО ПОКАЗУВАТИ» — ОКРЕМОЮ КАРТКОЮ, а не хвостом «Запуску».
+
+			Обидва перемикачі відповідають на питання «що видно на екрані», і до
+			запуску не мають стосунку взагалі. Лежачи під вибором стартової
+			сторінки, вони читалися як його продовження — тобто як щось, що діє
+			лише при старті.
+		-->
+		<section class="card stack" data-testid="settings-show-section">
+			<h2 class="subtitle">{t('settings.showTitle')}</h2>
+
+			<div class="field">
+				<Switch
+					checked={settings.showTrigger}
+					label={t('settings.showTrigger')}
+					testid="settings-show-trigger"
+					onchange={(next) => settings.save({ showTrigger: next })}
+				/>
+				<p class="muted">{t('settings.showTriggerHint')}</p>
+			</div>
+
+			<!--
+				Перемикач ховає ВХІД у меню, а не самі сторінки: інфодошка вже жива,
+				просто ще недороблена, і той, хто її вмикає, мусить мати змогу й
+				вимкнути назад — не перевстановлюючи застосунок.
+			-->
+			<div class="field">
+				<Switch
+					checked={settings.showInfoBoards}
+					label={t('settings.showInfoBoards')}
+					testid="settings-show-info-boards"
+					onchange={(next) => settings.save({ showInfoBoards: next })}
+				/>
+				<p class="muted">{t('settings.showInfoBoardsHint')}</p>
+			</div>
 		</section>
 
 		<MusicFolderCard />
@@ -351,8 +374,21 @@
 			</div>
 		</section>
 
-		<section class="card stack">
-			<h2 class="subtitle">{t('settings.diagTitle')}</h2>
+		<ContactCard />
+
+		<!--
+			НАЗВА КАРТКИ ЗАЛЕЖИТЬ ВІД ТОГО, ЩО В НІЙ ЛИШИЛОСЯ.
+
+			Журнал останніх дій — інструмент розробки: він відповідає на «на якому
+			кроці впала вкладка», і читає його той, хто дивиться в код. У зібраному
+			застосунку він лише лякає стіною рядків того, хто зайшов змінити мову.
+
+			Без журналу в картці лишаються скидання й версія — тобто вже не
+			«Діагностика», а «Додатково». Заголовок, який описує щось інше, ніж
+			лежить під ним, гірший за відсутній.
+		-->
+		<section class="card stack" data-testid="settings-extra-section">
+			<h2 class="subtitle">{DEV ? t('settings.diagTitle') : t('settings.extraTitle')}</h2>
 
 			<!--
 			Версія переїхала сюди з підвалу кожної сторінки. Вона потрібна рівно
@@ -362,9 +398,10 @@
 			Поруч — ознака емулятора: інакше «дошка не створюється» на бойовій
 			адресі й на локальній виглядають однаково.
 		-->
-			<DiagnosticsTrail />
-
-			<hr class="rule" />
+			{#if DEV}
+				<DiagnosticsTrail />
+				<hr class="rule" />
+			{/if}
 
 			<HardResetButton />
 
@@ -381,6 +418,8 @@
 
 <style>
 	.title {
+		/* Місце під хрестик вікна: у нього тепер нульова висота й він лежить поверх. */
+		padding-right: var(--tap);
 		font-size: 1.3rem;
 	}
 
@@ -423,12 +462,6 @@
 		column-gap: var(--gap);
 	}
 
-	/* Картку не можна розрізати між колонками: половина полів поїхала б угору. */
-	.cards > :global(.card) {
-		margin-bottom: var(--gap);
-		break-inside: avoid;
-	}
-
 	/*
 	 * Пороги — колишні віконні мінус 32px полів `.page`: рівно стільки місця
 	 * лишалося панелі на сторінці, тобто на сторінці розкладка не змінилася
@@ -440,7 +473,14 @@
 		}
 	}
 
-	@container (min-width: 1068px) {
+	/*
+	 * ТРЕТЯ КОЛОНКА ВІДКРИВАЄТЬСЯ РАНІШЕ, бо карток стало більше.
+	 *
+	 * Заміряно: вміст вікна налаштувань — 1036 точок, тобто рівно під старим
+	 * порогом 1068. Вікно показувало дві колонки на екрані, де для трьох місця
+	 * вистачало, і нижня половина списку йшла під згин.
+	 */
+	@container (min-width: 1000px) {
 		.cards {
 			columns: 3;
 		}
@@ -453,6 +493,21 @@
 	 */
 	.cards :global(.stack) {
 		margin-block: 0;
+	}
+
+	/*
+	 * ПРОМІЖОК МІЖ КАРТКАМИ — ПІСЛЯ скидання `margin-block`, а не до нього.
+	 *
+	 * Доти цей блок стояв вище, і правило `.cards :global(.stack)` його
+	 * перебивало: картка — це `class="card stack"`, тож нуль вигравав за
+	 * порядком. Наслідок було видно на екрані — сусідні картки в колонці
+	 * торкалися боками, без жодного просвіту, тоді як між колонками просвіт був.
+	 *
+	 * Картку не можна розрізати між колонками: половина полів поїхала б угору.
+	 */
+	.cards > :global(.card) {
+		margin-block: 0 var(--gap);
+		break-inside: avoid;
 	}
 
 	.subtitle {

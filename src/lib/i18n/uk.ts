@@ -60,6 +60,8 @@ export const uk = {
 	'settings.app': 'Налаштування застосунку',
 	'settings.lookTitle': 'Вигляд',
 	'settings.launchTitle': 'Запуск',
+	'settings.showTitle': 'Що показувати',
+	'settings.extraTitle': 'Додатково',
 	'settings.diagTitle': 'Діагностика',
 	'settings.startTitle': 'Що відкривати при запуску',
 	'settings.autoStart': 'Запускати разом із системою',
@@ -489,6 +491,12 @@ export const uk = {
 		'Дошку щойно змінили деінде. Перевідкрийте налаштування треку — тепер там свіжі значення.',
 	'admin.badPatch': 'Плеєр не зрозумів правки.',
 	'admin.noFolder': 'Обрати папку можна лише на самому пристрої, що грає.',
+
+	'contact.title': 'Звʼязок',
+	'contact.lead': 'Застосунок зробила одна людина. Пишіть — відповім.',
+	'contact.what1': 'Щось не працює або поводиться дивно',
+	'contact.what2': 'Бракує можливості, яка потрібна саме вам',
+	'contact.what3': 'Потрібен свій застосунок або сайт',
 
 	'error.network': 'Немає зв’язку з базою. Перевірте інтернет.',
 	'error.emulatorDown':
