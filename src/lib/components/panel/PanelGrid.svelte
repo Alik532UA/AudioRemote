@@ -78,7 +78,8 @@
 
 	const hole = (key: string) => {
 		const index = Number(key);
-		return `${Math.floor(index / 3) + 1} / ${(index % 3) + 1} / span 1 / span 1`;
+		const across = board.grid.cols;
+		return `${Math.floor(index / across) + 1} / ${(index % across) + 1} / span 1 / span 1`;
 	};
 
 	/** Колір змінною, а не класом: назв кольорів десять, а правило одне. */
@@ -122,7 +123,15 @@
 	}
 </script>
 
-<div class="grid" data-testid="panel-list">
+<!--
+	РОЗМІР СІТКИ ПРИЇЖДЖАЄ З ПАНЕЛІ, а не стоїть у стилях числом: складальник
+	міняє його на дошці, і обидва екрани мусять побачити те саме.
+-->
+<div
+	class="grid"
+	style="--grid-cols: {board.grid.cols}; --grid-rows: {board.grid.rows}"
+	data-testid="panel-list"
+>
 	<!--
 		ПОРОЖНІ МІСЦЯ МАЛЮЮТЬСЯ, і саме вони тримають сітку сталою: без них панель
 		із двох віджетів читалася б як панель на два місця, і рука в темряві не
@@ -268,8 +277,8 @@
 	 */
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		grid-template-rows: repeat(5, minmax(0, 1fr));
+		grid-template-columns: repeat(var(--grid-cols, 3), minmax(0, 1fr));
+		grid-template-rows: repeat(var(--grid-rows, 5), minmax(0, 1fr));
 		gap: var(--gap-xs);
 		flex: 1;
 		min-block-size: 0;

@@ -473,6 +473,10 @@ export const uk = {
 	'verdict.doneSaid': 'зроблено',
 	'verdict.noSaid': 'не буде',
 	'verdict.waitSaid': 'зараз не можу',
+	'panel.boardCols': 'Стовпців на дошці',
+	'panel.boardRows': 'Рядів на дошці',
+	'panel.boardSizeHint':
+		'Типово три на п’ять. Віджети, що опинилися за межею меншої сітки, не стираються — їх не видно, доки сітку не повернути.',
 	'panel.saveFile': 'Зберегти у файл',
 	'panel.loadFile': 'Завантажити з файлу',
 	'panel.fileBad': 'Це не схоже на файл панелі, або в ньому не лишилося жодної комірки.',

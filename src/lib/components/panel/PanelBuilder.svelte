@@ -1,6 +1,13 @@
 <script lang="ts">
 	import { t } from '$lib/i18n/i18n.svelte';
-	import type { Panel } from '$lib/net/panelTypes';
+	import {
+		gridOf,
+		MAX_PANEL_COLS,
+		MAX_PANEL_ROWS,
+		type Grid,
+		type Panel
+	} from '$lib/net/panelTypes';
+	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
 	import PanelEditorGrid from './PanelEditorGrid.svelte';
 	import PanelFile from './PanelFile.svelte';
 
@@ -29,14 +36,53 @@
 		onmove: (from: string, to: string) => void;
 		onfill: () => void;
 		onload: (panel: Panel) => void;
+		/** Змінити розмір самої дошки. */
+		onresize: (grid: Grid) => void;
 	}
 
-	let { panel, empty, filling, name, onpick, onrotate, onmove, onfill, onload }: Props = $props();
+	let { panel, empty, filling, name, onpick, onrotate, onmove, onfill, onload, onresize }: Props =
+		$props();
+
+	const grid = $derived(gridOf(panel));
 </script>
 
 <section class="card stack" data-testid="info-editor-section">
 	<p class="muted">{t('panel.editHint')}</p>
 	<p class="muted">{t('panel.dragHint')}</p>
+
+	<!--
+		РОЗМІР ДОШКИ — ТУТ, над сіткою місць, яку він і міняє.
+
+		Три на п'ять добрі для телефона в руці; планшет на стійці біля пульта
+		тримає більше, а дошка на дві кнопки не мусить малювати тринадцять
+		порожніх місць. Комірки, що опинилися за межею зменшеної сітки, НЕ
+		стираються — їх просто не видно, доки сітку не повернуть.
+	-->
+	<div class="pair">
+		<div class="field">
+			<label class="field__label" for="panel-cols">{t('panel.boardCols')}</label>
+			<NumberStepper
+				id="panel-cols"
+				value={grid.cols}
+				min={1}
+				max={MAX_PANEL_COLS}
+				label={t('panel.boardCols')}
+				onchange={(next) => onresize({ rows: grid.rows, cols: next })}
+			/>
+		</div>
+		<div class="field">
+			<label class="field__label" for="panel-rows">{t('panel.boardRows')}</label>
+			<NumberStepper
+				id="panel-rows"
+				value={grid.rows}
+				min={1}
+				max={MAX_PANEL_ROWS}
+				label={t('panel.boardRows')}
+				onchange={(next) => onresize({ rows: next, cols: grid.cols })}
+			/>
+		</div>
+	</div>
+	<p class="muted">{t('panel.boardSizeHint')}</p>
 
 	<PanelEditorGrid {panel} {onpick} {onrotate} {onmove} />
 
@@ -65,3 +111,17 @@
 	-->
 	<PanelFile {panel} {name} {onload} />
 </section>
+
+<style>
+	/* Стовпці й ряди — поруч: це одна відповідь, розбита на два числа. */
+	.pair {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--gap-sm);
+	}
+
+	.pair .field {
+		flex: 1;
+		min-inline-size: 0;
+	}
+</style>

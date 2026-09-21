@@ -1,12 +1,6 @@
 import { boardPath } from '$lib/board/boardPath';
 import { connect } from './firebase';
-import {
-	PANEL_CELLS,
-	type Panel,
-	type PanelState,
-	type PanelVerdict,
-	type VerdictKind
-} from './panelTypes';
+import { type Panel, type PanelState, type PanelVerdict, type VerdictKind } from './panelTypes';
 
 /**
  * ПАНЕЛЬ ІНФОДОШКИ В БАЗІ: що на ній стоїть і в якому воно положенні.
@@ -33,17 +27,6 @@ const verdictNode = (key: string) => `${boardPath(key)}/panelVerdict`;
  * для всіх наступних.
  */
 export const emptyPanel = (): Panel => ({ rev: 0, cells: {} });
-
-/**
- * Номери комірок за порядком: `'0'`…`'14'`.
- *
- * Сітка малюється ЗАВЖДИ повністю, разом із порожніми місцями, — саме в цьому
- * сенс фіксованої сітки. Тому номери потрібні й тому, хто малює, і тому, хто
- * редагує.
- */
-export const CELL_KEYS: readonly string[] = Array.from({ length: PANEL_CELLS }, (_, index) =>
-	String(index)
-);
 
 /** Викласти панель цілком. Номер редакції піднімає той, хто кличе. */
 export async function publishPanel(key: string, panel: Panel): Promise<void> {

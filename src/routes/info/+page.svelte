@@ -17,12 +17,15 @@
 		watchPanel,
 		watchPanelState
 	} from '$lib/net/panel';
-	import type {
-		Panel,
-		PanelCell,
-		PanelCommand,
-		PanelCommandType,
-		VerdictKind
+	import {
+		gridOf,
+		PANEL_COLS,
+		PANEL_ROWS,
+		type Panel,
+		type PanelCell,
+		type PanelCommand,
+		type PanelCommandType,
+		type VerdictKind
 	} from '$lib/net/panelTypes';
 	import {
 		applyPanelCommand,
@@ -375,13 +378,26 @@
 		void publishVerdict(board.key, kind, cell, caption);
 	}
 
-	/** Покласти панель цілком — із файлу або звідки завгодно ще. */
+	/**
+	 * Покласти панель цілком — із файлу, зі зміненим розміром, звідки завгодно.
+	 *
+	 * Розмір пишеться ЛИШЕ коли він не типовий: три на п'ять — це відсутність
+	 * полів, а не два числа. Інакше кожна дошка носила б у собі значення за
+	 * замовчуванням, і змінити його колись стало б неможливо.
+	 */
 	async function putPanel(next: Panel): Promise<void> {
 		const board = boardSession.current;
 		if (!board) return;
 
+		const grid = gridOf(next);
+		const own = grid.rows !== PANEL_ROWS || grid.cols !== PANEL_COLS;
+
 		try {
-			await publishPanel(board.key, { rev: Date.now(), cells: next.cells });
+			await publishPanel(board.key, {
+				rev: Date.now(),
+				...(own ? { rows: grid.rows, cols: grid.cols } : {}),
+				cells: next.cells
+			});
 		} catch (error) {
 			fatal = describeError(error);
 		}
@@ -482,6 +498,7 @@
 						onmove={(at, to) => void shift(at, to)}
 						onfill={fill}
 						onload={(next) => void putPanel(next)}
+						onresize={(grid) => void putPanel({ ...panel, ...grid })}
 					/>
 				{:else if empty}
 					<!--

@@ -1,8 +1,9 @@
 import {
+	gridOf,
 	MAX_BUTTONS,
-	PANEL_CELLS,
-	PANEL_COLS,
-	PANEL_ROWS,
+	MAX_PANEL_COLS,
+	MAX_PANEL_ROWS,
+	type Grid,
 	type Panel,
 	type PanelCell,
 	type PanelCommandType
@@ -90,7 +91,7 @@ const whole = (value: unknown, max: number): boolean =>
  * однієї відповіді.
  */
 export function sizeOf(cell: PanelCell): Size {
-	if (whole(cell.rows, PANEL_ROWS) && whole(cell.cols, PANEL_COLS)) {
+	if (whole(cell.rows, MAX_PANEL_ROWS) && whole(cell.cols, MAX_PANEL_COLS)) {
 		return { rows: cell.rows as number, cols: cell.cols as number };
 	}
 
@@ -102,15 +103,15 @@ export function sizeOf(cell: PanelCell): Size {
 export const turned = (size: Size): Size => ({ rows: size.cols, cols: size.rows });
 
 /** Клітинки, які зайняв би прямокутник. `null` — не влазить або зайнято. */
-function areaOf(at: number, size: Size, taken: ReadonlySet<number>) {
-	const row = Math.floor(at / PANEL_COLS);
-	const col = at % PANEL_COLS;
-	if (row + size.rows > PANEL_ROWS || col + size.cols > PANEL_COLS) return null;
+function areaOf(at: number, size: Size, taken: ReadonlySet<number>, grid: Grid) {
+	const row = Math.floor(at / grid.cols);
+	const col = at % grid.cols;
+	if (row + size.rows > grid.rows || col + size.cols > grid.cols) return null;
 
 	const cells: number[] = [];
 	for (let down = 0; down < size.rows; down += 1) {
 		for (let right = 0; right < size.cols; right += 1) {
-			cells.push((row + down) * PANEL_COLS + col + right);
+			cells.push((row + down) * grid.cols + col + right);
 		}
 	}
 	return cells.some((cell) => taken.has(cell)) ? null : cells;
@@ -124,36 +125,38 @@ function areaOf(at: number, size: Size, taken: ReadonlySet<number>) {
  * лише зіпсуті дані — складальник цього не створить), розводяться завжди
  * однаково, і на двох екранах панель виглядає однаково.
  */
-export function layoutPanel(panel: Panel): { placed: Placed[]; free: string[] } {
+export function layoutPanel(panel: Panel): { placed: Placed[]; free: string[]; grid: Grid } {
+	const grid = gridOf(panel);
+	const cells = grid.rows * grid.cols;
 	const taken = new Set<number>();
 	const placed: Placed[] = [];
 
-	for (let index = 0; index < PANEL_CELLS; index += 1) {
+	for (let index = 0; index < cells; index += 1) {
 		const cell = panel.cells[String(index)];
 		if (!cell) continue;
 
 		const wanted = sizeOf(cell);
 		const tries: Size[] = [wanted, turned(wanted), { rows: 1, cols: 1 }];
-		const size = tries.find((option) => areaOf(index, option, taken) !== null);
+		const size = tries.find((option) => areaOf(index, option, taken, grid) !== null);
 		// Якір зайняв сусід — малювати нема де. Буває лише на зіпсутих даних.
 		if (!size) continue;
 
-		for (const at of areaOf(index, size, taken) as number[]) taken.add(at);
+		for (const at of areaOf(index, size, taken, grid) as number[]) taken.add(at);
 		placed.push({
 			cell: String(index),
-			row: Math.floor(index / PANEL_COLS),
-			col: index % PANEL_COLS,
+			row: Math.floor(index / grid.cols),
+			col: index % grid.cols,
 			rows: size.rows,
 			cols: size.cols
 		});
 	}
 
 	const free: string[] = [];
-	for (let index = 0; index < PANEL_CELLS; index += 1) {
+	for (let index = 0; index < cells; index += 1) {
 		if (!taken.has(index)) free.push(String(index));
 	}
 
-	return { placed, free };
+	return { placed, free, grid };
 }
 
 /**
@@ -163,20 +166,21 @@ export function layoutPanel(panel: Panel): { placed: Placed[]; free: string[] } 
  * зайнятим, інакше зміна повороту на місці була б неможлива завжди.
  */
 export function fits(panel: Panel, at: string, size: Size, ignore?: string): boolean {
-	const others: Panel = { rev: panel.rev, cells: { ...panel.cells } };
+	const others: Panel = { ...panel, cells: { ...panel.cells } };
 	if (ignore !== undefined) delete others.cells[ignore];
 	delete others.cells[at];
 
+	const board = layoutPanel(others);
 	const taken = new Set<number>();
-	for (const spot of layoutPanel(others).placed) {
+	for (const spot of board.placed) {
 		for (let down = 0; down < spot.rows; down += 1) {
 			for (let right = 0; right < spot.cols; right += 1) {
-				taken.add((spot.row + down) * PANEL_COLS + spot.col + right);
+				taken.add((spot.row + down) * board.grid.cols + spot.col + right);
 			}
 		}
 	}
 
-	return areaOf(Number(at), size, taken) !== null;
+	return areaOf(Number(at), size, taken, board.grid) !== null;
 }
 
 /**
@@ -198,7 +202,7 @@ export function moveTo(panel: Panel, from: string, to: string): Panel['cells'] |
 	if (!source) return null;
 	const target = panel.cells[to];
 
-	const rest: Panel = { rev: panel.rev, cells: { ...panel.cells } };
+	const rest: Panel = { ...panel, cells: { ...panel.cells } };
 	delete rest.cells[from];
 	delete rest.cells[to];
 
@@ -208,7 +212,7 @@ export function moveTo(panel: Panel, from: string, to: string): Panel['cells'] |
 	let swapped: PanelCell | null = null;
 	if (target) {
 		// Джерело вже на новому місці — звідти й дивимося, чи стане другий.
-		const moved: Panel = { rev: rest.rev, cells: { ...rest.cells, [to]: landed } };
+		const moved: Panel = { ...rest, cells: { ...rest.cells, [to]: landed } };
 		swapped = turnedInto(moved, from, target);
 		if (!swapped) return null;
 	}

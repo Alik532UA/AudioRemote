@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { plural, t } from '$lib/i18n/i18n.svelte';
-	import { PANEL_COLS, PANEL_ROWS, type Panel, type PanelCell } from '$lib/net/panelTypes';
+	import type { Panel, PanelCell } from '$lib/net/panelTypes';
 	import { layoutPanel, type Placed } from '$lib/panel/layout';
 	import { colorOf } from '$lib/config/trackColors';
 
@@ -64,11 +64,10 @@
 		const box = grid.getBoundingClientRect();
 		if (x < box.left || x > box.right || y < box.top || y > box.bottom) return null;
 
-		const col = Math.floor(((x - box.left) / box.width) * PANEL_COLS);
-		const row = Math.floor(((y - box.top) / box.height) * PANEL_ROWS);
-		const at =
-			Math.min(PANEL_ROWS - 1, Math.max(0, row)) * PANEL_COLS +
-			Math.min(PANEL_COLS - 1, Math.max(0, col));
+		const { rows, cols } = board.grid;
+		const col = Math.floor(((x - box.left) / box.width) * cols);
+		const row = Math.floor(((y - box.top) / box.height) * rows);
+		const at = Math.min(rows - 1, Math.max(0, row)) * cols + Math.min(cols - 1, Math.max(0, col));
 		return String(at);
 	}
 
@@ -106,7 +105,8 @@
 
 	const hole = (key: string) => {
 		const index = Number(key);
-		return `${Math.floor(index / PANEL_COLS) + 1} / ${(index % PANEL_COLS) + 1} / span 1 / span 1`;
+		const across = board.grid.cols;
+		return `${Math.floor(index / across) + 1} / ${(index % across) + 1} / span 1 / span 1`;
 	};
 
 	/** Одним рядком: що саме стоїть у віджеті. */
@@ -120,7 +120,12 @@
 	};
 </script>
 
-<div class="grid" bind:this={grid} data-testid="panel-editor-list">
+<div
+	class="grid"
+	bind:this={grid}
+	style="--grid-cols: {board.grid.cols}; --grid-rows: {board.grid.rows}"
+	data-testid="panel-editor-list"
+>
 	{#each board.free as key (key)}
 		<button
 			class="slot slot--empty"
@@ -193,8 +198,8 @@
 	 */
 	.grid {
 		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		grid-template-rows: repeat(5, minmax(0, 1fr));
+		grid-template-columns: repeat(var(--grid-cols, 3), minmax(0, 1fr));
+		grid-template-rows: repeat(var(--grid-rows, 5), minmax(0, 1fr));
 		gap: var(--gap-xs);
 		block-size: min(60dvh, 30rem);
 		inline-size: 100%;

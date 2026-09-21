@@ -448,6 +448,10 @@ export const en: Record<TranslationKey, string> = {
 	'verdict.doneSaid': 'done',
 	'verdict.noSaid': 'will not happen',
 	'verdict.waitSaid': 'cannot right now',
+	'panel.boardCols': 'Columns on the board',
+	'panel.boardRows': 'Rows on the board',
+	'panel.boardSizeHint':
+		'Three by five by default. Widgets left outside a smaller grid are not erased — they stay hidden until the grid grows back.',
 	'panel.saveFile': 'Save to a file',
 	'panel.loadFile': 'Load from a file',
 	'panel.fileBad': 'That does not look like a panel file, or nothing in it survived the check.',

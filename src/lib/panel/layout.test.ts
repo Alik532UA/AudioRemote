@@ -216,3 +216,40 @@ describe('ім’я органа', () => {
 		);
 	});
 });
+
+describe('своя сітка дошки', () => {
+	it('без розміру дошка лишається три на п’ять', () => {
+		const { grid, free } = layoutPanel(panelOf({}));
+		expect(grid).toEqual({ rows: 5, cols: 3 });
+		expect(free).toHaveLength(15);
+	});
+
+	it('названий розмір міняє і кількість місць, і межі', () => {
+		const wide: Panel = { rev: 1, rows: 2, cols: 6, cells: {} };
+		const { grid, free } = layoutPanel(wide);
+		expect(grid).toEqual({ rows: 2, cols: 6 });
+		expect(free).toHaveLength(12);
+	});
+
+	it('у ширшій сітці віджет рядком улазить далі', () => {
+		// Чотири кнопки рядком не стають у трьох стовпцях і повертаються
+		// стовпчиком; у шести стовпцях вони лишаються рядком.
+		const narrow = layoutPanel({ rev: 1, cells: { '0': buttons(4, false) } });
+		expect(narrow.placed[0]).toMatchObject({ rows: 4, cols: 1 });
+
+		const wide = layoutPanel({ rev: 1, rows: 5, cols: 6, cells: { '0': buttons(4, false) } });
+		expect(wide.placed[0]).toMatchObject({ rows: 1, cols: 4 });
+	});
+
+	it('пів розміру не рахується: лишається типова сітка', () => {
+		expect(layoutPanel({ rev: 1, cols: 6, cells: {} }).grid).toEqual({ rows: 5, cols: 3 });
+	});
+
+	it('комірка за межею зменшеної сітки не малюється, але й не гине', () => {
+		// Віджет у комірці 14 при сітці 2×2 просто не видно: розкладка його не
+		// бачить, а в даних він лишається — саме тому сюди й можна повернутися.
+		const small: Panel = { rev: 1, rows: 2, cols: 2, cells: { '14': buttons(1) } };
+		expect(layoutPanel(small).placed).toEqual([]);
+		expect(small.cells['14']).toBeDefined();
+	});
+});

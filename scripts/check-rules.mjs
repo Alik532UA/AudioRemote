@@ -776,8 +776,26 @@ await mustNot('сторонній малює панель', () =>
 	write(`boards/${KEY}/panel`, { rev: 2, cells: {} }, stranger.token)
 );
 
-await mustNot('комірка поза сіткою 3×5', () =>
-	patch(`boards/${KEY}/panel/cells`, { 15: { kind: 'check' } }, owner.token)
+// РОЗМІР САМОЇ ДОШКИ. Сітка більше не лише три на п'ять, тож комірка 15 тепер
+// законна — незаконна та, що за межею НАЙБІЛЬШОЇ можливої сітки (6×8).
+await must('комірка в більшій сітці', () =>
+	patch(`boards/${KEY}/panel/cells`, { 20: { kind: 'check' } }, owner.token)
+);
+
+await mustNot('комірка поза найбільшою сіткою', () =>
+	patch(`boards/${KEY}/panel/cells`, { 48: { kind: 'check' } }, owner.token)
+);
+
+await must('своя сітка дошки', () =>
+	patch(`boards/${KEY}/panel`, { cols: 4, rows: 6 }, owner.token)
+);
+
+await mustNot('сітка ширша за дозволене', () =>
+	patch(`boards/${KEY}/panel`, { cols: 9 }, owner.token)
+);
+
+await mustNot('сітка вища за дозволене', () =>
+	patch(`boards/${KEY}/panel`, { rows: 12 }, owner.token)
 );
 
 await mustNot('невідомий вид комірки', () =>

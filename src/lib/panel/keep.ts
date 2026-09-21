@@ -6,9 +6,10 @@ import {
 	MAX_PANEL_ICON,
 	MAX_STEP,
 	MIN_STEP,
-	PANEL_CELLS,
-	PANEL_COLS,
-	PANEL_ROWS,
+	gridOf,
+	MAX_PANEL_CELLS,
+	MAX_PANEL_COLS,
+	MAX_PANEL_ROWS,
 	type CellKind,
 	type Panel,
 	type PanelButton,
@@ -67,7 +68,11 @@ export function recallPanel(boardKey: string): Panel | null {
 
 /** Текст файлу панелі. Відступи — щоб у нього можна було заглянути очима. */
 export const panelToText = (panel: Panel): string =>
-	JSON.stringify({ kind: 'audioremote.panel', rev: panel.rev, cells: panel.cells }, null, '\t');
+	JSON.stringify(
+		{ kind: 'audioremote.panel', rev: panel.rev, ...gridOf(panel), cells: panel.cells },
+		null,
+		'\t'
+	);
 
 /** Панель із тексту файлу. `null` — це не панель або в ній не лишилося комірок. */
 export function panelFromText(text: string): Panel | null {
@@ -121,8 +126,8 @@ function cleanCell(value: unknown): PanelCell | null {
 	const raw = value as Partial<PanelCell>;
 	if (!KINDS.includes(raw.kind as CellKind)) return null;
 
-	const rows = whole(raw.rows, 1, PANEL_ROWS);
-	const cols = whole(raw.cols, 1, PANEL_COLS);
+	const rows = whole(raw.rows, 1, MAX_PANEL_ROWS);
+	const cols = whole(raw.cols, 1, MAX_PANEL_COLS);
 
 	return {
 		kind: raw.kind as CellKind,
@@ -143,11 +148,18 @@ function cleanPanel(raw: Partial<Panel>): Panel {
 	const from = raw.cells;
 
 	if (from && typeof from === 'object') {
-		for (let index = 0; index < PANEL_CELLS; index += 1) {
+		for (let index = 0; index < MAX_PANEL_CELLS; index += 1) {
 			const cell = cleanCell(from[String(index)]);
 			if (cell) cells[String(index)] = cell;
 		}
 	}
 
-	return { rev: whole(raw.rev, 0, Number.MAX_SAFE_INTEGER) ?? 0, cells };
+	// Розмір дошки теж приїжджає з файлу — інакше панель на шість стовпців
+	// розклалася б у трьох, і половина віджетів просто не з'явилася б.
+	const grid = gridOf({
+		rows: whole(raw.rows, 1, MAX_PANEL_ROWS),
+		cols: whole(raw.cols, 1, MAX_PANEL_COLS)
+	});
+
+	return { rev: whole(raw.rev, 0, Number.MAX_SAFE_INTEGER) ?? 0, ...grid, cells };
 }

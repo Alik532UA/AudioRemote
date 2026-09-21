@@ -169,10 +169,16 @@
 					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
 					".validate": "newData.hasChildren(['rev'])",
 					"rev": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+					// РОЗМІР САМОЇ ДОШКИ. Немає — три на п'ять, як було завжди.
+					// Межі не косметичні: понад шість стовпців комірка на телефоні
+					// стає вужчою за палець, понад вісім рядів сітка не вміщається в
+					// екран без прокрутки, а прокрутка вбиває натискання наосліп.
+					"cols": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6" },
+					"rows": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 8" },
 					"cells": {
 						// Ключ — номер комірки сітки 3×5, тобто 0…14 і нічого іншого.
 						"$cell": {
-							".validate": "$cell.matches(/^([0-9]|1[0-4])$/) && newData.hasChildren(['kind'])",
+							".validate": "$cell.matches(/^([0-9]|[1-3][0-9]|4[0-7])$/) && newData.hasChildren(['kind'])",
 							"kind": { ".validate": "newData.val().matches(/^(buttons|slider|check)$/)" },
 							"caption": { ".validate": "newData.isString() && newData.val().length <= 24" },
 							// Назва заготовки, а не код кольору: перелік живе в коді, і
@@ -187,8 +193,8 @@
 							"vertical": { ".validate": "newData.isBoolean()" },
 							// Свій розмір у клітинках. Межі — сама сітка 3×5; чи не
 							// наступає віджет на сусіда, однаково вирішує клієнт.
-							"rows": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5" },
-							"cols": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 3" },
+							"rows": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 8" },
+							"cols": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6" },
 							// Гучне натискання: спалах на весь екран табла.
 							"important": { ".validate": "newData.isBoolean()" },
 							"buttons": {
@@ -214,12 +220,12 @@
 					"atServer": { ".validate": "newData.isNumber() && newData.val() <= now + 5000" },
 					"levels": {
 						"$cell": {
-							".validate": "$cell.matches(/^([0-9]|1[0-4])$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+							".validate": "$cell.matches(/^([0-9]|[1-3][0-9]|4[0-7])$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
 						}
 					},
 					"flags": {
 						"$cell": {
-							".validate": "$cell.matches(/^([0-9]|1[0-4])$/) && newData.isBoolean()"
+							".validate": "$cell.matches(/^([0-9]|[1-3][0-9]|4[0-7])$/) && newData.isBoolean()"
 						}
 					},
 					"$other": { ".validate": false }
@@ -233,7 +239,7 @@
 					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
 					".validate": "newData.hasChildren(['kind', 'cell', 'at'])",
 					"kind": { ".validate": "newData.val().matches(/^(done|no|wait)$/)" },
-					"cell": { ".validate": "newData.val().matches(/^([0-9]|1[0-4])$/)" },
+					"cell": { ".validate": "newData.val().matches(/^([0-9]|[1-3][0-9]|4[0-7])$/)" },
 					"caption": { ".validate": "newData.isString() && newData.val().length <= 24" },
 					"at": { ".validate": "newData.isNumber() && newData.val() <= now + 5000" },
 					"$other": { ".validate": false }
@@ -278,7 +284,7 @@
 						// Номер комірки інфодошки. У звукових командах його просто немає:
 						// поле необов'язкове, а форма — та сама, що в ключах панелі.
 						"cell": {
-							".validate": "newData.isString() && newData.val().matches(/^([0-9]|1[0-4])$/)"
+							".validate": "newData.isString() && newData.val().matches(/^([0-9]|[1-3][0-9]|4[0-7])$/)"
 						},
 						// Як підписався той, хто натиснув. ПІДПИС, А НЕ ПОСВІДЧЕННЯ: база
 						// його не звіряє ні з чим і не може — вхід анонімний. Межа тут
