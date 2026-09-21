@@ -61,6 +61,9 @@ export const en: Record<TranslationKey, string> = {
 	'settings.showTrigger': 'Mark tracks that start from an API',
 	'settings.showTriggerHint':
 		'An icon in the list row. It answers “why did that play by itself” without opening the track settings.',
+	'settings.showInfoBoards': 'Show the cue board',
+	'settings.showInfoBoardsHint':
+		'The second kind of board: a grid of buttons an assistant in the hall uses to ask the sound engineer for something. Still being built, so hidden by default.',
 	'settings.startBoardTitle': 'Which board to open',
 	'settings.startBoardLead':
 		'Pin a board where the remote is always the same one — a tablet in the hall, for instance.',
@@ -302,6 +305,35 @@ export const en: Record<TranslationKey, string> = {
 	'remote.connecting': 'Connecting…',
 	'remote.emptyLibrary': 'No music folder has been chosen on the player yet.',
 	'remote.emptyLibraryWait': 'Hold on: the folder is chosen on the device that will play.',
+
+	// ─── The second kind of board: the cue board ─────────────────────────────
+	/*
+	 * BOARD AND CUE — the role names in this kind of board.
+	 *
+	 * The roles are the same as in audio (`player` owns it, `remote` drives it),
+	 * but the words differ, because the question differs. “Player” answers “what
+	 * does this device do with sound”, and here there is no sound at all: one
+	 * shows, the other asks. Reusing “player” would put the word on the screen of
+	 * the person at the sound desk, who would then look for the music.
+	 */
+	'info.lead': 'Cue board',
+	'info.leadHint':
+		'An assistant in the hall presses a button; at the sound desk it is plain what was asked for. No talking, no walkie-talkie.',
+	'info.create': 'Create',
+	'info.createHint': 'On the device by the sound desk',
+	'info.connect': 'Connect',
+	'info.connectHint': 'To send cues from the hall',
+	'info.createTitle': 'New cue board',
+	'info.createSubmit': 'Create and open the board',
+	'info.connectTitle': 'Connect to a cue board',
+	'info.boardTitle': 'Board',
+	'info.remoteTitle': 'Cue',
+	'info.helpers': 'Cues connected: {count}',
+	'info.boardOnline': 'Board online',
+	'info.boardOffline': 'Board offline',
+	'info.noPanel': 'No panel yet. The buttons for the assistant are added here, on the board.',
+	'info.noPanelRemote':
+		'No panel yet. It is assembled on the board — the device by the sound desk.',
 
 	// ─── Third role: administrator ───────────────────────────────────────────
 	'admin.title': 'Administrator',

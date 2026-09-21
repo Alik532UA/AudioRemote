@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { IconCheck, IconCopy, IconDice, IconWarning } from '$lib/config/icons';
 	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
@@ -13,10 +14,19 @@
 	} from '$lib/board/secret';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
-	import { rememberBoard } from '$lib/board/myBoards';
+	import { kindFromSearch, rememberBoard } from '$lib/board/myBoards';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { settings } from '$lib/settings/settings.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
+
+	/**
+	 * ВИД ДОШКИ ПРИХОДИТЬ АДРЕСОЮ, а форма лишається одна.
+	 *
+	 * Ідентифікатор, пароль, запас, диктування — усе це в обох видів однакове.
+	 * Другий примірник цієї сторінки розійшовся б із першим на першій же правці,
+	 * і розійшовся б мовчки.
+	 */
+	const kind = $derived(kindFromSearch(page.url.search));
 
 	let name = $state('');
 	let boardId = $state('');
@@ -80,10 +90,17 @@
 		failure = null;
 		try {
 			const key = await deriveBoardKey(boardId, password);
-			const board = { key, id: boardId, name: name.trim(), role: 'player' as const, password };
+			const board = {
+				key,
+				id: boardId,
+				name: name.trim(),
+				role: 'player' as const,
+				kind,
+				password
+			};
 			rememberBoard(board);
 			boardSession.open(board);
-			await goto(resolve('/player'));
+			await goto(resolve(kind === 'info' ? '/info' : '/player'));
 		} catch (error) {
 			busy = false;
 			/*
@@ -99,7 +116,7 @@
 
 <div class="stack stack--auth">
 	<section class="card card--auth stack">
-		<h1 class="title">{t('create.title')}</h1>
+		<h1 class="title">{kind === 'info' ? t('info.createTitle') : t('create.title')}</h1>
 
 		<div class="field">
 			<label class="field__label" for="board-name">{t('create.nameLabel')}</label>
@@ -180,7 +197,7 @@
 			onclick={create}
 			data-testid="create-submit"
 		>
-			{busy ? t('common.loading') : t('create.submit')}
+			{busy ? t('common.loading') : kind === 'info' ? t('info.createSubmit') : t('create.submit')}
 		</button>
 	</section>
 </div>

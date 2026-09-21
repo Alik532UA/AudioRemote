@@ -1,5 +1,5 @@
 import { deriveBoardKey } from './boardPath';
-import { findBoard, rememberBoard, type BoardRole } from './myBoards';
+import { findBoard, rememberBoard, type BoardKind, type BoardRole } from './myBoards';
 import { normalizeBoardId, normalizePassword } from './secret';
 import { boardSession, type ActiveBoard } from './session.svelte';
 
@@ -20,7 +20,9 @@ export async function openBoard(
 	role: BoardRole,
 	rawId: string,
 	rawPassword: string,
-	name?: string
+	name?: string,
+	/** Вид дошки. Типово звук: так поводилася ця функція, поки вид був один. */
+	kind: BoardKind = 'audio'
 ): Promise<ActiveBoard> {
 	const id = normalizeBoardId(rawId);
 	const password = normalizePassword(rawPassword);
@@ -31,6 +33,7 @@ export async function openBoard(
 		id,
 		name: (name ?? findBoard(key)?.name ?? '').trim(),
 		role,
+		kind,
 		/*
 		 * Пароль зберігається лише в господаря дошки: йому завтра її диктувати, а
 		 * з ключа пароль не відновити за побудовою. Пульту досить ключа, тож

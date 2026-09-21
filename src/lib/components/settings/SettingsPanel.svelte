@@ -15,7 +15,8 @@
 	import { onMount } from 'svelte';
 	import DiagnosticsTrail from './DiagnosticsTrail.svelte';
 	import HardResetButton from './HardResetButton.svelte';
-	import { IconCheck, IconDice, IconFolder, IconTrash, IconWarning } from '$lib/config/icons';
+	import MusicFolderCard from './MusicFolderCard.svelte';
+	import { IconCheck, IconDice, IconTrash, IconWarning } from '$lib/config/icons';
 	import { i18n, LOCALES, t, type Locale } from '$lib/i18n/i18n.svelte';
 	import {
 		makeBoardId,
@@ -24,7 +25,6 @@
 		normalizePassword
 	} from '$lib/board/secret';
 	import { settings } from '$lib/settings/settings.svelte';
-	import { rememberedFolder, rememberFolder, runningInTauri } from '$lib/audio/tauriSource';
 	import { START_BOARDS, START_PAGES } from '$lib/settings/startPage.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import ThemeSwitcher from '$lib/components/ui/ThemeSwitcher.svelte';
@@ -71,48 +71,6 @@
 	const boardChoiceShown = $derived(
 		settings.startPage === 'player' || settings.startPage === 'remote'
 	);
-
-	/**
-	 * ПАПКА З МУЗИКОЮ — стан і дії, лише для застосунку на комп'ютері.
-	 *
-	 * Тут навмисно два шляхи до однієї речі: діалог і поле. Діалог зручніший,
-	 * коли папку шукають; поле — коли шлях уже є (скопіювали з провідника,
-	 * продиктували, переносять налаштування на другий комп'ютер школи).
-	 *
-	 * Обидва закінчуються однаково: `rememberFolder` не лише запам'ятовує шлях,
-	 * а й видає застосунку право читати саме цю папку. Забути про друге —
-	 * означало б зберегти шлях і лишити список порожнім.
-	 */
-	const onDesktop = runningInTauri();
-	let folderPath = $state('');
-	let folderSaved = $state(false);
-	let folderError = $state(false);
-
-	onMount(() => {
-		folderPath = rememberedFolder();
-	});
-
-	async function saveFolder() {
-		folderError = false;
-		if (!(await rememberFolder(folderPath))) {
-			folderError = true;
-			return;
-		}
-		folderSaved = true;
-		setTimeout(() => (folderSaved = false), 2000);
-	}
-
-	async function pickFolder() {
-		const { open } = await import('@tauri-apps/plugin-dialog');
-		const picked = await open({
-			directory: true,
-			multiple: false,
-			title: t('settings.folderPick')
-		});
-		if (typeof picked !== 'string') return;
-		folderPath = picked;
-		await saveFolder();
-	}
 
 	function savePinned() {
 		settings.save({
@@ -218,6 +176,21 @@
 				<p class="muted">{t('settings.showTriggerHint')}</p>
 			</div>
 
+			<!--
+				Перемикач ховає ВХІД у меню, а не самі сторінки: інфодошка вже жива,
+				просто ще недороблена, і той, хто її вмикає, мусить мати змогу й
+				вимкнути назад — не перевстановлюючи застосунок.
+			-->
+			<div class="field">
+				<Switch
+					checked={settings.showInfoBoards}
+					label={t('settings.showInfoBoards')}
+					testid="settings-show-info-boards"
+					onchange={(next) => settings.save({ showInfoBoards: next })}
+				/>
+				<p class="muted">{t('settings.showInfoBoardsHint')}</p>
+			</div>
+
 			{#if boardChoiceShown}
 				<div class="field">
 					<span class="field__label" id="start-board-label">{t('settings.startBoardTitle')}</span>
@@ -279,58 +252,7 @@
 			{/if}
 		</section>
 
-		<!--
-			ПАПКА — ЛИШЕ ДЛЯ ЗАСТОСУНКУ НА КОМП'ЮТЕРІ.
-
-			У браузері поля зі шляхом не буде ніколи, і це не забута гілка: сторінка
-			не може відкрити файл за шляхом у принципі, хоч би скільки його вводили
-			(PROJECT-CONTEXT § 5.0). Показувати поле, яке нічого не зробить, гірше,
-			ніж не показувати нічого.
-		-->
-		{#if onDesktop}
-			<section class="card stack">
-				<h2 class="subtitle">{t('settings.folderTitle')}</h2>
-				<p class="muted">{t('settings.folderLead')}</p>
-
-				<div class="field">
-					<label class="field__label" for="music-folder">{t('settings.folderLabel')}</label>
-					<input
-						id="music-folder"
-						class="input mono"
-						type="text"
-						spellcheck="false"
-						placeholder="C:\Users\…\Music\Зал 2"
-						bind:value={folderPath}
-						data-testid="folder-path"
-					/>
-				</div>
-
-				<div class="row">
-					<button class="btn" type="button" onclick={pickFolder} data-testid="folder-pick">
-						<IconFolder size={18} aria-hidden="true" />
-						{t('settings.folderPick')}
-					</button>
-
-					<button
-						class="btn btn--primary"
-						type="button"
-						onclick={saveFolder}
-						data-testid="folder-save"
-					>
-						{#if folderSaved}
-							<IconCheck size={18} aria-hidden="true" />
-							{t('settings.saved')}
-						{:else}
-							{t('settings.save')}
-						{/if}
-					</button>
-				</div>
-
-				{#if folderError}
-					<p class="error" data-testid="folder-error">{t('settings.folderMissing')}</p>
-				{/if}
-			</section>
-		{/if}
+		<MusicFolderCard />
 
 		<section class="card stack">
 			<h2 class="subtitle">{t('settings.fixedTitle')}</h2>

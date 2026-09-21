@@ -226,7 +226,12 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	// журнал діагностики (`DiagnosticsTrail.svelte`) і аварійне скидання
 	// (`HardResetButton.svelte`). Стеля опускається РАЗОМ із файлом, інакше
 	// звільнене місце мовчки заповнить наступна правка, і ратчет не спрацює.
-	'src/lib/components/settings/SettingsPanel.svelte': 459,
+	// 459 → 402: перемикач інфодошки додав дев'ять рядків і вперся в стелю —
+	// тобто ратчет спрацював так, як задумано. Замість підняття стелі з панелі
+	// винесена картка папки з музикою (`MusicFolderCard.svelte`): це єдине
+	// налаштування, якого в браузері не буває взагалі, зі своїм станом, своїм
+	// `onMount` і двома власними діями.
+	'src/lib/components/settings/SettingsPanel.svelte': 402,
 	// 415 → 416: поле такту стало `NumberStepper`. Сам компонент винесений і
 	// лежить поза переліком; тут лишився рядок на його імпорт.
 	'src/lib/components/player/TriggerEditor.svelte': 416,

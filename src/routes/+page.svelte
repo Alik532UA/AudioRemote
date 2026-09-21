@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { t } from '$lib/i18n/i18n.svelte';
-	import { listBoards } from '$lib/board/myBoards';
+	import { kindOf, listBoards, type SavedBoard } from '$lib/board/myBoards';
 	import { openBoard } from '$lib/board/openBoard';
 	import { boardSession, toActive } from '$lib/board/session.svelte';
 	import { settings } from '$lib/settings/settings.svelte';
@@ -42,9 +42,22 @@
 		void follow(decision);
 	});
 
+	/**
+	 * Екран збереженої дошки — пара (вид, роль). Те саме правило, що й у меню.
+	 *
+	 * Стала пара з налаштувань сюди не потрапляє навмисно: вона про звук, і
+	 * другого виду там немає чим задати.
+	 */
+	const screenOf = (board: SavedBoard) => {
+		const host = board.role === 'player';
+		if (kindOf(board) === 'info') return host ? '/info' : '/info-remote';
+		return host ? '/player' : '/remote';
+	};
+
 	async function follow(decision: StartDecision): Promise<void> {
-		const to = (path: '/menu' | '/create' | '/connect' | '/player' | '/remote') =>
-			goto(resolve(path), { replaceState: true });
+		const to = (
+			path: '/menu' | '/create' | '/connect' | '/player' | '/remote' | '/info' | '/info-remote'
+		) => goto(resolve(path), { replaceState: true });
 
 		switch (decision.kind) {
 			case 'page':
@@ -53,7 +66,7 @@
 
 			case 'board':
 				boardSession.open(toActive(decision.board));
-				await to(decision.board.role === 'player' ? '/player' : '/remote');
+				await to(screenOf(decision.board));
 				return;
 
 			case 'fixedBoard':

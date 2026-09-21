@@ -58,7 +58,8 @@ const INSIDE_BIGGER_TARGET: Readonly<Record<string, string>> = {
 	// Прапорець «запам'ятати» — 20×20 усередині рядка заввишки --tap.
 	'connect-remember': 'label.check',
 	// Доріжка перемикача — 47×26; клікає по ній увесь рядок із підписом.
-	'settings-show-trigger': 'label.switch'
+	'settings-show-trigger': 'label.switch',
+	'settings-show-info-boards': 'label.switch'
 };
 
 interface Small {

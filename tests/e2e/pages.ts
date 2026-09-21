@@ -21,7 +21,11 @@ export const PAGES = {
 	connect: './connect',
 	settings: './settings',
 	player: './player',
-	remote: './remote'
+	remote: './remote',
+	// Другий вид дошки — так само БЕЗ дошки: обидва екрани мусять чесно
+	// відправити в меню, а не впасти.
+	info: './info',
+	infoRemote: './info-remote'
 } as const;
 
 /** Ті самі адреси списком — для описів, яким назви станів не потрібні. */

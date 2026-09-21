@@ -46,6 +46,15 @@ export interface StoredSettings {
 	startBoardPassword: string;
 	/** Позначати в списку треки, які запускаються за API. */
 	showTrigger: boolean;
+	/**
+	 * Показувати в меню розділ інфодошки.
+	 *
+	 * Другий вид дошки ще добудовується, і до першої перевірки в залі він не
+	 * мусить траплятися на очі тому, хто прийшов увімкнути музику. Це НЕ прапорець
+	 * складання: маршрути існують завжди, і відкрити їх адресою можна й без
+	 * галочки. Ховається саме вхід.
+	 */
+	showInfoBoards: boolean;
 }
 
 const EMPTY: StoredSettings = {
@@ -55,7 +64,8 @@ const EMPTY: StoredSettings = {
 	startBoard: 'last',
 	startBoardId: '',
 	startBoardPassword: '',
-	showTrigger: true
+	showTrigger: true,
+	showInfoBoards: false
 };
 
 class SettingsState {
@@ -66,6 +76,7 @@ class SettingsState {
 	startBoardId = $state('');
 	startBoardPassword = $state('');
 	showTrigger = $state(true);
+	showInfoBoards = $state(false);
 
 	/**
 	 * Чи налаштована стала пара.
@@ -94,6 +105,8 @@ class SettingsState {
 		this.startBoardPassword =
 			typeof stored.startBoardPassword === 'string' ? stored.startBoardPassword : '';
 		this.showTrigger = stored.showTrigger !== false;
+		// Типово ВИМКНЕНО: новий розділ з'являється лише тоді, коли його попросили.
+		this.showInfoBoards = stored.showInfoBoards === true;
 	}
 
 	/**
@@ -111,6 +124,7 @@ class SettingsState {
 		if (patch.startBoardId !== undefined) this.startBoardId = patch.startBoardId;
 		if (patch.startBoardPassword !== undefined) this.startBoardPassword = patch.startBoardPassword;
 		if (patch.showTrigger !== undefined) this.showTrigger = patch.showTrigger;
+		if (patch.showInfoBoards !== undefined) this.showInfoBoards = patch.showInfoBoards;
 
 		writeJson(STORAGE_KEY, {
 			fixedBoardId: this.fixedBoardId,
@@ -119,7 +133,8 @@ class SettingsState {
 			startBoard: this.startBoard,
 			startBoardId: this.startBoardId,
 			startBoardPassword: this.startBoardPassword,
-			showTrigger: this.showTrigger
+			showTrigger: this.showTrigger,
+			showInfoBoards: this.showInfoBoards
 		} satisfies StoredSettings);
 	}
 

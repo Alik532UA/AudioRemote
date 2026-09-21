@@ -2,11 +2,12 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { IconBoard, IconPhone, IconTrash } from '$lib/config/icons';
+	import { IconBoard, IconGrid, IconPhone, IconTrash } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
-	import { forgetBoard, listBoards, type SavedBoard } from '$lib/board/myBoards';
+	import { forgetBoard, kindOf, listBoards, type SavedBoard } from '$lib/board/myBoards';
 	import { boardSession, toActive } from '$lib/board/session.svelte';
 	import { sweepOwnExpiredBoards } from '$lib/board/sweepBoards';
+	import { settings } from '$lib/settings/settings.svelte';
 	import { startNotice, type StartNotice } from '$lib/settings/startPage.svelte';
 	import { IconWarning } from '$lib/config/icons';
 
@@ -23,6 +24,7 @@
 	let deleteError = $state<string | null>(null);
 
 	onMount(() => {
+		settings.load();
 		saved = listBoards();
 		notice = startNotice.take();
 
@@ -41,10 +43,29 @@
 		});
 	});
 
+	/**
+	 * ЕКРАН ДОШКИ — це пара (вид, роль), а не одна роль.
+	 *
+	 * Роль каже, хто з двох; вид каже, чим вони обмінюються. Чотири екрани —
+	 * чотири різні речі, і жоден із них не вміє показати чужі дані: табло на
+	 * сторінці плеєра було б порожнім списком треків, яких немає.
+	 */
+	const screenOf = (board: SavedBoard) => {
+		const host = board.role === 'player';
+		if (kindOf(board) === 'info') return host ? '/info' : '/info-remote';
+		return host ? '/player' : '/remote';
+	};
+
+	/** Як зветься ця роль у цьому виді дошки. Див. докблок до `BoardKind`. */
+	const roleName = (board: SavedBoard) => {
+		const host = board.role === 'player';
+		if (kindOf(board) === 'info') return host ? t('info.boardTitle') : t('info.remoteTitle');
+		return host ? t('player.title') : t('remote.title');
+	};
+
 	function reopen(board: SavedBoard) {
 		boardSession.open(toActive(board));
-		// Роль визначає сторінку: плеєр і пульт — різні екрани, а не режими.
-		goto(board.role === 'player' ? resolve('/player') : resolve('/remote'));
+		goto(resolve(screenOf(board)));
 	}
 
 	/**
@@ -151,7 +172,7 @@
 								Ідентифікатор без цього читається однаково в обох випадках.
 							-->
 							<span class="mine__role" class:mine__role--player={board.role === 'player'}>
-								{board.role === 'player' ? t('player.title') : t('remote.title')}
+								{roleName(board)}
 							</span>
 							{#if board.name}
 								<span class="mine__name">{board.name}</span>
@@ -202,6 +223,47 @@
 			<span class="choice__hint">{t('entry.connectHint')}</span>
 		</a>
 	</div>
+
+	<!--
+		ДРУГИЙ ВИД ДОШКИ — ЗА ПЕРЕМИКАЧЕМ У НАЛАШТУВАННЯХ.
+
+		Ховається саме ВХІД, а не сторінки: маршрути існують завжди, і відкрити їх
+		адресою можна й без галочки. Прапорець складання зробив би інше — дошку,
+		якої в бойовій збірці немає взагалі, тобто перевіряти її довелося б лише
+		вдома, а показати колезі не вийшло б ніяк.
+
+		Розділ стоїть НИЖЧЕ двох кнопок і має власний заголовок. Четверта картка
+		в тому ж ряду читалася б як четвертий спосіб зробити те саме, а це інша
+		дошка: у неї немає ні звуку, ні папки, і підключаються до неї окремо.
+	-->
+	{#if settings.showInfoBoards}
+		<section class="second" data-testid="info-section">
+			<h2 class="second__title">{t('info.lead')}</h2>
+			<p class="second__hint">{t('info.leadHint')}</p>
+
+			<div class="choice">
+				<a
+					class="choice__card"
+					href="{resolve('/create')}?kind=info"
+					data-testid="info-create-link"
+				>
+					<IconGrid size={40} aria-hidden="true" />
+					<span class="choice__title">{t('info.create')}</span>
+					<span class="choice__hint">{t('info.createHint')}</span>
+				</a>
+
+				<a
+					class="choice__card"
+					href="{resolve('/connect')}?kind=info"
+					data-testid="info-connect-link"
+				>
+					<IconPhone size={40} aria-hidden="true" />
+					<span class="choice__title">{t('info.connect')}</span>
+					<span class="choice__hint">{t('info.connectHint')}</span>
+				</a>
+			</div>
+		</section>
+	{/if}
 </div>
 
 <style>
@@ -224,6 +286,27 @@
 		line-height: 1.1;
 		text-align: center;
 		text-wrap: balance;
+	}
+
+	/*
+	 * Другий розділ відбитий зверху, а не обведений карткою: картка навколо двох
+	 * карток читається як помилка розмітки.
+	 */
+	.second {
+		margin-top: var(--gap-lg);
+		padding-top: var(--gap-lg);
+		border-top: 1px solid var(--border);
+	}
+
+	.second__title {
+		font-size: 1.3rem;
+		font-weight: 700;
+	}
+
+	.second__hint {
+		margin-block: var(--gap-xs) var(--gap);
+		color: var(--text-secondary);
+		font-size: 0.9rem;
 	}
 
 	.choice {

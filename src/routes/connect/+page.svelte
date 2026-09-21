@@ -1,17 +1,23 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
 	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { deriveBoardKey, EmptySecretError, isBoardKey } from '$lib/board/boardPath';
 	import { normalizeBoardId } from '$lib/board/secret';
-	import { listBoards, rememberBoard } from '$lib/board/myBoards';
+	import { kindFromSearch, kindOf, listBoards, rememberBoard } from '$lib/board/myBoards';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { settings } from '$lib/settings/settings.svelte';
 	import { boardExists } from '$lib/net/board';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
+
+	/** Вид дошки приходить адресою — форма підключення одна на обидва. */
+	const kind = $derived(kindFromSearch(page.url.search));
+	/** Куди вести після вдалого входу. Роль та сама, екран інший. */
+	const target = $derived(kind === 'info' ? '/info-remote' : '/remote');
 
 	let boardId = $state('');
 	let password = $state('');
@@ -60,7 +66,10 @@
 			return;
 		}
 
-		boardId = listBoards().find((board) => board.role === 'remote')?.id ?? '';
+		// Свого виду: ідентифікатор аудіодошки у формі інфодошки означав би дошку,
+		// якої за цією адресою немає.
+		boardId =
+			listBoards().find((board) => board.role === 'remote' && kindOf(board) === kind)?.id ?? '';
 	});
 
 	async function submit(event: SubmitEvent) {
@@ -94,7 +103,13 @@
 				return;
 			}
 
-			const board = { key, id: normalizeBoardId(linkedId), name: '', role: 'remote' as const };
+			const board = {
+				key,
+				id: normalizeBoardId(linkedId),
+				name: '',
+				role: 'remote' as const,
+				kind
+			};
 			if (remember) rememberBoard(board);
 
 			/*
@@ -110,7 +125,7 @@
 			}
 
 			boardSession.open(board);
-			await goto(resolve('/remote'));
+			await goto(resolve(target));
 		} catch (error) {
 			busy = false;
 			failure = describeError(error);
@@ -143,13 +158,14 @@
 				key,
 				id: normalizeBoardId(boardId),
 				name: '',
-				role: 'remote' as const
+				role: 'remote' as const,
+				kind
 			};
 			// Пароль НЕ зберігається: ключа досить, щоб зайти, а зберігати чужий
 			// пароль на чужому телефоні немає жодної причини.
 			if (remember) rememberBoard(board);
 			boardSession.open(board);
-			await goto(resolve('/remote'));
+			await goto(resolve(target));
 		} catch (error) {
 			busy = false;
 			// Порожній секрет — це не відмова бази, а незаповнена форма: людині
@@ -162,7 +178,7 @@
 
 <div class="stack stack--auth">
 	<form class="card card--auth stack" onsubmit={submit}>
-		<h1 class="title">{t('connect.title')}</h1>
+		<h1 class="title">{kind === 'info' ? t('info.connectTitle') : t('connect.title')}</h1>
 
 		<div class="field">
 			<label class="field__label" for="connect-id">{t('connect.idLabel')}</label>

@@ -1,4 +1,4 @@
-import type { BoardRole, SavedBoard } from './myBoards';
+import type { BoardKind, BoardRole, SavedBoard } from './myBoards';
 
 /**
  * ЯКА ДОШКА ЗАРАЗ ВІДКРИТА — і чому цього немає в адресі сторінки.
@@ -20,6 +20,8 @@ export interface ActiveBoard {
 	id: string;
 	name: string;
 	role: BoardRole;
+	/** Звук чи підказки. Немає — дошка з часів, коли вид був один, тобто аудіо. */
+	kind?: BoardKind;
 	password?: string;
 	/** Другий пароль — право міняти налаштування з пульта. Див. `SavedBoard`. */
 	adminPassword?: string;

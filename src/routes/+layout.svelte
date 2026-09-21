@@ -112,6 +112,9 @@
 		const path = bare(page.url.pathname);
 		if (path === `${root}/player`) return t('player.title');
 		if (path === `${root}/remote`) return t('remote.title');
+		// Другий вид дошки зве ті самі ролі інакше — див. докблок до `BoardKind`.
+		if (path === `${root}/info`) return t('info.boardTitle');
+		if (path === `${root}/info-remote`) return t('info.remoteTitle');
 		return '';
 	});
 	/*
