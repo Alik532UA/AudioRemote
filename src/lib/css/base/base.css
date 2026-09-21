@@ -47,6 +47,32 @@ html:has(dialog[open]) {
 	overflow: hidden;
 }
 
+/*
+ * СПАЛАХ УВАГИ — тут, а не в компоненті, бо фарбується саме `body`.
+ *
+ * Навіщо він узагалі й чому режимів три, сказано в
+ * `services/attention.svelte.ts`. Там же й фарбування: сам колір ставиться
+ * інлайновим стилем, бо він приходить із заготовок, а не з токенів. Тут
+ * лишається рівно перехід — те, що стосується будь-якої зміни тла.
+ *
+ * Перехід у 150 мс з обох боків: миттєва зміна тла читається як помилка
+ * малювання, а не як знак. При `prefers-reduced-motion` переходу немає —
+ * колір усе одно міняється, бо це ЗНАЧЕННЯ, а не прикраса.
+ */
+body {
+	transition: background-color 150ms ease;
+}
+
+:root[data-attention='flip'] body {
+	background: var(--bg-page-flip);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	body {
+		transition: none;
+	}
+}
+
 body {
 	margin: 0;
 	background: var(--bg-page);

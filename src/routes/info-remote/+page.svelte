@@ -9,14 +9,22 @@
 	import { watchInfo } from '$lib/net/board';
 	import { hasPlayer, trackPresence, watchPresence } from '$lib/net/presence';
 	import { sendCommand, waitForAck } from '$lib/net/commands';
-	import { emptyPanel, watchPanel, watchPanelState } from '$lib/net/panel';
-	import type { Panel, PanelCommandType } from '$lib/net/panelTypes';
+	import { emptyPanel, watchPanel, watchPanelState, watchVerdict } from '$lib/net/panel';
+	import {
+		MAX_WHO,
+		VERDICT_FRESH_MS,
+		type Panel,
+		type PanelCommandType,
+		type PanelVerdict
+	} from '$lib/net/panelTypes';
+	import { settings } from '$lib/settings/settings.svelte';
 	import { controlOf } from '$lib/panel/layout';
 	import { mark } from '$lib/services/breadcrumbs';
-	import { themeState } from '$lib/services/theme.svelte';
+	import { attentionState } from '$lib/services/attention.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
 	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
+	import VerdictToast from '$lib/components/panel/VerdictToast.svelte';
 	import { IconWarning } from '$lib/config/icons';
 	import type { BoardInfo } from '$lib/net/boardTypes';
 
@@ -35,8 +43,8 @@
 	 */
 	/** Скільки живе підсвітка комірки. Далі панель знову каже «зараз нічого». */
 	const RECENT_MS = 3000;
-	/** Скільки триває спалах теми на важливій дії. */
-	const FLASH_MS = 1000;
+	/** Скільки висить відповідь звукорежисера. */
+	const VERDICT_SHOWN_MS = 10000;
 
 	let info = $state<BoardInfo | null>(null);
 	let boardOnline = $state(false);
@@ -60,6 +68,16 @@
 	 */
 	let beat = 0;
 	let watch = 0;
+	/** Такт, який прибере відповідь з екрана. */
+	let told: number | null = null;
+	/**
+	 * ЩО ВІДПОВІВ ЗВУКОРЕЖИСЕР. `null` — не відповідав або відповідь протухла.
+	 *
+	 * Свіжість рахується, бо вузол один і живе між виставами: планшет, відкритий
+	 * наступного вечора, першим ділом показав би вчорашнє «зроблено» — і воно
+	 * виглядало б як відповідь на те, чого ще не просили.
+	 */
+	let verdict = $state<PanelVerdict | null>(null);
 	/** Чому останнє прохання не доїхало. Порожньо — доїхало або ще не тиснули. */
 	let trouble = $state<TranslationKey | null>(null);
 
@@ -88,6 +106,15 @@
 					await watchPanelState(board.key, (state) => {
 						levels = state?.levels ?? {};
 						flags = state?.flags ?? {};
+					})
+				);
+				track(
+					await watchVerdict(board.key, (next) => {
+						// Протухлу відповідь НЕ показуємо: вузол один і живе між
+						// виставами, тож планшет, відкритий наступного вечора, першим
+						// ділом показав би вчорашнє «зроблено».
+						verdict = next && Date.now() - next.at < VERDICT_FRESH_MS ? next : null;
+						if (verdict) hold();
 					})
 				);
 				track(
@@ -120,6 +147,21 @@
 	 * у `panelTypes.ts`.
 	 */
 	/**
+	 * ВІДПОВІДЬ ЗНИКАЄ САМА, бо це новина, а не стан.
+	 *
+	 * Смуга, яку треба закрити рукою, коштувала б одного натискання в темряві
+	 * щоразу — і висить вона рівно над кнопками. Десять секунд: досить, щоб
+	 * підняти очі від сцени, і замало, щоб почати заважати.
+	 */
+	function hold(): void {
+		if (told !== null) window.clearTimeout(told);
+		told = window.setTimeout(() => {
+			told = null;
+			verdict = null;
+		}, VERDICT_SHOWN_MS);
+	}
+
+	/**
 	 * ВІДГУК НА НАТИСКАННЯ — одразу й на місці, ще до відповіді табла.
 	 *
 	 * Помічник тисне наосліп і не дивиться на екран довше за мить. Чекати з
@@ -131,7 +173,7 @@
 	function mind(cell: string, type: PanelCommandType, value?: number): void {
 		recent = cell;
 		hot = `${controlOf(cell, type, value)}#${(beat += 1)}`;
-		if (panel.cells[cell]?.important) themeState.flash(FLASH_MS);
+		if (panel.cells[cell]?.important) attentionState.shout();
 
 		const mine = (watch += 1);
 		window.setTimeout(() => {
@@ -148,7 +190,13 @@
 		mind(cell, type, value);
 
 		try {
-			const { id } = await sendCommand(boardPath(board.key), type, value, { cell });
+			// Підпис їде разом із проханням; порожній не пишеться зовсім —
+			// порожнє поле в базі означало б «назвався нічим».
+			const who = settings.displayName.trim().slice(0, MAX_WHO);
+			const { id } = await sendCommand(boardPath(board.key), type, value, {
+				cell,
+				...(who ? { name: who } : {})
+			});
 			const ack = await waitForAck(boardPath(board.key), id);
 			if (ack === null) trouble = 'panel.noAck';
 			else if (!ack.ok) trouble = (ack.error as TranslationKey) ?? 'error.unknown';
@@ -179,6 +227,12 @@
 				<span>{t('info.offlineHint')}</span>
 			</p>
 		{/if}
+
+		<!--
+			ВІДПОВІДЬ ЗВЕРХУ, НАД ПАНЕЛЛЮ: планшет тримають у руці, і внизу екрана
+			лежать пальці, а посередині — кнопки, заради яких його й відкрили.
+		-->
+		<VerdictToast {verdict} />
 
 		{#if trouble}
 			<p class="error" role="alert" data-testid="info-trouble-text">{t(trouble)}</p>

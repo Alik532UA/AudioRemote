@@ -32,6 +32,9 @@ import { isStartBoard, isStartPage, type StartBoard, type StartPage } from './st
 
 const STORAGE_KEY = 'settings';
 
+/** Довше імʼя не вміщається в рядок журналу, а рядок там і так найширший. */
+export const MAX_NAME = 24;
+
 export interface StoredSettings {
 	/** Сталий ідентифікатор. Порожній — генерувати щоразу. */
 	fixedBoardId: string;
@@ -63,6 +66,19 @@ export interface StoredSettings {
 	 * той, кому вже пояснили.
 	 */
 	folderHint: boolean;
+	/**
+	 * ЯК ПІДПИСУВАТИ СВОЇ ДІЇ В ЖУРНАЛІ. Порожньо — анонімно, як і було.
+	 *
+	 * Вхід у застосунок лишається анонімним: пароль знає дошка, а не людина, і
+	 * заводити облікові записи заради підпису в журналі означало б платити
+	 * реєстрацією за одне слово. Але журнал на три помічники без імен
+	 * відповідає лише на «що просили», а питають у нього й «хто» — бо просять
+	 * різні люди з різних кутів зали.
+	 *
+	 * Тому імʼя ЛОКАЛЬНЕ й добровільне: воно їде разом із проханням, ніде не
+	 * перевіряється й нічого не відкриває. Це підпис, а не посвідчення.
+	 */
+	displayName: string;
 }
 
 const EMPTY: StoredSettings = {
@@ -74,7 +90,8 @@ const EMPTY: StoredSettings = {
 	startBoardPassword: '',
 	showTrigger: true,
 	showInfoBoards: false,
-	folderHint: true
+	folderHint: true,
+	displayName: ''
 };
 
 class SettingsState {
@@ -87,6 +104,7 @@ class SettingsState {
 	showTrigger = $state(true);
 	showInfoBoards = $state(false);
 	folderHint = $state(true);
+	displayName = $state('');
 
 	/**
 	 * Чи налаштована стала пара.
@@ -119,6 +137,8 @@ class SettingsState {
 		this.showInfoBoards = stored.showInfoBoards === true;
 		// Типово УВІМКНЕНО: мовчить лише той, хто сам попросив мовчати.
 		this.folderHint = stored.folderHint !== false;
+		this.displayName =
+			typeof stored.displayName === 'string' ? stored.displayName.slice(0, MAX_NAME) : '';
 	}
 
 	/**
@@ -138,6 +158,7 @@ class SettingsState {
 		if (patch.showTrigger !== undefined) this.showTrigger = patch.showTrigger;
 		if (patch.showInfoBoards !== undefined) this.showInfoBoards = patch.showInfoBoards;
 		if (patch.folderHint !== undefined) this.folderHint = patch.folderHint;
+		if (patch.displayName !== undefined) this.displayName = patch.displayName.slice(0, MAX_NAME);
 
 		writeJson(STORAGE_KEY, {
 			fixedBoardId: this.fixedBoardId,
@@ -148,7 +169,8 @@ class SettingsState {
 			startBoardPassword: this.startBoardPassword,
 			showTrigger: this.showTrigger,
 			showInfoBoards: this.showInfoBoards,
-			folderHint: this.folderHint
+			folderHint: this.folderHint,
+			displayName: this.displayName
 		} satisfies StoredSettings);
 	}
 

@@ -1,6 +1,12 @@
 import { boardPath } from '$lib/board/boardPath';
 import { connect } from './firebase';
-import { PANEL_CELLS, type Panel, type PanelState } from './panelTypes';
+import {
+	PANEL_CELLS,
+	type Panel,
+	type PanelState,
+	type PanelVerdict,
+	type VerdictKind
+} from './panelTypes';
 
 /**
  * ПАНЕЛЬ ІНФОДОШКИ В БАЗІ: що на ній стоїть і в якому воно положенні.
@@ -17,6 +23,7 @@ import { PANEL_CELLS, type Panel, type PanelState } from './panelTypes';
 
 const panelNode = (key: string) => `${boardPath(key)}/panel`;
 const stateNode = (key: string) => `${boardPath(key)}/panelState`;
+const verdictNode = (key: string) => `${boardPath(key)}/panelVerdict`;
 
 /**
  * Порожня панель — п'ятнадцять порожніх комірок.
@@ -88,5 +95,34 @@ export async function watchPanelState(
 	const { onValue, ref } = await import('firebase/database');
 	return onValue(ref(db, stateNode(key)), (snapshot) =>
 		onState(snapshot.val() as PanelState | null)
+	);
+}
+
+/**
+ * ВІДПОВІСТИ НА ПРОХАННЯ. Пише господар — той самий єдиний письменник.
+ *
+ * Час серверний, і це не педантизм: помічник по ньому вирішує, чи відповідь
+ * стосується його прохання, чи висить із минулої вистави. Годинник планшета в
+ * залі й годинник за пультом розходяться на хвилини.
+ */
+export async function publishVerdict(
+	key: string,
+	kind: VerdictKind,
+	cell: string,
+	caption: string
+): Promise<void> {
+	const { db } = await connect();
+	const { ref, serverTimestamp, set } = await import('firebase/database');
+	await set(ref(db, verdictNode(key)), { kind, cell, caption, at: serverTimestamp() });
+}
+
+export async function watchVerdict(
+	key: string,
+	onVerdict: (verdict: PanelVerdict | null) => void
+): Promise<() => void> {
+	const { db } = await connect();
+	const { onValue, ref } = await import('firebase/database');
+	return onValue(ref(db, verdictNode(key)), (snapshot) =>
+		onVerdict(snapshot.val() as PanelVerdict | null)
 	);
 }

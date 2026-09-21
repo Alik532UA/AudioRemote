@@ -13,10 +13,17 @@
 		emptyPanel,
 		publishPanel,
 		publishPanelState,
+		publishVerdict,
 		watchPanel,
 		watchPanelState
 	} from '$lib/net/panel';
-	import type { Panel, PanelCell, PanelCommand, PanelCommandType } from '$lib/net/panelTypes';
+	import type {
+		Panel,
+		PanelCell,
+		PanelCommand,
+		PanelCommandType,
+		VerdictKind
+	} from '$lib/net/panelTypes';
 	import {
 		applyPanelCommand,
 		refused,
@@ -26,15 +33,15 @@
 	import { starterPanel } from '$lib/panel/starter';
 	import { controlOf, fits, moveTo, sizeOf, turned, withSize } from '$lib/panel/layout';
 	import { mark } from '$lib/services/breadcrumbs';
-	import { themeState } from '$lib/services/theme.svelte';
+	import { attentionState } from '$lib/services/attention.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
-	import { IconPhone, IconSliders } from '$lib/config/icons';
+	import { IconPhone } from '$lib/config/icons';
 	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
 	import PanelEditorGrid from '$lib/components/panel/PanelEditorGrid.svelte';
 	import PanelLog from '$lib/components/panel/PanelLog.svelte';
-	import Picker from '$lib/components/ui/Picker.svelte';
+	import ScreenControls, { type View } from '$lib/components/panel/ScreenControls.svelte';
 	import CellDialog from '$lib/components/panel/CellDialog.svelte';
 	import type { TranslationKey } from '$lib/i18n/i18n.svelte';
 
@@ -52,8 +59,6 @@
 	 * усередині плеєра означала б, що кожна наступна правка звуку мусить
 	 * питати, чи вона не про табло.
 	 */
-	type View = 'both' | 'panel' | 'log';
-	const VIEWS: readonly View[] = ['both', 'panel', 'log'];
 
 	/** Скільки прохань тримати на екрані. Далі найстаріші випадають. */
 	const KEPT = 40;
@@ -68,9 +73,6 @@
 	 * минати.
 	 */
 	const RECENT_MS = 3000;
-
-	/** Скільки триває спалах теми на важливій дії. */
-	const FLASH_MS = 1000;
 
 	let ready = $state(false);
 	let helpers = $state(0);
@@ -93,7 +95,7 @@
 	 */
 	let beat = 0;
 	let watch = 0;
-	let notices = $state<(PanelNotice & { id: string; at: number; own: boolean })[]>([]);
+	let notices = $state<(PanelNotice & { id: string; at: number; own: boolean; who: string })[]>([]);
 	let filling = $state(false);
 	/** Режим складання. Поки він увімкнений, сітка показує місця, а не органи. */
 	let editing = $state(false);
@@ -118,6 +120,7 @@
 
 	onMount(() => {
 		boardSession.restore();
+		attentionState.init();
 		const board = boardSession.current;
 
 		/*
@@ -184,7 +187,10 @@
 		const result = applyPanelCommand(panel, { levels, flags }, command);
 		if (refused(result)) return result;
 
-		remember(result, command, `${command.at}-${command.cell}`, false);
+		// Прохання ІЗ ЗАЛИ — і тільки воно гукає: власне натискання людина й так
+		// бачить, а екран, що блимає на кожен власний рух, вимикають.
+		attentionState.ask();
+		remember(result, command, `${command.at}-${command.cell}`, false, command.name ?? '');
 		await publishPanelState(board.key, result.next);
 		return null;
 	}
@@ -215,16 +221,22 @@
 	 * рівно для того, щоб людина не шукала в залі того, хто попросив, коли
 	 * просила вона сама.
 	 */
-	function remember(result: PanelOutcome, at: Touched, id: string, own: boolean): void {
+	function remember(
+		result: PanelOutcome,
+		at: Touched,
+		id: string,
+		own: boolean,
+		who: string
+	): void {
 		levels = result.next.levels ?? {};
 		flags = result.next.flags ?? {};
 		focus(at.cell);
 		hot = `${controlOf(at.cell, at.type, at.value)}#${(beat += 1)}`;
 
 		// Важливу дію видно навіть тому, хто дивиться не на екран (`panelTypes.ts`).
-		if (panel.cells[at.cell]?.important) themeState.flash(FLASH_MS);
+		if (panel.cells[at.cell]?.important) attentionState.shout();
 
-		notices = [{ ...result.notice, id, at: Date.now(), own }, ...notices].slice(0, KEPT);
+		notices = [{ ...result.notice, id, at: Date.now(), own, who }, ...notices].slice(0, KEPT);
 	}
 
 	/**
@@ -277,7 +289,7 @@
 		);
 		if (refused(result)) return;
 
-		remember(result, { cell, type, value }, `self-${at}-${cell}`, true);
+		remember(result, { cell, type, value }, `self-${at}-${cell}`, true, '');
 		void publishPanelState(board.key, result.next);
 	}
 
@@ -316,6 +328,23 @@
 		} catch (error) {
 			fatal = describeError(error);
 		}
+	}
+
+	/**
+	 * ВІДПОВІСТИ НА ПРОХАННЯ — трьома словами, яких досі не було зовсім.
+	 *
+	 * Помічник у залі досі знав лише те, що вкладка табла відкрита. Чи людина
+	 * прохання побачила й чи збирається його виконувати, він не знав ніяк — і
+	 * при потребі йшов через усю залу питати вголос.
+	 *
+	 * Помилку запису тут МОВЧКИ не ковтаємо, але й не валимо екран: відповідь —
+	 * це ввічливість, а не команда, і невдала ввічливість не варта того, щоб
+	 * звукорежисер посеред вистави читав повідомлення про мережу.
+	 */
+	function answer(kind: VerdictKind, cell: string, caption: string): void {
+		const board = boardSession.current;
+		if (!board) return;
+		void publishVerdict(board.key, kind, cell, caption);
 	}
 
 	/** Скласти типову панель — рівно ті комірки, з яких починають у залі. */
@@ -387,57 +416,16 @@
 					</div>
 				</header>
 
-				<!--
-				КЕРУВАННЯ ЕКРАНОМ — ОКРЕМОЮ КАРТКОЮ, а не хвостом картки дошки.
-
-				У картці дошки лежить те, що ВОНА про себе каже: роль, ідентифікатор,
-				скільки підказок на звʼязку, як покликати ще одну. Складання панелі й
-				вибір того, що показувати, — це не про дошку, а про цей екран, і
-				всередині її картки вони читалися як її властивості.
-			-->
-				<section class="card stack" data-testid="info-screen-section">
-					<!--
-					СКЛАДАННЯ — ОКРЕМИЙ РЕЖИМ, а не олівець біля кожної комірки.
-					Складають панель раз на сезон, а дивляться на неї щовечора; олівці
-					стояли б на екрані весь той час, поки вони не потрібні.
-
-					На порожній дошці кнопки тут немає: те саме слово стоїть посеред
-					картки, яка пояснює, чому екран порожній.
-				-->
-					{#if !empty || editing}
-						<button
-							class="btn btn--sm"
-							type="button"
-							aria-pressed={editing}
-							onclick={() => {
-								editing = !editing;
-								picked = null;
-							}}
-							data-testid="info-edit-btn"
-						>
-							<IconSliders size={18} aria-hidden="true" />
-							{editing ? t('panel.editDone') : t('panel.edit')}
-						</button>
-					{/if}
-
-					<!--
-					ВИБІР ПІДПИСАНО. Три слова без підпису питали «і те, і те» — а чого
-					саме? Тепер сказано прямо, і сам вибір — той самий орган, що й у
-					налаштуваннях, а не власна копія його стилів: копія розтягувалася на
-					всю ширину картки й лишала по собі порожній четвертий сегмент.
-				-->
-					<div class="field">
-						<span class="field__label" id="info-view-label">{t('panel.viewTitle')}</span>
-						<Picker
-							row
-							labelledby="info-view-label"
-							value={view}
-							prefix="info-view"
-							options={VIEWS.map((which) => ({ value: which, label: t(`panelView.${which}`) }))}
-							onpick={(next) => (view = next as View)}
-						/>
-					</div>
-				</section>
+				<ScreenControls
+					{view}
+					{editing}
+					{empty}
+					onview={(next) => (view = next)}
+					onedit={() => {
+						editing = !editing;
+						picked = null;
+					}}
+				/>
 			</div>
 
 			<div class="desk__main">
@@ -505,7 +493,7 @@
 					{#if view !== 'panel'}
 						<section class="card stack log" data-testid="info-log-section">
 							<h2 class="subtitle">{t('panel.logTitle')}</h2>
-							<PanelLog {notices} />
+							<PanelLog {notices} onverdict={answer} />
 						</section>
 					{/if}
 				{/if}
@@ -621,6 +609,19 @@
 	}
 
 	/* Журнал росте вниз, а не розтягує сусідів: у нього своя прокрутка. */
+	/*
+	 * КАРТКИ СТОЛУ ПОЧИНАЮТЬСЯ ЗВЕРХУ, а не повисають посеред колонки.
+	 *
+	 * `.stack` несе `margin-block: auto` — воно для короткої картки входу, яка
+	 * на порожньому екрані має стояти посередині. У ряду з панеллю журнал від
+	 * цього з'їжджав на півекрана вниз: заголовок «Останні дії» опинявся нижче
+	 * за середину панелі, і два сусідні блоки починалися на різній висоті.
+	 */
+	.desk__main > .card,
+	.desk__side > .card {
+		margin-block: 0;
+	}
+
 	.log {
 		max-block-size: min(80dvh, 46rem);
 		overflow: auto;

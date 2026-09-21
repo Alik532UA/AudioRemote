@@ -6,6 +6,7 @@
 	import '$lib/css/base/tokens.css';
 	import '$lib/css/base/base.css';
 	import { themeState } from '$lib/services/theme.svelte';
+	import { attentionState } from '$lib/services/attention.svelte';
 	import { i18n, t } from '$lib/i18n/i18n.svelte';
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 	import AppMark from '$lib/components/ui/AppMark.svelte';
@@ -16,6 +17,7 @@
 	import { logCrashes } from '$lib/services/crashLog';
 	import { purgeLegacyHandles } from '$lib/audio/localSource';
 	import BoardSheet from '$lib/components/ui/BoardSheet.svelte';
+	import CrashNotice from '$lib/components/ui/CrashNotice.svelte';
 	import SettingsDialog from '$lib/components/settings/SettingsDialog.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
@@ -128,6 +130,7 @@
 	$effect(() => {
 		if (boardPanel.closeRequests > 0) sheetOpen = false;
 	});
+
 	let sheetOpen = $state(false);
 
 	/**
@@ -215,7 +218,18 @@
 	питають, і саме там її шукатимуть.
 -->
 <div class="shell">
-	<header class="shell__top">
+	<!--
+		Смуга застосунку на секунду міняє колір — це «стандартне» привертання
+		уваги (`services/attention.svelte.ts`). Інлайновим стилем, а не класом:
+		тут воно не сперечається ні з `--bg-header-glass`, ні з жодним майбутнім
+		правилом смуги. Разом із кольором знімається розмиття — напівпрозора
+		смуга поверх помаранчевого дала б брудний відтінок замість знака.
+	-->
+	<header
+		class="shell__top"
+		style:background={attentionState.lit === 'head' ? attentionState.hex : null}
+		style:backdrop-filter={attentionState.lit === 'head' ? 'none' : null}
+	>
 		<div class="shell__left">
 			<!--
 				Знак веде в МЕНЮ, а не в корінь. Корінь — стрілочник: він поніс би
@@ -227,9 +241,22 @@
 			</a>
 
 			{#if ready && !atHome && !hideBack && canGoBack}
-				<button class="shell__back" type="button" onclick={goBack} data-testid="back">
+				<!--
+					НА ТЕЛЕФОНІ — САМА СТРІЛКА. Слово «Назад» поруч зі стрілкою нічого не
+					додає (стрілка вліво означає рівно це), а в смузі застосунку воно
+					коштує місця, якого там і так немає: на 375 точках поруч стоять знак,
+					роль дошки, перемикач теми й налаштування. Ім'я кнопки лишається —
+					воно переїхало в `aria-label`, тож читалка каже те саме.
+				-->
+				<button
+					class="shell__back"
+					type="button"
+					aria-label={t('common.back')}
+					onclick={goBack}
+					data-testid="back"
+				>
 					<IconBack size={18} aria-hidden="true" />
-					{t('common.back')}
+					<span class="shell__back-word">{t('common.back')}</span>
 				</button>
 			{/if}
 		</div>
@@ -305,24 +332,7 @@
 			{@render children()}
 
 			{#snippet failed(_error, reset)}
-				<div class="crash" role="alert" data-testid="page-crash">
-					<h1 class="crash__title">{t('error.crashTitle')}</h1>
-					<p class="crash__hint">{t('error.crashHint')}</p>
-
-					<div class="crash__actions">
-						<button
-							class="btn btn--primary"
-							type="button"
-							onclick={reset}
-							data-testid="crash-retry"
-						>
-							{t('error.retry')}
-						</button>
-						<a class="btn" href={resolve('/menu')} data-testid="crash-to-menu"
-							>{t('error.toMenu')}</a
-						>
-					</div>
-				</div>
+				<CrashNotice onretry={reset} />
 			{/snippet}
 		</svelte:boundary>
 	</main>
@@ -391,6 +401,7 @@
 		padding: var(--gap-sm) 16px;
 		background: var(--bg-header-glass);
 		backdrop-filter: blur(12px);
+		transition: background-color 150ms ease;
 		/*
 		 * МЕЖА ПОТРІБНА САМЕ ЧЕРЕЗ ПРОЗОРІСТЬ.
 		 *
@@ -420,6 +431,21 @@
 		font: inherit;
 		font-size: 0.875rem;
 		cursor: pointer;
+	}
+
+	/*
+	 * Слово «Назад» зникає на телефоні, стрілка лишається. Межа та сама, що в
+	 * решті смуги: нижче за неї поруч стоять знак застосунку, роль дошки,
+	 * перемикач теми й шестірня — і саме тут слово починає їх тіснити.
+	 */
+	@media (max-width: 599px) {
+		.shell__back-word {
+			display: none;
+		}
+
+		.shell__back {
+			padding-inline: var(--gap-sm);
+		}
 	}
 
 	/*
@@ -541,33 +567,5 @@
 		.shell__settings {
 			transition: none;
 		}
-	}
-
-	/* Поламана сторінка: вміст межі помилки. */
-	.crash {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: var(--gap);
-		padding: var(--gap-lg) var(--gap);
-		text-align: center;
-	}
-
-	.crash__title {
-		margin: 0;
-		font-size: 1.3rem;
-	}
-
-	.crash__hint {
-		margin: 0;
-		max-width: 60ch;
-		color: var(--text-secondary);
-	}
-
-	.crash__actions {
-		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
-		gap: var(--gap-sm);
 	}
 </style>

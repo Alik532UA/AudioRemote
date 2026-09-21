@@ -224,6 +224,20 @@
 					},
 					"$other": { ".validate": false }
 				},
+				// `panelVerdict` — ЩО ЗВУКОРЕЖИСЕР ВІДПОВІВ на останнє прохання.
+				// Письменник знову той самий, господар: відповідь — це його слово,
+				// і право сказати його за нього не має ніхто. Вузол один, а не
+				// журнал: питання «що зі мною щойно погодилися зробити» має рівно
+				// одну відповідь — останню.
+				"panelVerdict": {
+					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
+					".validate": "newData.hasChildren(['kind', 'cell', 'at'])",
+					"kind": { ".validate": "newData.val().matches(/^(done|no|wait)$/)" },
+					"cell": { ".validate": "newData.val().matches(/^([0-9]|1[0-4])$/)" },
+					"caption": { ".validate": "newData.isString() && newData.val().length <= 24" },
+					"at": { ".validate": "newData.isNumber() && newData.val() <= now + 5000" },
+					"$other": { ".validate": false }
+				},
 				"cmd": {
 					"$id": {
 						// «ЛИШЕ СТВОРИТИ» — і одразу дві властивості одним рядком: команду
@@ -254,7 +268,7 @@
 						// перелік читається очима й заразом суворіший: тип, якого тут немає,
 						// числа не несе взагалі.
 						"value": {
-							".validate": "(newData.isString() && newData.val().length <= 64) || (newData.isNumber() && ((newData.parent().child('type').val() === 'volume' && newData.val() >= 0 && newData.val() <= 100) || (newData.parent().child('type').val() === 'seek' && newData.val() >= 0 && newData.val() <= 86400000) || (newData.parent().child('type').val() === 'press' && newData.val() >= 0 && newData.val() <= 3) || (newData.parent().child('type').val() === 'bump' && newData.val() >= -50 && newData.val() <= 50)))"
+							".validate": "(newData.isString() && newData.val().length <= 64) || (newData.isNumber() && ((newData.parent().child('type').val() === 'volume' && newData.val() >= 0 && newData.val() <= 100) || (newData.parent().child('type').val() === 'seek' && newData.val() >= 0 && newData.val() <= 86400000) || (newData.parent().child('type').val() === 'press' && newData.val() >= 0 && newData.val() <= 4) || (newData.parent().child('type').val() === 'bump' && newData.val() >= -50 && newData.val() <= 50)))"
 						},
 						// Час серверний. Без вікна навколо now пульт міг би написати команду
 						// «з майбутнього», і межа життя команди не спрацювала б ніколи.
@@ -266,6 +280,10 @@
 						"cell": {
 							".validate": "newData.isString() && newData.val().matches(/^([0-9]|1[0-4])$/)"
 						},
+						// Як підписався той, хто натиснув. ПІДПИС, А НЕ ПОСВІДЧЕННЯ: база
+						// його не звіряє ні з чим і не може — вхід анонімний. Межа тут
+						// лише на довжину, щоб рядок журналу лишався рядком.
+						"name": { ".validate": "newData.isString() && newData.val().length <= 24" },
 						"$other": { ".validate": false }
 					}
 				},

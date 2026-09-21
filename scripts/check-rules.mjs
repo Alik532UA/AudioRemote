@@ -725,6 +725,49 @@ await must('помічник перемикає чекбокс', () =>
 	)
 );
 
+// ПІДПИС ПОМІЧНИКА їде разом із проханням. База його не звіряє ні з чим і не
+// може: вхід анонімний. Межа тут лише на довжину — щоб рядок журналу лишався
+// рядком, а не абзацом.
+await must('підписане прохання', () =>
+	write(
+		`boards/${KEY}/cmd/n5`,
+		{ by: stranger.uid, type: 'toggle', cell: '14', at: SERVER_TIME, name: 'Оля' },
+		stranger.token
+	)
+);
+
+await mustNot('підпис довший за дозволений', () =>
+	write(
+		`boards/${KEY}/cmd/n6`,
+		{
+			by: stranger.uid,
+			type: 'toggle',
+			cell: '14',
+			at: SERVER_TIME,
+			name: 'та'.repeat(40)
+		},
+		stranger.token
+	)
+);
+
+// ВІДПОВІДЬ ЗВУКОРЕЖИСЕРА — слово господаря, і сказати його за нього не може
+// ніхто. Письменник той самий, що й у стану органів.
+await must('господар відповідає на прохання', () =>
+	write(
+		`boards/${KEY}/panelVerdict`,
+		{ kind: 'done', cell: '0', caption: 'фонограма', at: SERVER_TIME },
+		owner.token
+	)
+);
+
+await mustNot('сторонній відповідає за господаря', () =>
+	write(`boards/${KEY}/panelVerdict`, { kind: 'done', cell: '0', at: SERVER_TIME }, stranger.token)
+);
+
+await mustNot('невідомий вид відповіді', () =>
+	write(`boards/${KEY}/panelVerdict`, { kind: 'maybe', cell: '0', at: SERVER_TIME }, owner.token)
+);
+
 await mustNot('сторонній пише стан органів', () =>
 	write(`boards/${KEY}/panelState`, { atServer: SERVER_TIME, levels: { 4: 0 } }, stranger.token)
 );

@@ -26,7 +26,7 @@
 		normalizeBoardId,
 		normalizePassword
 	} from '$lib/board/secret';
-	import { settings } from '$lib/settings/settings.svelte';
+	import { MAX_NAME, settings } from '$lib/settings/settings.svelte';
 	import {
 		START_BOARDS,
 		START_PAGES,
@@ -249,6 +249,33 @@
 			сторінки, вони читалися як його продовження — тобто як щось, що діє
 			лише при старті.
 		-->
+		<!--
+			ПІДПИС У ЖУРНАЛІ — це підпис, а не обліковий запис.
+
+			Вхід лишається анонімним: пароль знає дошка, а не людина. Але журнал
+			на три помічники без імен відповідає лише на «що просили», тоді як
+			питають у нього й «хто» — просять різні люди з різних кутів зали.
+			Порожнє поле означає «як було»: анонімно.
+		-->
+		<section class="card stack" data-testid="settings-name-section">
+			<h2 class="subtitle">{t('settings.nameTitle')}</h2>
+
+			<div class="field">
+				<label class="field__label" for="settings-name">{t('settings.name')}</label>
+				<input
+					id="settings-name"
+					class="input"
+					type="text"
+					maxlength={MAX_NAME}
+					value={settings.displayName}
+					placeholder={t('settings.nameAnon')}
+					oninput={(event) => settings.save({ displayName: event.currentTarget.value })}
+					data-testid="settings-name-input"
+				/>
+				<p class="muted">{t('settings.nameHint')}</p>
+			</div>
+		</section>
+
 		<section class="card stack" data-testid="settings-show-section">
 			<h2 class="subtitle">{t('settings.showTitle')}</h2>
 

@@ -2,6 +2,7 @@
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { IconCheck } from '$lib/config/icons';
 	import type { PanelNotice } from '$lib/panel/apply';
+	import type { VerdictKind } from '$lib/net/panelTypes';
 
 	/**
 	 * ЖУРНАЛ ПРОХАНЬ — те, заради чого інфодошка й існує.
@@ -30,10 +31,24 @@
 	 * відповідає на те саме питання й не рухається.
 	 */
 	interface Props {
-		notices: readonly (PanelNotice & { id: string; at: number; own: boolean })[];
+		notices: readonly (PanelNotice & {
+			id: string;
+			at: number;
+			own: boolean;
+			/** Як підписався той, хто натиснув. Порожньо — анонімно. */
+			who?: string;
+		})[];
+		/**
+		 * ВІДПОВІСТИ НА ПРОХАННЯ. Є лише на таблі: у залі відповідати нема на що.
+		 *
+		 * Три кнопки стоять на ВЕРХНЬОМУ рядку, бо відповідають саме на нього — на
+		 * те, що просять зараз. Біля кожного рядка вони перетворили б журнал на
+		 * анкету, а відповідь на позавчорашнє прохання нікому не потрібна.
+		 */
+		onverdict?: (kind: VerdictKind, cell: string, caption: string) => void;
 	}
 
-	let { notices }: Props = $props();
+	let { notices, onverdict }: Props = $props();
 
 	/**
 	 * ПІДСВІТКУ ВЕРХНЬОГО РЯДКА МОЖНА ПРИБРАТИ — і саме тут, а не на панелі.
@@ -53,6 +68,8 @@
 	 * екрана, а не про дошку. У базі йому не було б чого робити, а сторінці не
 	 * довелося б нести ще одне поле заради чужої галочки.
 	 */
+	const VERDICTS: readonly VerdictKind[] = ['done', 'no', 'wait'];
+
 	let hushed = $state<string | null>(null);
 
 	const head = $derived(notices.length > 0 && notices[0].id !== hushed ? notices[0].id : null);
@@ -93,8 +110,15 @@
 			>
 				<span class="log__time mono">{clock(notice.at)}</span>
 				<span class="log__what">
+					<!--
+						Підпис ЗАМІСТЬ «сам», а не разом із ним: обидві мітки відповідають на
+						те саме питання «чия це рука», і поруч вони читалися б як дві різні
+						відповіді на нього.
+					-->
 					{#if notice.own}
 						<span class="log__own">{t('panel.byHost')}</span>
+					{:else if notice.who}
+						<span class="log__own">{notice.who}</span>
 					{/if}
 					{#if notice.caption}
 						<strong>{notice.caption}</strong>
@@ -108,6 +132,29 @@
 				</span>
 
 				{#if head === notice.id}
+					<!--
+						ВІДПОВІДЬ ЗАРАЗОМ ГАСИТЬ РЯДОК: сказавши «зробив», людина вже
+						відповіла на питання «чим я ще займаюся», і вимагати від неї другого
+						натискання по галочці було б бюрократією.
+					-->
+					{#if onverdict}
+						<div class="log__answer">
+							{#each VERDICTS as answer (answer)}
+								<button
+									class="log__verdict log__verdict--{answer}"
+									type="button"
+									onclick={() => {
+										onverdict?.(answer, notice.cell, notice.caption);
+										hushed = notice.id;
+									}}
+									data-testid="panel-verdict-{answer}-btn"
+								>
+									{t(`verdict.${answer}`)}
+								</button>
+							{/each}
+						</div>
+					{/if}
+
 					<button
 						class="log__hush"
 						type="button"
@@ -206,11 +253,50 @@
 	 * Галочка тиха: вона прибирає підсвітку, а не рядок, і не мусить
 	 * сперечатися за увагу з тим, що в рядку написано.
 	 */
+	/*
+	 * ТРИ ВІДПОВІДІ — КОЛЬОРАМИ, а не самими словами: їх читають краєм ока, і
+	 * зелене-червоне-жовте впізнається швидше за будь-який напис. Слова
+	 * лишаються — сам колір каже «щось сталося», а не що саме.
+	 */
+	.log__answer {
+		display: flex;
+		flex: none;
+		flex-wrap: wrap;
+		gap: var(--gap-xs);
+		margin-inline-start: auto;
+	}
+
+	.log__verdict {
+		padding: 2px var(--gap-xs);
+		border: 1px solid currentcolor;
+		border-radius: var(--radius-sm);
+		background: none;
+		cursor: pointer;
+		font: inherit;
+		font-size: 0.75rem;
+	}
+
+	.log__verdict--done {
+		color: var(--ok);
+	}
+
+	.log__verdict--no {
+		color: var(--danger);
+	}
+
+	.log__verdict--wait {
+		color: var(--warn);
+	}
+
+	.log__verdict:hover,
+	.log__verdict:focus-visible {
+		background: color-mix(in oklab, currentcolor 14%, transparent);
+	}
+
 	.log__hush {
 		display: grid;
 		flex: none;
 		place-items: center;
-		margin-inline-start: auto;
 		inline-size: 28px;
 		block-size: 28px;
 		border: 1px solid var(--border-strong);
