@@ -185,6 +185,9 @@
 							// довільний рядок кольору правилом не перевіриш.
 							"color": { ".validate": "newData.val().matches(/^[a-z]{2,12}$/)" },
 							"icon": { ".validate": "newData.isString() && newData.val().length <= 16" },
+							// Чий це пульт. Порожнього поля тут не буває: спільний віджет
+							// просто не має цього поля взагалі (`panelTypes.ts`).
+							"sheet": { ".validate": "newData.isString() && newData.val().length <= 16" },
 							"step": {
 								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50"
 							},

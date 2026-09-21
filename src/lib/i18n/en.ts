@@ -427,6 +427,12 @@ export const en: Record<TranslationKey, string> = {
 	'panel.important': 'Important action',
 	'panel.importantHint':
 		'A press flips the screen to the opposite theme for a moment. You catch it out of the corner of your eye, even while looking at the desk.',
+	'panel.sheet': 'Desk',
+	'panel.sheetAll': 'Shared — everyone sees it',
+	'panel.sheetHint':
+		'A helper picks their own desk on their own screen and sees only its widgets. Empty means the widget is shared.',
+	'panel.sheetPick': 'My desk',
+	'panel.sheetEvery': 'All',
 	'panel.turn': 'Turn',
 	'panel.turnDown': 'Down a column',
 	'panel.turnAcross': 'Across a row',

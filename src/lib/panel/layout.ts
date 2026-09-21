@@ -102,6 +102,34 @@ export function sizeOf(cell: PanelCell): Size {
 /** Той самий розмір, покладений набік. Це і є поворот. */
 export const turned = (size: Size): Size => ({ rows: size.cols, cols: size.rows });
 
+/**
+ * ЧИ ВИДНО ВІДЖЕТ НА ЦЬОМУ ПУЛЬТІ.
+ *
+ * `null` означає «показати все» — так дивиться той, хто складає панель: йому
+ * треба бачити всі місця одразу, інакше чужий віджет виглядав би вільною
+ * клітинкою, і на неї поставили б другий.
+ *
+ * Віджет без назви бачать усі. Це й є «об'єднати в спільний пульт»: панель, у
+ * якій нікого не названо, однакова в усіх — тобто така, як була завжди.
+ */
+export const onSheet = (cell: PanelCell, sheet: string | null): boolean =>
+	sheet === null || !cell.sheet || cell.sheet === sheet;
+
+/**
+ * Назви пультів, які трапляються в панелі, — за абеткою й без повторів.
+ *
+ * Береться з самих віджетів, а не з окремого переліку: другий перелік мусив би
+ * жити в базі й розходитися з віджетами щоразу, коли останній віджет пульта
+ * прибрали, а назву — ні.
+ */
+export function sheetsOf(panel: Panel): string[] {
+	const names = new Set<string>();
+	for (const cell of Object.values(panel.cells)) {
+		if (cell.sheet) names.add(cell.sheet);
+	}
+	return [...names].sort((a, b) => a.localeCompare(b));
+}
+
 /** Клітинки, які зайняв би прямокутник. `null` — не влазить або зайнято. */
 function areaOf(at: number, size: Size, taken: ReadonlySet<number>, grid: Grid) {
 	const row = Math.floor(at / grid.cols);
@@ -125,7 +153,10 @@ function areaOf(at: number, size: Size, taken: ReadonlySet<number>, grid: Grid) 
  * лише зіпсуті дані — складальник цього не створить), розводяться завжди
  * однаково, і на двох екранах панель виглядає однаково.
  */
-export function layoutPanel(panel: Panel): { placed: Placed[]; free: string[]; grid: Grid } {
+export function layoutPanel(
+	panel: Panel,
+	sheet: string | null = null
+): { placed: Placed[]; free: string[]; grid: Grid } {
 	const grid = gridOf(panel);
 	const cells = grid.rows * grid.cols;
 	const taken = new Set<number>();
@@ -133,7 +164,7 @@ export function layoutPanel(panel: Panel): { placed: Placed[]; free: string[]; g
 
 	for (let index = 0; index < cells; index += 1) {
 		const cell = panel.cells[String(index)];
-		if (!cell) continue;
+		if (!cell || !onSheet(cell, sheet)) continue;
 
 		const wanted = sizeOf(cell);
 		const tries: Size[] = [wanted, turned(wanted), { rows: 1, cols: 1 }];

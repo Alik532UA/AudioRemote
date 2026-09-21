@@ -9,17 +9,17 @@
 		MAX_LABEL,
 		MAX_STEP,
 		MAX_PANEL_ICON,
+		MAX_SHEET,
 		MIN_STEP,
 		type CellKind,
 		type Panel,
 		type PanelCell
 	} from '$lib/net/panelTypes';
-	import { fits, shapeOf, sizeOf, type Shape } from '$lib/panel/layout';
+	import { fits, shapeOf, sheetsOf, sizeOf, type Shape } from '$lib/panel/layout';
 	import ButtonRows from './ButtonRows.svelte';
+	import CellLook, { type CellLookDraft } from './CellLook.svelte';
 	import CellShape from './CellShape.svelte';
-	import ColorPalette from '$lib/components/ui/ColorPalette.svelte';
 	import Picker from '$lib/components/ui/Picker.svelte';
-	import Switch from '$lib/components/ui/Switch.svelte';
 
 	/**
 	 * ЩО ПОСТАВИТИ В КОМІРКУ — одне вікно на всі три роди.
@@ -70,11 +70,17 @@
 
 	let node = $state<HTMLDialogElement | null>(null);
 	let kind = $state<Choice>(untrack(() => cell?.kind ?? 'none'));
-	let caption = $state(untrack(() => cell?.caption ?? ''));
 	let step = $state(untrack(() => cell?.step ?? 10));
-	let color = $state<string | null>(untrack(() => cell?.color ?? null));
-	let icon = $state(untrack(() => cell?.icon ?? ''));
-	let important = $state(untrack(() => cell?.important === true));
+	/** Вигляд віджета одним об'єктом: його править `CellLook` на місці. */
+	let look = $state<CellLookDraft>(
+		untrack(() => ({
+			caption: cell?.caption ?? '',
+			icon: cell?.icon ?? '',
+			sheet: cell?.sheet ?? '',
+			color: cell?.color ?? null,
+			important: cell?.important === true
+		}))
+	);
 	let shape = $state<Shape>(start.shape);
 	let rows = $state(start.rows);
 	let cols = $state(start.cols);
@@ -130,12 +136,15 @@
 	 */
 	const draft = $derived<PanelCell>({
 		kind: kind === 'none' ? 'check' : kind,
-		caption,
+		caption: look.caption,
 		...(kind === 'buttons' ? { buttons: kept() } : {}),
 		...(kind === 'slider' ? { step } : {}),
 		...(shape === 'custom' ? { rows, cols } : {}),
 		vertical: shape !== 'across'
 	});
+
+	/** Назви, які вже є на панелі: підказка, а не межа. */
+	const sheets = $derived(sheetsOf(panel));
 
 	const size = $derived(sizeOf(draft));
 	const span = $derived(kind === 'none' ? 1 : size.rows * size.cols);
@@ -150,12 +159,13 @@
 
 		const next: PanelCell = {
 			kind,
-			caption: caption.trim().slice(0, MAX_CAPTION),
+			caption: look.caption.trim().slice(0, MAX_CAPTION),
 			vertical: shape !== 'across',
 			...(shape === 'custom' ? { rows, cols } : {}),
-			...(color ? { color } : {}),
-			...(important ? { important: true } : {}),
-			...(icon.trim() ? { icon: icon.trim().slice(0, MAX_PANEL_ICON) } : {})
+			...(look.color ? { color: look.color } : {}),
+			...(look.important ? { important: true } : {}),
+			...(look.sheet.trim() ? { sheet: look.sheet.trim().slice(0, MAX_SHEET) } : {}),
+			...(look.icon.trim() ? { icon: look.icon.trim().slice(0, MAX_PANEL_ICON) } : {})
 		};
 		if (kind === 'buttons') next.buttons = kept();
 		if (kind === 'slider') next.step = step;
@@ -214,65 +224,7 @@
 			</div>
 
 			{#if kind !== 'none'}
-				<div class="group">
-					<div class="field">
-						<label class="field__label" for="cell-caption">{t('panel.caption')}</label>
-						<input
-							id="cell-caption"
-							class="input"
-							type="text"
-							maxlength={MAX_CAPTION}
-							bind:value={caption}
-							data-testid="cell-caption-input"
-						/>
-						<p class="muted">{t('panel.captionHint')}</p>
-					</div>
-
-					<!--
-						ЗНАЧОК І КОЛІР — ті самі, що в треків, і з тієї ж причини: у темному
-						залі шукають очима те, що впізнають, а не читають підпис. Клавіатуру
-						емодзі відкриває сама система (Win+. на компʼютері), тож поле тут
-						звичайне текстове.
-					-->
-					<div class="field">
-						<label class="field__label" for="cell-icon">{t('panel.icon')}</label>
-						<input
-							id="cell-icon"
-							class="input input--icon"
-							type="text"
-							maxlength={MAX_PANEL_ICON}
-							bind:value={icon}
-							placeholder={t('track.emojiHint')}
-							data-testid="cell-icon-input"
-						/>
-					</div>
-
-					<div class="field">
-						<span class="field__label">{t('panel.color')}</span>
-						<ColorPalette value={color} testid="cell-swatch" onpick={(slug) => (color = slug)} />
-					</div>
-
-					<!--
-						ВАЖЛИВА ДІЯ — і чому нею мигає весь екран, а не сам віджет.
-
-						Яскравішу рамку на самому віджеті видно лише тому, хто на нього й
-						так дивиться. А потрібне зворотне: звукорежисер дивиться на пульт,
-						у зал або в ноти, і мить протилежної теми він упіймає КРАЄМ ОКА —
-						саме тому, що змінюється все поле зору, а не його клаптик.
-
-						Прапорець необовʼязковий навмисно: якби так поводилася кожна
-						кнопка, екран блимав би цілу виставу й перестав би щось означати.
-					-->
-					<div class="field">
-						<Switch
-							checked={important}
-							label={t('panel.important')}
-							testid="cell-important-toggle"
-							onchange={(next) => (important = next)}
-						/>
-						<p class="muted">{t('panel.importantHint')}</p>
-					</div>
-				</div>
+				<CellLook {look} {sheets} />
 
 				<div class="group">
 					<CellShape

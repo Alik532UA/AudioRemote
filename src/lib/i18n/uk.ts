@@ -451,6 +451,12 @@ export const uk = {
 	'panel.important': 'Важлива дія',
 	'panel.importantHint':
 		'Натискання на мить перемикає екран на протилежну тему. Це видно краєм ока, навіть коли дивитися на пульт.',
+	'panel.sheet': 'Пульт',
+	'panel.sheetAll': 'Спільний — бачать усі',
+	'panel.sheetHint':
+		'Помічник обирає свій пульт на своєму екрані й бачить лише його віджети. Порожньо — віджет спільний.',
+	'panel.sheetPick': 'Мій пульт',
+	'panel.sheetEvery': 'Усі',
 	'panel.turn': 'Поворот',
 	'panel.turnDown': 'Стовпчиком',
 	'panel.turnAcross': 'Рядком',

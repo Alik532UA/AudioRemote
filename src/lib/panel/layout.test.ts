@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { controlOf, fits, layoutPanel, moveTo, shapeOf, sizeOf, spanOf } from './layout';
+import { controlOf, fits, layoutPanel, moveTo, shapeOf, sheetsOf, sizeOf, spanOf } from './layout';
 import type { Panel, PanelCell } from '$lib/net/panelTypes';
 
 /**
@@ -251,5 +251,34 @@ describe('своя сітка дошки', () => {
 		const small: Panel = { rev: 1, rows: 2, cols: 2, cells: { '14': buttons(1) } };
 		expect(layoutPanel(small).placed).toEqual([]);
 		expect(small.cells['14']).toBeDefined();
+	});
+});
+
+describe('пульти в залі', () => {
+	const many = panelOf({
+		'0': { ...buttons(1), sheet: 'світло' },
+		'1': { ...buttons(1), sheet: 'завіса' },
+		'2': buttons(1)
+	});
+
+	it('без вибору видно все — саме так панель і виглядала досі', () => {
+		expect(layoutPanel(many).placed.map((spot) => spot.cell)).toEqual(['0', '1', '2']);
+	});
+
+	it('обраний пульт показує свої віджети Й СПІЛЬНІ', () => {
+		// Спільний віджет (без назви) бачать усі: «стоп» потрібен кожному в залі.
+		expect(layoutPanel(many, 'світло').placed.map((spot) => spot.cell)).toEqual(['0', '2']);
+		expect(layoutPanel(many, 'завіса').placed.map((spot) => spot.cell)).toEqual(['1', '2']);
+	});
+
+	it('чужий віджет лишає по собі ВІЛЬНЕ місце, а не діру', () => {
+		// Інакше помічник бачив би порожню клітинку, у яку не можна натиснути,
+		// і не розумів би, чому вона мертва.
+		expect(layoutPanel(many, 'світло').free).toContain('1');
+	});
+
+	it('назви пультів беруться з віджетів, без повторів і за абеткою', () => {
+		expect(sheetsOf(many)).toEqual(['завіса', 'світло']);
+		expect(sheetsOf(panelOf({ '0': buttons(1) }))).toEqual([]);
 	});
 });

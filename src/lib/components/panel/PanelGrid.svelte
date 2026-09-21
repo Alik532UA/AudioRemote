@@ -58,10 +58,26 @@
 		 * номера друге натискання не відрізнити від першого взагалі.
 		 */
 		hot?: string | null;
+		/**
+		 * ЧИЙ ПУЛЬТ ПОКАЗУВАТИ. `null` — усе, що є на панелі.
+		 *
+		 * У залі помічників буває кілька, і роботи в них різні. Віджети без
+		 * назви пульта бачать усі — див. `panelTypes.ts`.
+		 */
+		sheet?: string | null;
 		press: (cell: string, type: PanelCommandType, value?: number) => void;
 	}
 
-	let { panel, levels, flags, busy = false, recent = null, hot = null, press }: Props = $props();
+	let {
+		panel,
+		levels,
+		flags,
+		busy = false,
+		recent = null,
+		hot = null,
+		sheet = null,
+		press
+	}: Props = $props();
 
 	/**
 	 * ДЕ ЩО СТОЇТЬ — рахується один раз на панель, а не вгадується розміткою.
@@ -71,7 +87,7 @@
 	 * явним `grid-area`. Порожні клітинки теж: без явного місця вони поповзли б
 	 * у діри між віджетами.
 	 */
-	const board = $derived(layoutPanel(panel));
+	const board = $derived(layoutPanel(panel, sheet));
 
 	/** `grid-area` рядком: рядок / стовпець / скільки рядів / скільки стовпців. */
 	const spot = (at: Placed) => `${at.row + 1} / ${at.col + 1} / span ${at.rows} / span ${at.cols}`;

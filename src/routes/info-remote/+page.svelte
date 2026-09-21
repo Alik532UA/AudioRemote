@@ -18,12 +18,14 @@
 		type PanelVerdict
 	} from '$lib/net/panelTypes';
 	import { settings } from '$lib/settings/settings.svelte';
-	import { controlOf } from '$lib/panel/layout';
+	import { controlOf, sheetsOf } from '$lib/panel/layout';
+	import { readItem, writeItem } from '$lib/services/storage';
 	import { mark } from '$lib/services/breadcrumbs';
 	import { attentionState } from '$lib/services/attention.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
 	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
+	import SheetPicker from '$lib/components/panel/SheetPicker.svelte';
 	import VerdictToast from '$lib/components/panel/VerdictToast.svelte';
 	import { IconWarning } from '$lib/config/icons';
 	import type { BoardInfo } from '$lib/net/boardTypes';
@@ -41,6 +43,9 @@
 	 * забрано в розміру кнопок. Роль пристрою видно в смузі застосунку, назву
 	 * дошки — тут, і більше нічого.
 	 */
+	/** Де лежить вибраний пульт. Один на застосунок: дошка в залі одна. */
+	const SHEET_KEY = 'panel.sheet';
+
 	/** Скільки живе підсвітка комірки. Далі панель знову каже «зараз нічого». */
 	const RECENT_MS = 3000;
 	/** Скільки висить відповідь звукорежисера. */
@@ -82,9 +87,20 @@
 	let trouble = $state<TranslationKey | null>(null);
 
 	const empty = $derived(Object.keys(panel.cells).length === 0);
+	const sheets = $derived(sheetsOf(panel));
+
+	/**
+	 * ЧИЙ ПУЛЬТ Я ДИВЛЮСЯ. `null` — усі.
+	 *
+	 * Вибір локальний і переживає перезавантаження: помічник обирає свою
+	 * бригаду раз на вечір, а планшет у залі перезапускають частіше, ніж
+	 * хотілося б. У дошці цьому не місце — там воно стало б вибором за всіх.
+	 */
+	let sheet = $state<string | null>(null);
 
 	onMount(() => {
 		boardSession.restore();
+		sheet = readItem(SHEET_KEY) || null;
 		const board = boardSession.current;
 
 		if (!board || kindOf(board) !== 'info' || board.role !== 'remote') {
@@ -243,8 +259,17 @@
 				{presenceKnown ? t('info.noPanelRemote') : t('common.loading')}
 			</p>
 		{:else}
+			<SheetPicker
+				{sheets}
+				value={sheet}
+				onpick={(next) => {
+					sheet = next;
+					writeItem(SHEET_KEY, next ?? '');
+				}}
+			/>
+
 			<div class="room">
-				<PanelGrid {panel} {levels} {flags} {recent} {hot} {busy} press={ask} />
+				<PanelGrid {panel} {levels} {flags} {recent} {hot} {busy} {sheet} press={ask} />
 			</div>
 		{/if}
 	{/if}

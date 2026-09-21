@@ -814,16 +814,26 @@ await mustNot('поворот не булевий', () =>
 
 // Свій розмір віджета. Межі — сама сітка: більше рядів, ніж у ній є, означало
 // б віджет, який не стане нікуди, і клієнт мовчки зменшив би його до клітинки.
+// ЧИЙ ЦЕ ПУЛЬТ. Помічників у залі кілька, і кожен бачить свої віджети; віджет
+// без цього поля бачать усі.
+await must('віджет із назвою пульта', () =>
+	patch(`boards/${KEY}/panel/cells`, { 5: { kind: 'check', sheet: 'світло' } }, owner.token)
+);
+
+await mustNot('назва пульта довша за дозволену', () =>
+	patch(`boards/${KEY}/panel/cells`, { 5: { kind: 'check', sheet: 'та'.repeat(20) } }, owner.token)
+);
+
 await must('віджет зі своїм розміром', () =>
 	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 2, cols: 2 } }, owner.token)
 );
 
 await mustNot('рядів більше, ніж у сітці', () =>
-	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 9, cols: 1 } }, owner.token)
+	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 12, cols: 1 } }, owner.token)
 );
 
 await mustNot('стовпців більше, ніж у сітці', () =>
-	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 1, cols: 4 } }, owner.token)
+	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 1, cols: 7 } }, owner.token)
 );
 
 await mustNot('розмір не числом', () =>

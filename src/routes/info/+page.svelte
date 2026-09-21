@@ -34,7 +34,7 @@
 		type PanelOutcome
 	} from '$lib/panel/apply';
 	import { starterPanel } from '$lib/panel/starter';
-	import { controlOf, fits, moveTo, sizeOf, turned, withSize } from '$lib/panel/layout';
+	import { controlOf, fits, moveTo, sheetsOf, sizeOf, turned, withSize } from '$lib/panel/layout';
 	import { keepPanel, recallPanel } from '$lib/panel/keep';
 	import { mark } from '$lib/services/breadcrumbs';
 	import { attentionState } from '$lib/services/attention.svelte';
@@ -42,8 +42,8 @@
 	import Failure from '$lib/components/ui/Failure.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import { IconPhone } from '$lib/config/icons';
-	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
 	import PanelBuilder from '$lib/components/panel/PanelBuilder.svelte';
+	import PanelMirror from '$lib/components/panel/PanelMirror.svelte';
 	import PanelLog from '$lib/components/panel/PanelLog.svelte';
 	import ScreenControls, { type View } from '$lib/components/panel/ScreenControls.svelte';
 	import CellDialog from '$lib/components/panel/CellDialog.svelte';
@@ -123,6 +123,7 @@
 	const INVITE_STEP2 = 'info.connectStep2' as const;
 
 	const empty = $derived(Object.keys(panel.cells).length === 0);
+	const sheets = $derived(sheetsOf(panel));
 
 	onMount(() => {
 		boardSession.restore();
@@ -525,14 +526,7 @@
 					</section>
 				{:else}
 					{#if view !== 'log'}
-						<section class="card mirror" data-testid="info-panel-section">
-							<!--
-							НЕ ДЗЕРКАЛО: та сама панель, і тиснеться вона так само. Ручки
-							крутить саме звукорежисер, а кнопку з підписом він тисне, щоб
-							позначити зроблене — і рядок про це лягає в той самий журнал.
-						-->
-							<PanelGrid {panel} {levels} {flags} {recent} {hot} press={own} />
-						</section>
+						<PanelMirror {panel} {levels} {flags} {sheets} {recent} {hot} press={own} />
 					{/if}
 
 					{#if view !== 'panel'}
@@ -599,15 +593,6 @@
 	 * прилетіло прохання. Журнал поруч важливіший, і віддавати йому пів екрана
 	 * заради більших кнопок, яких ніхто не натисне, нема сенсу.
 	 */
-	.mirror {
-		display: flex;
-		/*
-		 * Заміряно на 1280×900: при `min(60dvh, 30rem)` кнопка в дзеркалі виходила
-		 * 89×18 — підпис у ній ще вміщався, але прочитати його з відстані, на якій
-		 * сидять за пультом, уже не виходило. Ця пара чисел дає 89×26.
-		 */
-		block-size: min(70dvh, 38rem);
-	}
 
 	/*
 	 * ДОШКА ВУЗЬКА, РЕШТА ЗАБИРАЄ ЩО ЛИШИЛОСЯ.
