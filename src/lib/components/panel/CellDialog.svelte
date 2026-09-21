@@ -166,123 +166,142 @@
 			</button>
 		</header>
 
-		<div class="field">
-			<span class="field__label" id="cell-kind-label">{t('panel.kind')}</span>
-			<Picker
-				labelledby="cell-kind-label"
-				value={kind}
-				prefix="cell-kind"
-				options={KINDS.map((which) => ({ value: which, label: t(`panelKind.${which}`) }))}
-				onpick={(next) => (kind = next as Choice)}
-			/>
+		<!--
+			ТРИ СТОВПЦІ, А НЕ ОДИН НА ВІСІМСОТ ТОЧОК УНИЗ.
+
+			Полів тут вісім, і в один стовпець вони давали вікно, вище за екран:
+			частина органів жила за прокруткою, тоді як обабіч лишалося порожньо.
+			Стовпці зібрані за питаннями, а не за рівними частинами: «що це», «як
+			воно виглядає», «скільки місця займає й що всередині».
+
+			`auto-fit` із межею в 230 точок: на телефоні стовпець один, і розкладка
+			згортається сама.
+		-->
+		<div class="groups">
+			<div class="group">
+				<div class="field">
+					<span class="field__label" id="cell-kind-label">{t('panel.kind')}</span>
+					<Picker
+						labelledby="cell-kind-label"
+						value={kind}
+						prefix="cell-kind"
+						options={KINDS.map((which) => ({ value: which, label: t(`panelKind.${which}`) }))}
+						onpick={(next) => (kind = next as Choice)}
+					/>
+				</div>
+			</div>
+
+			{#if kind !== 'none'}
+				<div class="group">
+					<div class="field">
+						<label class="field__label" for="cell-caption">{t('panel.caption')}</label>
+						<input
+							id="cell-caption"
+							class="input"
+							type="text"
+							maxlength={MAX_CAPTION}
+							bind:value={caption}
+							data-testid="cell-caption-input"
+						/>
+						<p class="muted">{t('panel.captionHint')}</p>
+					</div>
+
+					<!--
+						ЗНАЧОК І КОЛІР — ті самі, що в треків, і з тієї ж причини: у темному
+						залі шукають очима те, що впізнають, а не читають підпис. Клавіатуру
+						емодзі відкриває сама система (Win+. на компʼютері), тож поле тут
+						звичайне текстове.
+					-->
+					<div class="field">
+						<label class="field__label" for="cell-icon">{t('panel.icon')}</label>
+						<input
+							id="cell-icon"
+							class="input input--icon"
+							type="text"
+							maxlength={MAX_PANEL_ICON}
+							bind:value={icon}
+							placeholder={t('track.emojiHint')}
+							data-testid="cell-icon-input"
+						/>
+					</div>
+
+					<div class="field">
+						<span class="field__label">{t('panel.color')}</span>
+						<ColorPalette value={color} testid="cell-swatch" onpick={(slug) => (color = slug)} />
+					</div>
+				</div>
+
+				<div class="group">
+					<!--
+						ПОВОРОТ — ТУТ, А НЕ ЛИШЕ КОЛЕСОМ МИШІ. Колесом швидше, але його немає
+						ні на телефоні, ні з клавіатури, а без повороту панель не скласти.
+					-->
+					<div class="field">
+						<span class="field__label" id="cell-turn-label">{t('panel.turn')}</span>
+						<Picker
+							row
+							labelledby="cell-turn-label"
+							value={vertical ? 'down' : 'across'}
+							prefix="cell-turn"
+							options={[
+								{ value: 'down', label: t('panel.turnDown') },
+								{ value: 'across', label: t('panel.turnAcross') }
+							]}
+							onpick={(next) => (vertical = next === 'down')}
+						/>
+						<p class="muted">{t('panel.spanHint', { count: span })}</p>
+					</div>
+
+					{#if kind === 'buttons'}
+						<div class="field">
+							<span class="field__label">{t('panel.buttonsTitle')}</span>
+							{#each labels as _, position (position)}
+								<label class="visually-hidden" for="cell-label-{position}">
+									{t('panel.buttonLabel', { n: position + 1 })}
+								</label>
+								<input
+									id="cell-label-{position}"
+									class="input"
+									type="text"
+									maxlength={MAX_LABEL}
+									placeholder={t('panel.buttonLabel', { n: position + 1 })}
+									bind:value={labels[position]}
+									data-testid="cell-label-{position}-input"
+								/>
+							{/each}
+
+							{#if labels.length < MAX_BUTTONS}
+								<button
+									class="btn btn--sm"
+									type="button"
+									onclick={() => (labels = [...labels, ''])}
+									data-testid="cell-add-label-btn"
+								>
+									{t('panel.addButton')}
+								</button>
+							{/if}
+							<p class="muted">{t('panel.buttonsHint')}</p>
+						</div>
+					{:else if kind === 'slider'}
+						<div class="field">
+							<label class="field__label" for="cell-step">{t('panel.step')}</label>
+							<NumberStepper
+								id="cell-step"
+								value={step}
+								min={MIN_STEP}
+								max={MAX_STEP}
+								label={t('panel.step')}
+								onchange={(next) => (step = next)}
+							/>
+							<p class="muted">{t('panel.stepHint')}</p>
+						</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
-
-		{#if kind !== 'none'}
-			<div class="field">
-				<label class="field__label" for="cell-caption">{t('panel.caption')}</label>
-				<input
-					id="cell-caption"
-					class="input"
-					type="text"
-					maxlength={MAX_CAPTION}
-					bind:value={caption}
-					data-testid="cell-caption-input"
-				/>
-				<p class="muted">{t('panel.captionHint')}</p>
-			</div>
-
-			<!--
-				ЗНАЧОК І КОЛІР — ті самі, що в треків, і з тієї ж причини: у темному
-				залі шукають очима те, що впізнають, а не читають підпис. Клавіатуру
-				емодзі відкриває сама система (Win+. на компʼютері), тож поле тут
-				звичайне текстове.
-			-->
-			<div class="field">
-				<label class="field__label" for="cell-icon">{t('panel.icon')}</label>
-				<input
-					id="cell-icon"
-					class="input input--icon"
-					type="text"
-					maxlength={MAX_PANEL_ICON}
-					bind:value={icon}
-					placeholder={t('track.emojiHint')}
-					data-testid="cell-icon-input"
-				/>
-			</div>
-
-			<div class="field">
-				<span class="field__label">{t('panel.color')}</span>
-				<ColorPalette value={color} testid="cell-swatch" onpick={(slug) => (color = slug)} />
-			</div>
-
-			<!--
-				ПОВОРОТ — ТУТ, А НЕ ЛИШЕ КОЛЕСОМ МИШІ. Колесом швидше, але його немає
-				ні на телефоні, ні з клавіатури, а без повороту панель не скласти.
-			-->
-			<div class="field">
-				<span class="field__label" id="cell-turn-label">{t('panel.turn')}</span>
-				<Picker
-					row
-					labelledby="cell-turn-label"
-					value={vertical ? 'down' : 'across'}
-					prefix="cell-turn"
-					options={[
-						{ value: 'down', label: t('panel.turnDown') },
-						{ value: 'across', label: t('panel.turnAcross') }
-					]}
-					onpick={(next) => (vertical = next === 'down')}
-				/>
-				<p class="muted">{t('panel.spanHint', { count: span })}</p>
-			</div>
-		{/if}
 
 		{#if !roomy}
 			<p class="error" role="alert" data-testid="cell-no-room-text">{t('panel.noRoom')}</p>
-		{/if}
-
-		{#if kind === 'buttons'}
-			<div class="field">
-				<span class="field__label">{t('panel.buttonsTitle')}</span>
-				{#each labels as _, position (position)}
-					<label class="visually-hidden" for="cell-label-{position}">
-						{t('panel.buttonLabel', { n: position + 1 })}
-					</label>
-					<input
-						id="cell-label-{position}"
-						class="input"
-						type="text"
-						maxlength={MAX_LABEL}
-						placeholder={t('panel.buttonLabel', { n: position + 1 })}
-						bind:value={labels[position]}
-						data-testid="cell-label-{position}-input"
-					/>
-				{/each}
-
-				{#if labels.length < MAX_BUTTONS}
-					<button
-						class="btn btn--sm"
-						type="button"
-						onclick={() => (labels = [...labels, ''])}
-						data-testid="cell-add-label-btn"
-					>
-						{t('panel.addButton')}
-					</button>
-				{/if}
-				<p class="muted">{t('panel.buttonsHint')}</p>
-			</div>
-		{:else if kind === 'slider'}
-			<div class="field">
-				<label class="field__label" for="cell-step">{t('panel.step')}</label>
-				<NumberStepper
-					id="cell-step"
-					value={step}
-					min={MIN_STEP}
-					max={MAX_STEP}
-					label={t('panel.step')}
-					onchange={(next) => (step = next)}
-				/>
-				<p class="muted">{t('panel.stepHint')}</p>
-			</div>
 		{/if}
 
 		<div class="acts">
@@ -316,7 +335,7 @@
 
 <style>
 	.dialog {
-		width: min(480px, calc(100vw - 32px));
+		width: min(880px, calc(100vw - 32px));
 		max-height: calc(100dvh - 48px);
 		/* Прокручується ВМІСТ, а не саме вікно — так само, як у решті вікон. */
 		overflow: hidden;
@@ -352,9 +371,31 @@
 		font-size: 1.1rem;
 	}
 
+	.groups {
+		display: grid;
+		/*
+		 * `min(230px, 100%)`, а не голі 230px: гола довжина стає ПІДЛОГОЮ ширини,
+		 * і на вузькому екрані сітка розпирає вікно замість того, щоб згорнутися
+		 * в одну колонку (FLUID-SIZING-v9 § 1.1).
+		 */
+		grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
+		gap: var(--gap) var(--gap-lg);
+		align-items: start;
+	}
+
+	.group {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap);
+		min-width: 0;
+	}
+
 	.acts {
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--gap-sm);
+		/* Дії відбиті від полів: інакше «Зберегти» читається як ще одне поле. */
+		padding-top: var(--gap-sm);
+		border-top: 1px solid var(--border);
 	}
 </style>
