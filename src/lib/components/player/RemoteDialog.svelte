@@ -1,39 +1,68 @@
 <script lang="ts">
-	import { untrack } from 'svelte';
 	import { IconCheck, IconClose, IconCopy } from '$lib/config/icons';
-	import { t } from '$lib/i18n/i18n.svelte';
+	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import CopyButton from '$lib/components/ui/CopyButton.svelte';
 	import QrCode from '$lib/components/ui/QrCode.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
+	import AdminSetup from './AdminSetup.svelte';
 
+	/**
+	 * ОДНЕ ВІКНО НА ОБИДВА ВИДИ ДОШКИ.
+	 *
+	 * Інструкція «як підключити» — найдорожчий текст у застосунку: його читає
+	 * людина, яка вперше тримає телефон із цією адресою, і читає рівно один
+	 * раз. Другий примірник цього вікна для інфодошки розійшовся б із першим на
+	 * першій же правці кроків, і помітили б це не ми.
+	 *
+	 * Різниться в них небагато, і все воно тут параметрами: як зветься той, кого
+	 * підключають, у якому розділі його форма, що дописати до адреси й чи є в
+	 * цього виду дошки третя роль узагалі.
+	 */
 	interface Props {
 		id: string;
 		password: string;
 		/** Адреса дошки в базі — саме її, а не пароль, несе посилання. */
 		boardKey: string;
+		/** Маршрут, на якому стоїть вікно: його знімають з адреси, щоб лишився корінь. */
+		route?: string;
+		/** Заголовок вікна: «Підключити пульт» або «Підключити помічника». */
+		title?: TranslationKey;
+		/** Той самий заголовок у скопійованому тексті. */
+		how?: TranslationKey;
+		/** Другий крок: у якому саме розділі шукати «Підключитися». */
+		step2?: TranslationKey;
+		/** Що дописати до адреси підключення: порожньо або `?kind=info`. */
+		search?: string;
 		/** Чи відкритий канал адміністратора зараз. */
-		adminOn: boolean;
+		adminOn?: boolean;
 		/** Другий пароль, якщо він уже заданий, — щоб було що показати. */
 		admin?: string;
-		/** Увімкнути з цим паролем, або вимкнути зовсім (`null`). */
-		onadmin: (password: string | null) => Promise<void>;
+		/**
+		 * Увімкнути з цим паролем, або вимкнути зовсім (`null`).
+		 *
+		 * Немає — у цього виду дошки третьої ролі ще немає, і смуга
+		 * адміністратора не показується взагалі. Показана, але безсила, вона
+		 * обіцяла б те, чого не станеться.
+		 */
+		onadmin?: (password: string | null) => Promise<void>;
 		onclose: () => void;
 	}
 
-	let { id, password, boardKey, adminOn, admin = '', onadmin, onclose }: Props = $props();
-
-	/*
-	 * Намір і стан — різні речі, і саме тому це два прапорці.
-	 *
-	 * `adminOn` каже, чи канал відкритий насправді; `adminWanted` — чи людина
-	 * зараз хоче його мати. Між ними живе введення пароля: перемикач уже
-	 * увімкнено, поле показано, а каналу ще немає й бути не може, бо пароля
-	 * ніхто не ввів.
-	 */
-	let adminWanted = $state(untrack(() => adminOn));
-	let adminPassword = $state(untrack(() => admin));
-	let adminBusy = $state(false);
+	let {
+		id,
+		password,
+		boardKey,
+		route = 'player',
+		title = 'player.connect',
+		how = 'player.connectHow',
+		step2 = 'player.connectStep2',
+		search = '',
+		adminOn = false,
+		admin = '',
+		onadmin,
+		onclose
+	}: Props = $props();
 
 	/**
 	 * ЯК ПІДКЛЮЧИТИ ПУЛЬТ — ВІКНО, А НЕ ЗГОРНУТИЙ БЛОК НА СТОРІНЦІ.
@@ -60,7 +89,7 @@
 	const address = $derived.by(() => {
 		if (typeof window === 'undefined') return '';
 		const { origin, pathname } = window.location;
-		return origin + pathname.replace(/\/player\/?$/, '/');
+		return origin + pathname.replace(new RegExp(`/${route}/?$`), '/');
 	});
 
 	$effect(() => {
@@ -110,16 +139,16 @@
 	let autoStart = $state(true);
 
 	const link = $derived(
-		`${address}connect#k=${boardKey}&id=${encodeURIComponent(id)}${autoStart ? '&start=1' : ''}`
+		`${address}connect${search}#k=${boardKey}&id=${encodeURIComponent(id)}${autoStart ? '&start=1' : ''}`
 	);
 
 	const fullText = $derived(
 		[
 			`${t('player.connectQuick')}: ${link}`,
 			'',
-			t('player.connectHow'),
+			t(how),
 			`1. ${t('player.connectStep1')} ${address}`,
-			`2. ${t('player.connectStep2')}`,
+			`2. ${t(step2)}`,
 			`3. ${t('player.connectStep3')}`,
 			'',
 			`${t('create.idLabel')}: ${id}`,
@@ -162,7 +191,7 @@
 >
 	<div class="dialog__body">
 		<header class="dialog__head">
-			<h2 class="dialog__title">{t('player.connect')}</h2>
+			<h2 class="dialog__title">{t(title)}</h2>
 			<button
 				type="button"
 				aria-label={t('common.close')}
@@ -233,7 +262,7 @@
 				<h3 class="pane__title">{t('player.connectManual')}</h3>
 				<ol class="steps">
 					<li>{t('player.connectStep1')}</li>
-					<li>{t('player.connectStep2')}</li>
+					<li>{t(step2)}</li>
 					<li>{t('player.connectStep3')}</li>
 				</ol>
 
@@ -281,62 +310,14 @@
 		</div>
 
 		<!--
-			ТРЕТЯ РОЛЬ — окремою смугою під колонками, а не ще однією колонкою.
-
-			Колонки відповідають на одне питання: «як підключити пульт». Це —
-			інше питання й інше рішення: чи дозволяти з того пульта міняти саму
-			дошку. Поставлене в ряд зі способами, воно читалося б як ще один
-			спосіб, а це не спосіб.
-
-			АЛЕ РІЗНИЦЮ ТРЕБА ПОКАЗАТИ, А НЕ ЛИШЕ МАТИ НА УВАЗІ. Доти смуга
-			носила той самий `pane__title`, що й колонки, і не мала їхньої
-			рамки — тобто позичала мову карток, не будучи карткою, і око не
-			могло вирішити, це четверта секція чи підвал вікна. Тепер вона
-			ЗАГЛИБЛЕНА, як смуга адміністратора на самому пульті
-			(`adminbar` у `remote/+page.svelte`): однакове рішення виглядає
-			однаково на обох екранах, і жодного разу — як інструкція.
+			ТРЕТЯ РОЛЬ — ОКРЕМОЮ СМУГОЮ ПІД КОЛОНКАМИ, а не ще однією колонкою, і
+			окремим компонентом: в інфодошки адмінського каналу немає взагалі, і те
+			саме вікно відкривається там без цієї смуги. Чому саме так — у
+			`AdminSetup.svelte`.
 		-->
-		<section class="admin">
-			<div class="admin__head">
-				<h3 class="pane__title">{t('admin.title')}</h3>
-				<Switch
-					checked={adminWanted}
-					label={t('admin.allow')}
-					testid="admin-allow"
-					onchange={(next) => {
-						adminWanted = next;
-						if (!next) void onadmin(null);
-					}}
-				/>
-			</div>
-
-			{#if adminWanted}
-				<div class="admin__form">
-					<PasswordField
-						id="admin-password"
-						label={t('admin.password')}
-						bind:value={adminPassword}
-						autocomplete="off"
-					/>
-					<button
-						class="btn btn--primary"
-						type="button"
-						disabled={adminPassword.trim().length === 0 || adminBusy}
-						onclick={async () => {
-							adminBusy = true;
-							await onadmin(adminPassword);
-							adminBusy = false;
-						}}
-						data-testid="admin-apply"
-					>
-						{adminOn ? t('admin.change') : t('admin.turnOn')}
-					</button>
-				</div>
-				<p class="muted">{adminOn ? t('admin.onHint') : t('admin.hint')}</p>
-			{:else}
-				<p class="muted">{t('admin.offHint')}</p>
-			{/if}
-		</section>
+		{#if onadmin}
+			<AdminSetup on={adminOn} password={admin} onapply={onadmin} />
+		{/if}
 
 		<button class="btn" type="button" onclick={copyAll} data-testid="copy-secret">
 			{#if copied}
@@ -406,16 +387,6 @@
 	 * читається як продовження третьої колонки, тобто як ще одна пара значень
 	 * для підключення — а це рішення іншого роду.
 	 */
-	.admin {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap-sm);
-		padding: var(--gap);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		background: var(--bg-sunken);
-	}
-
 	/*
 	 * Заголовок і перемикач СТОЯТЬ ПОРУЧ, а не по краях смуги.
 	 *
@@ -424,35 +395,6 @@
 	 * Тепер перемикач одразу за заголовком, а порожнє місце лишається праворуч —
 	 * там, де воно нічого не означає.
 	 */
-	.admin__head {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--gap-sm) var(--gap);
-	}
-
-	/*
-	 * Кнопка ПІД полем, а не поруч.
-	 *
-	 * Поруч вона з'їжджала: під полем пароля завжди є рядок підказок (Caps Lock,
-	 * розкладка), і вирівняна по низу кнопка опинялася нижче за поле, а
-	 * вирівняна по верху — вище за нього. Обидва варіанти читалися як збита
-	 * верстка. Під полем вона стоїть там, куди веде погляд після набору.
-	 *
-	 * Поле при цьому вужче за смугу: у ньому пароль із кількох слів, а не абзац.
-	 */
-	.admin__form {
-		display: flex;
-		flex-direction: column;
-		align-items: start;
-		gap: var(--gap-sm);
-		max-width: 380px;
-	}
-
-	.admin__form :global(.field) {
-		width: 100%;
-	}
-
 	.dialog__head {
 		display: flex;
 		align-items: center;

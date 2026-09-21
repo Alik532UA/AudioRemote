@@ -332,6 +332,9 @@ export const en: Record<TranslationKey, string> = {
 	'info.boardOnline': 'Board online',
 	'info.boardOffline': 'Board offline',
 	'info.noPanel': 'No panel yet. The buttons for the assistant are added here, on the board.',
+	'info.connectHelper': 'Connect an assistant',
+	'info.connectHow': 'How to connect an assistant',
+	'info.connectStep2': 'Tap “Connect” in the “Cue board” section.',
 	'info.fillStarter': 'Build a starter panel',
 	'info.fillStarterHint':
 		'Two groups of buttons, a slider and a switch — what a hall starts with. Everything is editable afterwards.',

@@ -22,7 +22,8 @@
 	import { mark } from '$lib/services/breadcrumbs';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
-	import { IconSliders } from '$lib/config/icons';
+	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
+	import { IconPhone, IconSliders } from '$lib/config/icons';
 	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
 	import PanelEditorGrid from '$lib/components/panel/PanelEditorGrid.svelte';
 	import PanelLog from '$lib/components/panel/PanelLog.svelte';
@@ -65,6 +66,20 @@
 	let editing = $state(false);
 	/** Яку комірку зараз правлять. Порожньо — вікно закрите. */
 	let picked = $state<string | null>(null);
+	/** Чи відкрите вікно «як підключити помічника». */
+	let inviteOpen = $state(false);
+
+	/*
+	 * Ключі окремими сталими, а не рядками в атрибутах.
+	 *
+	 * Гейт мертвих ключів (`i18n/unused.test.ts`) шукає ключ у КОДІ й бачить
+	 * лише одинарні лапки; рядок в атрибуті розмітки повз нього проходить, і
+	 * ключ, який перестануть показувати, лишиться у словнику назавжди. Обгортка
+	 * `{'…'}` те саме вирішила б, але на ній червоніє `no-useless-mustaches`.
+	 */
+	const INVITE_TITLE = 'info.connectHelper' as const;
+	const INVITE_HOW = 'info.connectHow' as const;
+	const INVITE_STEP2 = 'info.connectStep2' as const;
 
 	const empty = $derived(Object.keys(panel.cells).length === 0);
 
@@ -208,6 +223,28 @@
 				</p>
 
 				<!--
+					ЯК ПОКЛИКАТИ ПОМІЧНИКА — там само, де в плеєра «Підключити пульт».
+					Без цієї кнопки дошка була глухим кутом: ідентифікатор на екрані є,
+					пароль знає лише той, хто створював, а звідки його взяти вдруге —
+					нізвідки. Те саме вікно, ті самі кроки; різне лише слово «помічник»
+					і розділ, у якому шукати форму.
+
+					Лише для СВОЄЇ дошки: пароля в чужому записі немає, і показувати
+					порожнє вікно нема сенсу.
+				-->
+				{#if board.password}
+					<button
+						class="btn btn--sm"
+						type="button"
+						onclick={() => (inviteOpen = true)}
+						data-testid="info-open-remote-btn"
+					>
+						<IconPhone size={18} aria-hidden="true" />
+						{t('info.connectHelper')}
+					</button>
+				{/if}
+
+				<!--
 					СКЛАДАННЯ — ОКРЕМИЙ РЕЖИМ, а не олівець біля кожної комірки.
 					Складають панель раз на сезон, а дивляться на неї щовечора; олівці
 					стояли б на екрані весь той час, поки вони не потрібні.
@@ -312,6 +349,20 @@
 					</section>
 				{/if}
 			</div>
+		{/if}
+
+		{#if inviteOpen && board.password}
+			<RemoteDialog
+				id={board.id}
+				password={board.password}
+				boardKey={board.key}
+				route="info"
+				title={INVITE_TITLE}
+				how={INVITE_HOW}
+				step2={INVITE_STEP2}
+				search="?kind=info"
+				onclose={() => (inviteOpen = false)}
+			/>
 		{/if}
 
 		{#if picked !== null}
