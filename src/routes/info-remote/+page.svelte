@@ -100,6 +100,9 @@
 
 	onMount(() => {
 		boardSession.restore();
+		// Без цього підпис у журналі лишається порожнім НАЗАВЖДИ: сторінка зали
+		// налаштувань не відкриває, а отже й не читає їх нізвідки.
+		settings.load();
 		sheet = readItem(SHEET_KEY) || null;
 		const board = boardSession.current;
 

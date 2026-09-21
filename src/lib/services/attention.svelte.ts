@@ -126,24 +126,28 @@ class AttentionState {
 	 * (`trackColors`), і токена для нього немає за побудовою. Атрибут лишається
 	 * для тих правил, яким треба знати про спалах, і для перевірок.
 	 *
+	 * Фарбується <html>, а не <body>. Тло сторінки оголошене саме на ньому — в
+	 * інлайновому стилі `app.html`, щоб сторінка мала колір ще до того, як
+	 * приїде застосунок. Фарба на `<body>` до полотна не доходить: заміряно —
+	 * інлайновий стиль стояв, а колір вікна лишався тим самим.
+	 *
 	 * Смугу застосунку фарбує оболонка: це ЇЇ елемент, і лізти в нього звідси
 	 * означало б знати про розмітку сторінки, якої цей орган не бачить.
 	 */
 	private repaint(lit: AttentionLit | null): void {
 		const root = document.documentElement;
-		const body = document.body;
 
 		if (lit === null) {
 			root.removeAttribute('data-attention');
-			body.style.removeProperty('background');
+			root.style.removeProperty('background-color');
 			return;
 		}
 
 		root.setAttribute('data-attention', lit);
 		// `flip` фарбує таблиця стилів: там лежить і сам токен протилежного тла.
 		// Свій колір туди не покласти — він приходить із заготовок, а не з токенів.
-		if (lit === 'page') body.style.background = this.hex;
-		else body.style.removeProperty('background');
+		if (lit === 'page') root.style.backgroundColor = this.hex;
+		else root.style.removeProperty('background-color');
 	}
 }
 

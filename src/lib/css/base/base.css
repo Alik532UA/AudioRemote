@@ -59,15 +59,17 @@ html:has(dialog[open]) {
  * малювання, а не як знак. При `prefers-reduced-motion` переходу немає —
  * колір усе одно міняється, бо це ЗНАЧЕННЯ, а не прикраса.
  */
+html,
 body {
 	transition: background-color 150ms ease;
 }
 
-:root[data-attention='flip'] body {
-	background: var(--bg-page-flip);
+:root[data-attention='flip'] {
+	background-color: var(--bg-page-flip);
 }
 
 @media (prefers-reduced-motion: reduce) {
+	html,
 	body {
 		transition: none;
 	}
