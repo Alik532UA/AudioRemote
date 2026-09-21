@@ -5,7 +5,8 @@ import {
 	deriveAdminKey,
 	deriveBoardKey,
 	EmptySecretError,
-	isBoardKey
+	isBoardKey,
+	NotABoardKeyError
 } from './boardPath';
 
 /**
@@ -147,6 +148,22 @@ describe('deriveAdminKey', () => {
 	it('порожній пароль — відмова, а не спільний канал', async () => {
 		await expect(deriveAdminKey(BOARD, '')).rejects.toThrow(EmptySecretError);
 		await expect(deriveAdminKey(BOARD, '---')).rejects.toThrow(EmptySecretError);
+	});
+
+	it('ідентифікатор замість адреси — відмова, а не інший хеш', async () => {
+		/*
+		 * Поля `key` й `id` лежать поруч у кожному місцевому записі, обидва —
+		 * рядки, і компілятор їх не розрізняє. Переплутані, вони дають не
+		 * помилку, а ІНШУ адресу: `remove` б'є в порожнечу, правило «знести
+		 * може лише господар» бачить порожнечу без господаря й відмовляє — і
+		 * через ту відмову не видаляється вже й сама дошка.
+		 *
+		 * Саме так і було у двох місцях із чотирьох, тож тут перевіряється не
+		 * гіпотеза.
+		 */
+		await expect(deriveAdminKey('EYE75', ADMIN)).rejects.toThrow(NotABoardKeyError);
+		await expect(deriveAdminKey('A'.repeat(32), ADMIN)).rejects.toThrow(NotABoardKeyError);
+		await expect(deriveAdminKey('', ADMIN)).rejects.toThrow(NotABoardKeyError);
 	});
 });
 

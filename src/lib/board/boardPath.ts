@@ -72,6 +72,27 @@ export class EmptySecretError extends Error {
 	}
 }
 
+/**
+ * АДРЕСУ КАНАЛУ ПОПРОСИЛИ ВИВЕСТИ НЕ З ТОГО.
+ *
+ * `deriveAdminKey` бере АДРЕСУ дошки (32 шістнадцяткові символи), а поруч із
+ * нею в кожному місцевому записі лежить `id` — той, що диктують уголос. Обидва
+ * поля — рядки, тож переплутати їх компілятор не заважає ніяк, а наслідок
+ * мовчазний: інший хеш, тобто адреса, за якою нічого немає.
+ *
+ * Заміряно: саме так і було в двох місцях із чотирьох — у кнопці видалення
+ * дошки й у прибиранні прострочених. Канал відкривався за ключем, а
+ * закривався за ідентифікатором, тож `remove` бив у порожнечу; правило
+ * «знести може лише господар» бачило порожнечу без господаря й ВІДМОВЛЯЛО —
+ * і через відмову не видалялася вже й сама дошка.
+ */
+export class NotABoardKeyError extends Error {
+	constructor(given: string) {
+		super(`очікувалася адреса дошки з 32 шістнадцяткових символів, а не «${given}»`);
+		this.name = 'NotABoardKeyError';
+	}
+}
+
 /** Вивести ключ дошки з ідентифікатора й пароля. */
 export async function deriveBoardKey(rawId: string, rawPassword: string): Promise<string> {
 	const id = normalizeBoardId(rawId);
@@ -105,6 +126,23 @@ export async function deriveBoardKey(rawId: string, rawPassword: string): Promis
  * звичайна людина, і лише потім підвищує собі права.
  */
 export async function deriveAdminKey(boardKey: string, rawPassword: string): Promise<string> {
+	/*
+	 * ПЕРШИЙ АРГУМЕНТ — АДРЕСА, А НЕ ІДЕНТИФІКАТОР, і перевіряється це тут.
+	 *
+	 * Обидва поля лежать поруч у кожному місцевому записі й обидва — рядки, тож
+	 * компілятор їх не розрізняє. Помилка при цьому не падає нікуди: виходить
+	 * просто ІНШИЙ хеш, тобто адреса, за якою нічого немає. Саме так і сталося
+	 * у двох місцях із чотирьох — див. `NotABoardKeyError`.
+	 *
+	 * Форми не перетинаються: ідентифікатор — пʼять символів із верхнього
+	 * регістру без `0`, `1` та `I`, ключ — тридцять два шістнадцяткові.
+	 *
+	 * Форма береться в `isBoardKey`, а не переписується сюди: переписана, вона
+	 * розійшлася б із `KEY_HEX_LENGTH` мовчки — те саме, про що попереджає сам
+	 * `isBoardKey`.
+	 */
+	if (!isBoardKey(boardKey)) throw new NotABoardKeyError(boardKey);
+
 	const password = normalizePassword(rawPassword);
 	if (!password) throw new EmptySecretError('password');
 

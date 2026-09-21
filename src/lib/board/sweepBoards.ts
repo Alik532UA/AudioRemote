@@ -95,7 +95,8 @@ async function removeBoardEverywhere(board: SavedBoard): Promise<void> {
 	if (board.adminPassword) {
 		const { deriveAdminKey } = await import('./boardPath');
 		const { closeChannel } = await import('$lib/net/admin');
-		await closeChannel(await deriveAdminKey(board.id, board.adminPassword));
+		// Саме `key`, а не `id`: канал виведений з АДРЕСИ дошки (`deriveAdminKey`).
+		await closeChannel(await deriveAdminKey(board.key, board.adminPassword));
 	}
 
 	const { deleteBoard } = await import('$lib/net/board');

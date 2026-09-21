@@ -85,7 +85,8 @@
 			if (board.adminPassword) {
 				const { deriveAdminKey } = await import('$lib/board/boardPath');
 				const { closeChannel } = await import('$lib/net/admin');
-				await closeChannel(await deriveAdminKey(board.id, board.adminPassword));
+				// Саме `key`, а не `id`: канал виведений з АДРЕСИ дошки.
+				await closeChannel(await deriveAdminKey(board.key, board.adminPassword));
 			}
 
 			const { deleteBoard } = await import('$lib/net/board');
