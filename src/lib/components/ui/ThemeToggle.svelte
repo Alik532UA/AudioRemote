@@ -71,6 +71,10 @@
 		--switch-w: calc(var(--switch-h) * 1.9);
 		--switch-pad: 4px;
 		--switch-knob: calc(var(--switch-h) - var(--switch-pad) * 2);
+		/* Зріст значка. Те саме число стоїть у `size={18}` — і лише тут. */
+		--switch-icon: 18px;
+		/* Від краю до ЦЕНТРА кульки: кулька лежить на падінгу, далі її половина. */
+		--switch-eye: calc(var(--switch-pad) + var(--switch-knob) / 2);
 
 		position: relative;
 		display: inline-block;
@@ -118,19 +122,29 @@
 	 */
 	.theme-switch :global(svg) {
 		position: absolute;
-		top: calc((var(--switch-h) - 18px) / 2);
+		top: calc((var(--switch-h) - var(--switch-icon)) / 2);
 		z-index: 1;
 		transition: color var(--transition-normal);
 	}
 
+	/*
+	 * ЗНАЧОК СТОЇТЬ ТАМ, ДЕ ЦЕНТР КУЛЬКИ, а не «приблизно чверть ширини».
+	 *
+	 * Доти обидва стояли на `switch-h * 0.25`, і це давало центр значка на 20-й
+	 * точці проти центра кульки на 22-й — два пікселі вбік, однаково на обох
+	 * кінцях. На око це читалося як недбало приклеєна наліпка.
+	 *
+	 * Тепер зсув виводиться з тієї самої геометрії, що й кулька: від краю до її
+	 * центра, мінус половина значка. Зміна висоти тугала тягне за собою обидва.
+	 */
 	.theme-switch :global(.theme-switch-sun) {
-		left: calc(var(--switch-h) * 0.25);
+		left: calc(var(--switch-eye) - var(--switch-icon) / 2);
 		/* У світлому положенні сонце лежить на білій кульці — звідси темний колір. */
 		color: #404040;
 	}
 
 	.theme-switch :global(.theme-switch-moon) {
-		right: calc(var(--switch-h) * 0.25);
+		right: calc(var(--switch-eye) - var(--switch-icon) / 2);
 		color: #fafafa;
 	}
 
