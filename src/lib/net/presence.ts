@@ -41,6 +41,23 @@ import type { BoardRole } from '$lib/board/myBoards';
  * Спершу домовляємось, ЩО прибрати, і лише тоді зʼявляємось. У зворотному
  * порядку існує вікно, у якому запис уже є, а домовленості про його прибирання
  * ще немає, — і зникнення клієнта саме в цю мить лишає привида назавжди.
+ *
+ * ## ЗʼЯВЛЯТИСЯ ДОВОДИТЬСЯ ЩОРАЗУ, А НЕ ОДИН РАЗ
+ *
+ * Це найдорожче місце файлу, і помилка тут читається як поломка іншого
+ * пристрою. `onDisconnect` виконує СЕРВЕР: обірвався сокет — запис зник. SDK
+ * при відновленні звʼязку наново домовляється про `onDisconnect`, але вже
+ * підтверджений `set` він не повторює: для нього той запис давно вдався.
+ *
+ * Отже одноразове «зʼявитися» тримається рівно до першого блимання мережі.
+ * П'ять секунд без Wi-Fi на пристрої, що грає, — і присутність зникла
+ * НАЗАВЖДИ, хоч вкладка відкрита й музика грає. Пульт при цьому каже «Плеєр
+ * офлайн. Дошку на пристрої, що грає, закрито. Відкрийте її там» — тобто
+ * відправляє людину через усю залу до вкладки, яка працює.
+ *
+ * Тому зʼявлення підписане на `.info/connected` і повторюється на кожному
+ * відновленні. Першого виклику окремо немає: цей же слухач приносить `true`
+ * одразу, щойно сокет підніметься.
  */
 
 const presencePath = (key: string) => `${boardPath(key)}/presence`;
@@ -59,14 +76,29 @@ export type PresenceMap = Record<string, Record<string, Presence>>;
 /** Тримати присутність, поки жива вкладка. Повертає функцію «піти явно». */
 export async function trackPresence(key: string, role: BoardRole): Promise<() => void> {
 	const { db, uid } = await connect();
-	const { onDisconnect, ref, remove, serverTimestamp, set } = await import('firebase/database');
+	const { onDisconnect, onValue, ref, remove, serverTimestamp, set } =
+		await import('firebase/database');
 
 	const mine = ref(db, `${presencePath(key)}/${uid}/${TAB_ID}`);
 
-	await onDisconnect(mine).remove();
-	await set(mine, { role, at: serverTimestamp() });
+	const announce = async (): Promise<void> => {
+		await onDisconnect(mine).remove();
+		await set(mine, { role, at: serverTimestamp() });
+	};
 
-	return () => void remove(mine);
+	/*
+	 * `.info/connected` — власний шлях SDK: правила на нього не поширюються, і
+	 * читати його можна завжди. Він же приносить перше `true`, тож окремого
+	 * першого зʼявлення тут немає — воно було б другим записом тієї самої миті.
+	 */
+	const unwatch = onValue(ref(db, '.info/connected'), (snapshot) => {
+		if (snapshot.val() === true) void announce();
+	});
+
+	return () => {
+		unwatch();
+		void remove(mine);
+	};
 }
 
 /** Хто зараз на дошці. Повертає відписку. */
