@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { base, resolve } from '$app/paths';
 	import '$lib/css/base/tokens.css';
@@ -42,7 +42,9 @@
 	 * повертатися з нього нема куди.
 	 */
 	const root = base.replace(/\/$/, '');
-	const atHome = $derived([root, `${root}/menu`].includes(page.url.pathname.replace(/\/$/, '')));
+	/** Шлях без кінцевої скісної: `/menu` і `/menu/` — те саме місце. */
+	const bare = (path: string | undefined): string => (path ?? '').replace(/\/$/, '');
+	const atHome = $derived([root, `${root}/menu`].includes(bare(page.url.pathname)));
 
 	/**
 	 * «Назад» — це КРОК НАЗАД, а не стрибок на головну.
@@ -50,10 +52,48 @@
 	 * Доти воно завжди вело в головне меню, і шлях «плеєр → налаштування →
 	 * назад» викидав з дошки замість повернення до неї. Стрілка з таким
 	 * написом обіцяє саме попереднє місце.
-	 *
-	 * Порожня історія буває, коли сторінку відкрили прямим посиланням: там
-	 * `history.back()` вивів би людину із застосунку зовсім.
 	 */
+
+	/**
+	 * СКІЛЬКИ КРОКІВ МИ ЗРОБИЛИ ВСЕРЕДИНІ ЗАСТОСУНКУ — і чому це рахується САМЕ
+	 * ТУТ, а не питається в `history.length`.
+	 *
+	 * `history.length` — це довжина історії ВКЛАДКИ, а не нашої. Сторінку,
+	 * відкриту прямим посиланням, вона бачить не першою: у вкладці до неї вже
+	 * був порожній запис, і `length` дорівнює двом. Заміряно в чистій вкладці на
+	 * `/create`: `history.length === 2`, кнопка «назад» показана, натискання
+	 * веде на `about:blank` — тобто викидає людину із застосунку зовсім.
+	 *
+	 * У застосунку на комп'ютері те саме число дорівнює одиниці, і спрацьовував
+	 * запасний шлях «піти в меню» — з тим самим виглядом поломки, бо стрілка з
+	 * написом «назад» веде не назад.
+	 *
+	 * Тому лічильник свій. Він росте на кожному переході вперед і спадає на
+	 * кожному `popstate`; кнопка показується лише тоді, коли він більший за
+	 * нуль, тобто коли повертатися СПРАВДІ є куди.
+	 *
+	 * Корінь `/` до лічильника не додається навмисно: він стрілочник і ЗАМІНЮЄ
+	 * свій запис (`replaceState` у `+page.svelte`), а не додає новий. Порахувати
+	 * його означало б показати кнопку, яка веде в порожнечу, — рівно той дефект,
+	 * заради якого лічильник і з'явився.
+	 */
+	let depth = $state(0);
+
+	afterNavigate((navigation) => {
+		if (navigation.type === 'enter') {
+			// Нове завантаження документа — історія застосунку починається заново.
+			depth = 0;
+			return;
+		}
+		if (navigation.type === 'popstate') {
+			depth = Math.max(0, depth + navigation.delta);
+			return;
+		}
+		if (bare(navigation.from?.url.pathname) === root) return;
+		depth += 1;
+	});
+
+	const canGoBack = $derived(depth > 0);
 	/*
 	 * На телефоні шестірня спершу відкриває вікно з дошкою, і вже звідти ведуть
 	 * налаштування застосунку. На широкому екрані шапка дошки стоїть карткою в
@@ -92,10 +132,9 @@
 		narrow.matches && page.url.pathname.replace(/\/$/, '') === `${root}/remote`
 	);
 
-	const goBack = () => {
-		if (window.history.length > 1) window.history.back();
-		else void goto(resolve('/menu'));
-	};
+	// Запасного «піти в меню» тут більше немає: кнопки просто не буває там, де
+	// повертатися нікуди, тож гілка була б недосяжною.
+	const goBack = () => window.history.back();
 
 	onMount(() => {
 		// Журнал першим: усе, що станеться далі, мусить у нього потрапити.
@@ -158,7 +197,7 @@
 				<span class="visually-hidden">{t('app.name')}</span>
 			</a>
 
-			{#if ready && !atHome && !hideBack}
+			{#if ready && !atHome && !hideBack && canGoBack}
 				<button class="shell__back" type="button" onclick={goBack} data-testid="back">
 					<IconBack size={18} aria-hidden="true" />
 					{t('common.back')}

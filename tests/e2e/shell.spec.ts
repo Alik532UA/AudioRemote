@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { RENDERED } from './pages';
 
 /**
  * ТЕ, ЧОГО НЕ ВИДНО НІ З `node`, НІ З JSDOM, НІ З РЕГУЛЯРОК.
@@ -32,7 +33,7 @@ test('застосунок відкривається за базовим шля
 	const violations = watchPolicy(page);
 	await page.goto('./');
 
-	await expect(page.getByTestId('go-create')).toBeVisible();
+	await expect(page.getByTestId('go-create')).toBeVisible(RENDERED);
 	await expect(page.getByTestId('go-connect')).toBeVisible();
 	expect(violations, `політика заблокувала своє:\n${violations.join('\n')}`).toEqual([]);
 });
@@ -126,11 +127,11 @@ test('невідома адреса дає 404 і сторінку з виход
 	const response = await page.goto('./такої-сторінки-немає');
 
 	expect(response?.status(), 'хостинг віддав не 404').toBe(404);
-	await expect(page.getByTestId('error-page')).toBeVisible();
+	await expect(page.getByTestId('error-page')).toBeVisible(RENDERED);
 	await expect(page.getByTestId('error-to-menu')).toBeVisible();
 
 	await page.getByTestId('error-to-menu').click();
-	await expect(page.getByTestId('go-create')).toBeVisible();
+	await expect(page.getByTestId('go-create')).toBeVisible(RENDERED);
 });
 
 test('клавіша належить відкритому вікну, а не сторінці під ним', async ({ page }) => {
@@ -171,8 +172,38 @@ test('на жодній сторінці немає помилок у консо
 
 	for (const path of ['./', './menu', './create', './connect', './settings']) {
 		await page.goto(path);
-		await expect(page.locator('main')).toBeVisible();
+		await expect(page.locator('main')).toBeVisible(RENDERED);
 	}
 
 	expect(errors, `сторінка скаржиться в консоль:\n${errors.join('\n')}`).toEqual([]);
+});
+
+test('«назад» показується лише там, звідки справді є куди повернутися', async ({ page }) => {
+	/*
+	 * ДОВЖИНА ІСТОРІЇ ВКЛАДКИ — НЕ ДОВЖИНА НАШОЇ.
+	 *
+	 * Сторінку, відкриту прямим посиланням, вкладка бачить не першою: до неї там
+	 * уже був порожній запис. Кнопка «назад» показувалася, а натискання вело на
+	 * `about:blank` — тобто з застосунку викидало зовсім. У вікні на комп'ютері
+	 * те саме число дорівнює одиниці, спрацьовував запасний «піти в меню», і
+	 * стрілка з написом «назад» вела не назад.
+	 *
+	 * Перевірити це можна лише в браузері: `history.length` у jsdom не рухається
+	 * так, як у справжній вкладці, а сам перехід назад там не відбувається.
+	 */
+	await page.goto('./create');
+	await expect(page.getByTestId('board-id')).toBeVisible(RENDERED);
+	await expect(
+		page.getByTestId('back'),
+		'на щойно відкритій сторінці «назад» обіцяє те, чого немає'
+	).toBeHidden();
+
+	// А після справжнього переходу всередині застосунку — показується й працює.
+	await page.goto('./menu');
+	await page.getByTestId('go-create').click();
+	await expect(page.getByTestId('back')).toBeVisible();
+
+	await page.getByTestId('back').click();
+	await expect(page.getByTestId('go-create'), 'кнопка «назад» нікуди не повернула').toBeVisible();
+	await expect(page.getByTestId('back'), 'повернулися на початок, а кнопка лишилася').toBeHidden();
 });
