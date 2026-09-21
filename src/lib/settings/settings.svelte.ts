@@ -55,6 +55,14 @@ export interface StoredSettings {
 	 * галочки. Ховається саме вхід.
 	 */
 	showInfoBoards: boolean;
+	/**
+	 * Чи показувати попередження перед вибором папки.
+	 *
+	 * Зберігається САМЕ ЗГОДА, а не її відсутність: типове значення `true`
+	 * означає «показати», і чистий браузер веде себе як перший запуск, а не як
+	 * той, кому вже пояснили.
+	 */
+	folderHint: boolean;
 }
 
 const EMPTY: StoredSettings = {
@@ -65,7 +73,8 @@ const EMPTY: StoredSettings = {
 	startBoardId: '',
 	startBoardPassword: '',
 	showTrigger: true,
-	showInfoBoards: false
+	showInfoBoards: false,
+	folderHint: true
 };
 
 class SettingsState {
@@ -77,6 +86,7 @@ class SettingsState {
 	startBoardPassword = $state('');
 	showTrigger = $state(true);
 	showInfoBoards = $state(false);
+	folderHint = $state(true);
 
 	/**
 	 * Чи налаштована стала пара.
@@ -107,6 +117,8 @@ class SettingsState {
 		this.showTrigger = stored.showTrigger !== false;
 		// Типово ВИМКНЕНО: новий розділ з'являється лише тоді, коли його попросили.
 		this.showInfoBoards = stored.showInfoBoards === true;
+		// Типово УВІМКНЕНО: мовчить лише той, хто сам попросив мовчати.
+		this.folderHint = stored.folderHint !== false;
 	}
 
 	/**
@@ -125,6 +137,7 @@ class SettingsState {
 		if (patch.startBoardPassword !== undefined) this.startBoardPassword = patch.startBoardPassword;
 		if (patch.showTrigger !== undefined) this.showTrigger = patch.showTrigger;
 		if (patch.showInfoBoards !== undefined) this.showInfoBoards = patch.showInfoBoards;
+		if (patch.folderHint !== undefined) this.folderHint = patch.folderHint;
 
 		writeJson(STORAGE_KEY, {
 			fixedBoardId: this.fixedBoardId,
@@ -134,7 +147,8 @@ class SettingsState {
 			startBoardId: this.startBoardId,
 			startBoardPassword: this.startBoardPassword,
 			showTrigger: this.showTrigger,
-			showInfoBoards: this.showInfoBoards
+			showInfoBoards: this.showInfoBoards,
+			folderHint: this.folderHint
 		} satisfies StoredSettings);
 	}
 

@@ -149,6 +149,13 @@ export const en: Record<TranslationKey, string> = {
 		'The browser refused. Try again, or just pick a track — the permission is granted for that very tap.',
 	'player.armHint':
 		'Browsers will not play sound until a person allows it. Press once — after that the board is controlled from other devices.',
+	'player.folderHintTitle': 'A FOLDER picker is about to open',
+	'player.folderHintLead':
+		'That window will not show any files — that is normal, this is how picking a folder works. Do not look for the tracks: open the folder they are in and confirm the folder itself.',
+	'player.folderHintHint':
+		'The app reads the whole folder, subfolders included — the tracks will appear as a list here, on the board.',
+	'player.folderHintHide': 'Do not show this again',
+	'player.folderHintAccept': 'Got it, pick a folder',
 	'player.pickFolder': 'Choose a music folder',
 	'player.changeFolder': 'Another folder',
 	'player.rescan': 'Re-read the folder',

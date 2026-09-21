@@ -12,7 +12,6 @@
 		IconPhone,
 		IconPlay,
 		IconPrev,
-		IconRefresh,
 		IconSliders,
 		IconStop,
 		IconUp,
@@ -20,7 +19,7 @@
 		IconWarning,
 		IconZap
 	} from '$lib/config/icons';
-	import { plural, t, type TranslationKey } from '$lib/i18n/i18n.svelte';
+	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
 	import { rememberBoard } from '$lib/board/myBoards';
 	import { describeError } from '$lib/net/describeError';
@@ -32,6 +31,8 @@
 	import HiddenDialog from '$lib/components/player/HiddenDialog.svelte';
 	import LeaveDialog from '$lib/components/player/LeaveDialog.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
+	import FolderHintDialog from '$lib/components/player/FolderHintDialog.svelte';
+	import FolderBar from '$lib/components/player/FolderBar.svelte';
 	import ArmDialog from '$lib/components/player/ArmDialog.svelte';
 	import Equalizer from '$lib/components/ui/Equalizer.svelte';
 	import { releaseAfterTap } from '$lib/services/focus';
@@ -115,6 +116,27 @@
 
 	/** Чи відкрите вікно «як підключити пульт». */
 	let remoteOpen = $state(false);
+	/** Чи відкрите попередження про те, що у виборі папки не буде видно файлів. */
+	let folderHintOpen = $state(false);
+
+	/**
+	 * ОБРАТИ ПАПКУ — через попередження, якщо його ще не вимкнули.
+	 *
+	 * Обидві кнопки («Обрати папку» й зміна папки) ведуть сюди, а не прямо в
+	 * системний діалог: перша лякає новачка порожнім вікном, друга — тими самими
+	 * порожніми вікнами через місяць, коли папку міняють на нову.
+	 *
+	 * Коли попередження вимкнене, діалог відкривається ПРЯМО з обробника
+	 * натискання: право його показати браузер дає лише під дією людини й лише
+	 * на мить.
+	 */
+	function askFolder(): void {
+		if (!settings.folderHint) {
+			void controller?.pickFolder();
+			return;
+		}
+		folderHintOpen = true;
+	}
 	/** Вікно «увімкнути звук» закрили, не вмикаючи. Більше не питаємо. */
 	let armDismissed = $state(false);
 	/**
@@ -543,7 +565,7 @@
 						<button
 							class="btn btn--primary"
 							type="button"
-							onclick={() => controller?.pickFolder()}
+							onclick={askFolder}
 							data-testid="pick-folder"
 						>
 							<IconFolder size={18} aria-hidden="true" />
@@ -551,79 +573,7 @@
 						</button>
 						<p class="muted">{t('player.pickAgain')}</p>
 					{:else}
-						<!--
-							Назва — смуга на всю ширину картки: відʼємні відступи рівно на її
-							падінг плюс лінія знизу. Звичайним написом вона відділялася від
-							списку тим самим проміжком, що й будь-які два сусіди, і читалася як
-							ще один вміст, а не як заголовок того, що під нею.
-						-->
-						<div class="folder">
-							<IconFolder size={18} aria-hidden="true" />
-							<!--
-								ОДИН РЯДОК: назва папки, поруч меншим — скільки в ній треків.
-
-								Два рядки давали шапці вагу, якої вона не варта: назва папки й
-								лічильник — це одна відповідь на одне питання «що це за список».
-								Назва стоїть першою, бо саме її шукають очима; лічильник —
-								уточнення, тому й менший.
-							-->
-							<div class="folder__text">
-								<span class="folder__name">{controller.folderName}</span>
-								<span class="folder__count">
-									{#if controller.scanning}
-										{t('player.scanning')}
-									{:else}
-										{plural(
-											{
-												one: 'player.tracksOne',
-												few: 'player.tracksFew',
-												other: 'player.tracksMany'
-											},
-											controller.entries.length
-										)}
-										{#if controller.hiddenCount > 0}
-											·
-											<!--
-												Лічильник І Є входом. Трек, прихований від усіх, зникає
-												зі списку повністю, тож іншого шляху повернути його не
-												існує — а стан, з якого немає виходу, це не стан.
-											-->
-											<button
-												class="folder__hidden"
-												type="button"
-												title={t('player.hiddenOpen')}
-												onclick={() => (hiddenOpen = true)}
-												data-testid="open-hidden"
-											>
-												{t('player.hiddenCount', { count: controller.hiddenCount })}
-											</button>
-										{/if}
-									{/if}
-								</span>
-							</div>
-							<div class="folder__tools">
-								<button
-									class="icon-btn"
-									type="button"
-									title={t('player.rescan')}
-									aria-label={t('player.rescan')}
-									onclick={() => controller?.rescan()}
-									data-testid="rescan"
-								>
-									<IconRefresh size={16} aria-hidden="true" />
-								</button>
-								<button
-									class="icon-btn"
-									type="button"
-									title={t('player.changeFolder')}
-									aria-label={t('player.changeFolder')}
-									onclick={() => controller?.pickFolder()}
-									data-testid="change-folder"
-								>
-									<IconFolder size={16} aria-hidden="true" />
-								</button>
-							</div>
-						</div>
+						<FolderBar {controller} onhidden={() => (hiddenOpen = true)} onpick={askFolder} />
 						{#if !controller.configWritable}
 							<p class="note note--warn" data-testid="config-readonly">
 								<IconWarning size={18} aria-hidden="true" />
@@ -812,6 +762,16 @@
 			<ArmDialog
 				onarm={() => controller?.arm() ?? Promise.resolve(false)}
 				ondismiss={() => (armDismissed = true)}
+			/>
+		{/if}
+
+		{#if folderHintOpen}
+			<FolderHintDialog
+				onaccept={(hide) => {
+					if (hide) settings.save({ folderHint: false });
+					void controller?.pickFolder();
+				}}
+				onclose={() => (folderHintOpen = false)}
 			/>
 		{/if}
 
@@ -1150,23 +1110,6 @@
 	 * «змінити папку», хоч це радше виноска: більшість дощок прихованих не має
 	 * взагалі. Тому підкреслення — і повний вигляд кнопки на наведенні.
 	 */
-	.folder__hidden {
-		padding: 0;
-		border: 0;
-		background: none;
-		color: inherit;
-		cursor: pointer;
-		font: inherit;
-		text-decoration: underline dotted;
-		text-underline-offset: 3px;
-	}
-
-	.folder__hidden:hover,
-	.folder__hidden:focus-visible {
-		color: var(--text-primary);
-		text-decoration-style: solid;
-	}
-
 	/* Клавіша — у вигляді клавіші, щоб не читалася як порядковий номер. */
 	.tracks__key {
 		display: grid;
