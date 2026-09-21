@@ -5,11 +5,9 @@ import { runningInTauri, TauriFolderSource } from '$lib/audio/tauriSource';
 import type { AudioSource, SourceStatus } from '$lib/audio/source';
 import {
 	DEFAULT_PLAY,
-	isVisibility,
 	MAX_GAP_SEC,
 	MAX_ICON,
 	MAX_PLAYS,
-	toTrigger,
 	type PlayPolicy,
 	type TrackVisibility
 } from '$lib/audio/boardConfig';
@@ -30,46 +28,15 @@ import {
 } from '$lib/hotkeys/hotkeys';
 import { describeError } from '$lib/net/describeError';
 import { mark } from '$lib/services/breadcrumbs';
+import { deckLog, type DeckSource } from '$lib/services/deckLog.svelte';
 import { emptyTrigger, type TrackTrigger } from '$lib/triggers/trigger';
 import { triggerWatcher } from '$lib/triggers/watcher.svelte';
 import { AUTO_MIN_MS, nextAfter } from './nextTrack';
+import { applyPatch } from './adminPatch';
 import { toConfig, toEntries } from './configMap';
 
 /** Трек так, як його бачить дошка. Форма спільна з пультом — див. `editor.ts`. */
 export type { BoardTrack };
-
-/**
- * ЩО САМЕ ДОЗВОЛЕНО ЗМІНИТИ АДМІНІСТРАТОРОВІ.
- *
- * Береться не «все, що прийшло», а перелічені поля — і кожне через ту саму
- * перевірку, крізь яку проходить файл налаштувань. Решта (шлях до файлу, імʼя,
- * сам факт існування треку) — це знання про папку, і воно лишається тим, що
- * прочитав із диска цей комп'ютер.
- *
- * Без цього підроблений запис підсунув би у файл чужий шлях, а застосунок
- * записав би його як своє рішення.
- */
-function applyPatch(entry: BoardTrack, change: Partial<BoardTrack>): BoardTrack {
-	const title = typeof change.title === 'string' ? change.title.trim().slice(0, 200) : '';
-	const hotkey =
-		typeof change.hotkey === 'string' && isAssignable(change.hotkey) ? change.hotkey : null;
-	const whole = (value: unknown, max: number, least: number): number =>
-		typeof value === 'number' && Number.isFinite(value)
-			? Math.min(max, Math.max(least, Math.round(value)))
-			: least;
-
-	return {
-		...entry,
-		title: title.length > 0 ? title : entry.fileName,
-		color: typeof change.color === 'string' ? change.color : null,
-		icon: typeof change.icon === 'string' ? change.icon.trim().slice(0, MAX_ICON) || null : null,
-		hotkey,
-		visibility: isVisibility(change.visibility) ? change.visibility : 'all',
-		plays: whole(change.plays, MAX_PLAYS, 1),
-		gapSec: whole(change.gapSec, MAX_GAP_SEC, 0),
-		trigger: toTrigger(change.trigger)
-	};
-}
 
 /** Скільки чекати, перш ніж писати налаштування в теку. */
 const SAVE_DELAY_MS = 500;
@@ -338,7 +305,7 @@ export class PlayerController implements BoardEditor {
 		 * базу. Трек за повітряною тривогою мусить заграти й тоді, коли дошка
 		 * недосяжна, — інакше сирена мовчала б саме тоді, коли потрібна.
 		 */
-		triggerWatcher.onFire((trackId) => void this.playLocal(trackId));
+		triggerWatcher.onFire((trackId) => void this.playLocal(trackId, 'api'));
 		this.track(() => triggerWatcher.stop());
 
 		const info: BoardInfo = await ensureBoard(this.board.key, this.board.name);
@@ -681,9 +648,13 @@ export class PlayerController implements BoardEditor {
 	 * ОЗБРОЮЄ ЗАОДНО. Натискання на трек — це жест людини, тобто рівно те, чого
 	 * браузер чекає для дозволу грати.
 	 */
-	async playLocal(trackId: string): Promise<void> {
+	async playLocal(trackId: string, source: DeckSource = 'self'): Promise<void> {
 		// Прихований зовсім не запускається нічим — навіть тригером.
 		if (this.entries.find((entry) => entry.id === trackId)?.visibility === 'none') return;
+
+		// Рядок у журналі ставиться ТУТ, а не в кожного, хто кличе: місцевих
+		// шляхів запуску шість, і сьомий забули б мовчки (`deckLog.svelte.ts`).
+		deckLog.started(trackId, source);
 
 		try {
 			if (!this.engine.armed && !(await this.engine.arm())) {
@@ -976,6 +947,7 @@ export class PlayerController implements BoardEditor {
 
 			this.trouble = null;
 			await this.announce();
+			deckLog.fromRemote(command);
 			return null;
 		} catch (error) {
 			const key = this.noteTrouble(error);

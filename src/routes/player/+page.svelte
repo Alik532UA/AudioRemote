@@ -32,6 +32,8 @@
 	import LeaveDialog from '$lib/components/player/LeaveDialog.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import FolderHintDialog from '$lib/components/player/FolderHintDialog.svelte';
+	import BoardNotices from '$lib/components/player/BoardNotices.svelte';
+	import DeckLog from '$lib/components/player/DeckLog.svelte';
 	import FolderBar from '$lib/components/player/FolderBar.svelte';
 	import PlaybackPolicy from '$lib/components/player/PlaybackPolicy.svelte';
 	import ArmDialog from '$lib/components/player/ArmDialog.svelte';
@@ -525,6 +527,8 @@
 							{t(controller.trouble.key as 'error.playback', { name: controller.trouble.name })}
 						</p>
 					{/if}
+
+					<DeckLog tracks={controller.entries} />
 				</div>
 			{/if}
 
@@ -539,32 +543,7 @@
 					шапка цієї ж картки, а перечитати й змінити папку можна звідти ж.
 				-->
 				<section class="card stack">
-					<!--
-						НАД УСІМ, а не в гілці «папку обрано»: до бази папка стосунку не
-						має. Без бази сторінка виглядає бездоганно — SDK тримає запис у
-						локальній черзі, помилок немає, — і мовчання тут відправляє
-						людину шукати причину в телефоні.
-					-->
-					{#if controller.dbOffline}
-						<p class="note note--warn" data-testid="db-offline">
-							<IconWarning size={18} aria-hidden="true" />
-							<span>{t('player.dbOffline')}</span>
-						</p>
-					{/if}
-
-					<!--
-						ВІДМОВА БАЗИ В ЗАПИСІ СПИСКУ — тут, а не в консолі.
-						
-						Доти вона зникала мовчки, і єдиним її слідом був напис на ЧУЖОМУ
-						екрані: «на плеєрі ще не обрано папку». Причину тричі шукали в
-						папці, хоч папка обрана й список на місці.
-					-->
-					{#if controller.libraryTrouble}
-						<p class="note note--warn" role="alert" data-testid="library-denied">
-							<IconWarning size={18} aria-hidden="true" />
-							<span>{t(controller.libraryTrouble as TranslationKey)}</span>
-						</p>
-					{/if}
+					<BoardNotices {controller} />
 
 					{#if !controller.supported}
 						<p class="note note--warn" data-testid="no-support">
@@ -584,12 +563,6 @@
 						<p class="muted">{t('player.pickAgain')}</p>
 					{:else}
 						<FolderBar {controller} onhidden={() => (hiddenOpen = true)} onpick={askFolder} />
-						{#if !controller.configWritable}
-							<p class="note note--warn" data-testid="config-readonly">
-								<IconWarning size={18} aria-hidden="true" />
-								<span>{t('player.configReadonly')}</span>
-							</p>
-						{/if}
 					{/if}
 					<!--
 						Тут лишився САМ список. Скільки треків і звідки вони — сказано в

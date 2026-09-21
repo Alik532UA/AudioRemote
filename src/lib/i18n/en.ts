@@ -386,6 +386,20 @@ export const en: Record<TranslationKey, string> = {
 	 * database as finished text and belong to the person from then on. See the
 	 * docblock in `starter.ts`.
 	 */
+	'deck.logTitle': 'Recent actions',
+	'deck.logEmpty': 'Nothing has happened yet.',
+	'deck.logClear': 'Clear',
+	'deckFrom.remote': 'remote',
+	'deckFrom.api': 'API',
+	'deckAct.play': 'started: {track}',
+	'deckAct.trigger': 'trigger fired: {track}',
+	'deckAct.pause': 'paused',
+	'deckAct.resume': 'resumed',
+	'deckAct.stop': 'stopped',
+	'deckAct.prev': 'previous track',
+	'deckAct.next': 'next track',
+	'deckAct.volume': 'volume {n}',
+	'deckAct.seek': 'seek',
 	'panel.edit': 'Build the panel',
 	'panel.editDone': 'Done',
 	'panel.editHint':

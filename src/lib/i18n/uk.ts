@@ -410,6 +410,20 @@ export const uk = {
 	 * Підписи типової панелі — інша річ: вони лягають у базу готовим рядком і
 	 * далі належать людині. Див. докблок `starter.ts`.
 	 */
+	'deck.logTitle': 'Останні дії',
+	'deck.logEmpty': 'Поки що нічого не відбувалося.',
+	'deck.logClear': 'Очистити',
+	'deckFrom.remote': 'пульт',
+	'deckFrom.api': 'за API',
+	'deckAct.play': 'запуск: {track}',
+	'deckAct.trigger': 'спрацював тригер: {track}',
+	'deckAct.pause': 'пауза',
+	'deckAct.resume': 'продовження',
+	'deckAct.stop': 'зупинка',
+	'deckAct.prev': 'попередній трек',
+	'deckAct.next': 'наступний трек',
+	'deckAct.volume': 'гучність {n}',
+	'deckAct.seek': 'перемотка',
 	'panel.edit': 'Скласти панель',
 	'panel.editDone': 'Готово',
 	'panel.editHint':
