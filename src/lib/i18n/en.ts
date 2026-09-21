@@ -482,8 +482,6 @@ export const en: Record<TranslationKey, string> = {
 	'attention.min': 'Minimal',
 	'attention.head': 'Standard',
 	'attention.page': 'Maximal',
-	'panel.attentionHint':
-		'What happens when the hall asks. Minimal — the button itself lights up. Standard — the app bar changes colour for a second. Maximal — the whole page background does.',
 	'panel.attentionColor': 'Flash colour',
 	'panel.viewTitle': 'Show on this page',
 	'panelView.both': 'Both',
