@@ -81,6 +81,64 @@ describe('сітки безпеки (ERROR-HANDLING-v9 § 2)', () => {
 		);
 	});
 
+	it('команда з поради не дублюється в її тексті', () => {
+		/*
+		 * Команду показує окремим полем `Failure.svelte` — моноширинним шрифтом і
+		 * з кнопкою копіювання. Якщо вона лишиться й у тексті, людина побачить її
+		 * двічі, причому перший раз — посеред речення, звідки її й доводилося
+		 * виділяти мишею.
+		 */
+		const source = readFileSync(join(ROOT, 'src/lib/net/describeError.ts'), 'utf8');
+		const map = source.slice(source.indexOf('FIX_COMMAND'), source.indexOf('export function'));
+		const pairs = [...map.matchAll(/'([\w.]+)':\s*'([^']+)'/g)];
+
+		expect(pairs.length, 'у FIX_COMMAND нічого немає — перевіряти нічого').toBeGreaterThan(0);
+
+		const doubled: string[] = [];
+		for (const file of ['src/lib/i18n/uk.ts', 'src/lib/i18n/en.ts']) {
+			const dict = readFileSync(join(ROOT, file), 'utf8');
+			for (const [, key, command] of pairs) {
+				const at = dict.indexOf(`'${key}':`);
+				if (at === -1) {
+					doubled.push(`${file}: ключа ${key} немає, а команда для нього є`);
+					continue;
+				}
+				// Запис словника коротший за це вікно: далі почнеться наступний ключ,
+				// і команда з нього сюди не потрапить.
+				const text = dict.slice(at, at + 400);
+				if (text.includes(command)) doubled.push(`${file}: ${key} повторює «${command}»`);
+			}
+		}
+
+		expect(doubled, doubled.join('; ')).toEqual([]);
+	});
+
+	it('відмова зберігається ключем, а не перекладеним текстом', () => {
+		/*
+		 * `failure = t(describeError(error))` перекладає ОДРАЗУ й запамʼятовує
+		 * результат: текст застигає мовою, яка була на момент відмови, і
+		 * перемикання мови його не чіпає. Та сама помилка вже лікувалася в
+		 * опитувачі тригерів (`FAULT_TEXT`), тож правило одне на проєкт.
+		 */
+		const early: string[] = [];
+		for (const file of walk('src').filter((name) => /\.(svelte|ts)$/.test(name))) {
+			if (/\.(test|spec)\.ts$/.test(file)) continue;
+			// Коментарі зрізаються: саме цей антипатерн названо в поясненні
+			// `Failure.svelte` дослівно, і без зрізання гейт знайшов би пояснення,
+			// чому так робити не можна, замість самого «так робити».
+			const text = readFileSync(file, 'utf8')
+				.replace(/<!--[\s\S]*?-->/g, '')
+				.replace(/\/\*[\s\S]*?\*\//g, '')
+				.replace(/^\s*\/\/.*$/gm, '');
+			if (/=\s*t\(\s*describeError\(/.test(text)) early.push(file);
+		}
+
+		expect(
+			early,
+			`переклад застигне мовою, яка була на момент відмови: ${early.join(', ')}`
+		).toEqual([]);
+	});
+
 	it('кожна межа з await у тілі має сніпет pending', () => {
 		/*
 		 * Призупинення підіймається до найближчої межі, яка вміє його показати.

@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { t } from '$lib/i18n/i18n.svelte';
+	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { deriveBoardKey, EmptySecretError, isBoardKey } from '$lib/board/boardPath';
 	import { normalizeBoardId } from '$lib/board/secret';
 	import { listBoards, rememberBoard } from '$lib/board/myBoards';
@@ -10,13 +10,14 @@
 	import { settings } from '$lib/settings/settings.svelte';
 	import { boardExists } from '$lib/net/board';
 	import { describeError } from '$lib/net/describeError';
+	import Failure from '$lib/components/ui/Failure.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 
 	let boardId = $state('');
 	let password = $state('');
 	let remember = $state(true);
 	let busy = $state(false);
-	let failure = $state<string | null>(null);
+	let failure = $state<TranslationKey | null>(null);
 
 	const ready = $derived(boardId.trim().length > 0 && password.trim().length > 0 && !busy);
 
@@ -88,7 +89,7 @@
 
 		try {
 			if (!(await boardExists(key))) {
-				failure = t('connect.notFound');
+				failure = 'connect.notFound';
 				busy = false;
 				return;
 			}
@@ -112,7 +113,7 @@
 			await goto(resolve('/remote'));
 		} catch (error) {
 			busy = false;
-			failure = t(describeError(error));
+			failure = describeError(error);
 		}
 	}
 
@@ -133,7 +134,7 @@
 			 * існують, — і це властивість схеми, а не наша обачність.
 			 */
 			if (!(await boardExists(key))) {
-				failure = t('connect.notFound');
+				failure = 'connect.notFound';
 				busy = false;
 				return;
 			}
@@ -153,8 +154,8 @@
 			busy = false;
 			// Порожній секрет — це не відмова бази, а незаповнена форма: людині
 			// треба сказати те саме, що й про невірний пароль.
-			if (error instanceof EmptySecretError) failure = t('connect.notFound');
-			else failure = t(describeError(error));
+			if (error instanceof EmptySecretError) failure = 'connect.notFound';
+			else failure = describeError(error);
 		}
 	}
 </script>
@@ -187,7 +188,7 @@
 		</label>
 
 		{#if failure}
-			<p class="error" role="alert" data-testid="connect-error">{failure}</p>
+			<Failure reason={failure} testid="connect-error" />
 		{/if}
 
 		<button

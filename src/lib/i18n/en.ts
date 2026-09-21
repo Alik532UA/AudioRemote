@@ -317,7 +317,7 @@ export const en: Record<TranslationKey, string> = {
 
 	'error.network': 'No connection to the database. Check the internet.',
 	'error.emulatorDown':
-		'The local Firebase emulator is not running. Open a second terminal in the project folder and run: npm run emulators',
+		'The local Firebase emulator is not running. Open a second terminal in the project folder and run:',
 	'error.configMissing': 'Firebase is not configured: environment variables are missing.',
 	'error.denied': 'The database refused access. Most likely the rules are not deployed yet.',
 	'error.playback': 'Could not play the file: {name}',

@@ -25,6 +25,22 @@ import { ConfigMissingError, ConnectionDownError } from './firebase';
  * Усе інше лишається «щось пішло не так» — і це чесно: якщо ми не знаємо, що
  * сталося, вигадувати пораду гірше, ніж її не давати.
  */
+/**
+ * КОМАНДА, ЯКА ЛІКУЄ ЦЮ ВІДМОВУ.
+ *
+ * Живе поруч із `describeError`, а не у словнику, з двох причин. Команду не
+ * перекладають — `npm run emulators` однакове всіма мовами, і в перекладі
+ * воно рано чи пізно стало б «npm run емулятори». А головне: команда — це не
+ * частина речення, а те, що ВСТАВЛЯЮТЬ у термінал. Доти вона стояла всередині
+ * тексту поради, і людина мусила виділяти її мишею з-поміж слів.
+ *
+ * Показує це `Failure.svelte`: окремим полем, моноширинним шрифтом і з
+ * кнопкою копіювання.
+ */
+export const FIX_COMMAND: Partial<Record<TranslationKey, string>> = {
+	'error.emulatorDown': 'npm run emulators'
+};
+
 export function describeError(error: unknown): TranslationKey {
 	if (error instanceof ConnectionDownError) {
 		return error.emulator ? 'error.emulatorDown' : 'error.network';

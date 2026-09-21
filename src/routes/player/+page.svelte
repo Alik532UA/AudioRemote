@@ -24,6 +24,7 @@
 	import { boardSession } from '$lib/board/session.svelte';
 	import { rememberBoard } from '$lib/board/myBoards';
 	import { describeError } from '$lib/net/describeError';
+	import Failure from '$lib/components/ui/Failure.svelte';
 	import { PlayerController } from '$lib/player/controller.svelte';
 	import { colorOf } from '$lib/config/trackColors';
 	import { folderOf, titleLines } from '$lib/audio/source';
@@ -41,7 +42,7 @@
 	import { runningInTauri } from '$lib/audio/tauriSource';
 
 	let controller = $state<PlayerController | null>(null);
-	let fatal = $state<string | null>(null);
+	let fatal = $state<TranslationKey | null>(null);
 	/** Для якого треку відкрите вікно налаштувань. `null` — для жодного. */
 	let openFor = $state<string | null>(null);
 	let hiddenOpen = $state(false);
@@ -160,7 +161,7 @@
 			})
 			.catch((error: unknown) => {
 				// Текст із `error.message` тут був би технічним рядком Firebase.
-				fatal = t(describeError(error));
+				fatal = describeError(error);
 			});
 
 		/*
@@ -238,7 +239,7 @@
 
 <div class="stack stack--wide">
 	{#if fatal}
-		<p class="error" role="alert">{fatal}</p>
+		<Failure reason={fatal} block testid="player-fatal-error" />
 	{:else if controller && boardSession.current}
 		{@const board = boardSession.current}
 		{@const engine = controller.engine}

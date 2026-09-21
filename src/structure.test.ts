@@ -212,7 +212,10 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	// перемотки й полях розкладу. Підняття стелі законне лише так: зі своєю
 	// причиною в описі коміту. Без причини ратчет перестає бути ратчетом за
 	// один коміт.
-	'src/routes/player/+page.svelte': 885,
+	// 885 → 886: рядок імпорту `Failure.svelte`. Компонент замінив тут
+	// `<p class="error">` на фатальний блок і заразом прибрав таку саму
+	// розмітку зі сторінки підключення — у сумі по проєкту рядків менше.
+	'src/routes/player/+page.svelte': 886,
 	'src/routes/remote/+page.svelte': 862,
 	'src/lib/player/controller.svelte.ts': 541,
 	'src/lib/components/settings/SettingsPanel.svelte': 521,
