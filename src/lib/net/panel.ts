@@ -1,0 +1,92 @@
+import { boardPath } from '$lib/board/boardPath';
+import { connect } from './firebase';
+import { PANEL_CELLS, type Panel, type PanelState } from './panelTypes';
+
+/**
+ * ПАНЕЛЬ ІНФОДОШКИ В БАЗІ: що на ній стоїть і в якому воно положенні.
+ *
+ * Окремо від `board.ts` з тієї самої причини, з якої там окремо живуть команди
+ * й присутність: це інші дані з іншим письменником. `board.ts` знає бібліотеку
+ * й стан плеєра — речі, яких в інфодошки немає взагалі. Спільною лишається
+ * рівно адреса дошки.
+ *
+ * Обидва вузли пише ГОСПОДАР, і це не формальність, а те, на чому тримаються
+ * правила доступу (див. докблок `panelTypes.ts`). Помічник надсилає НАМІР
+ * командою, господар обчислює нове положення й кладе його назад.
+ */
+
+const panelNode = (key: string) => `${boardPath(key)}/panel`;
+const stateNode = (key: string) => `${boardPath(key)}/panelState`;
+
+/**
+ * Порожня панель — п'ятнадцять порожніх комірок.
+ *
+ * Окремою функцією, а не константою: об'єкт-константа один на застосунок, і
+ * перший же редактор, що допише в нього комірку, змінив би «порожню панель»
+ * для всіх наступних.
+ */
+export const emptyPanel = (): Panel => ({ rev: 0, cells: {} });
+
+/**
+ * Номери комірок за порядком: `'0'`…`'14'`.
+ *
+ * Сітка малюється ЗАВЖДИ повністю, разом із порожніми місцями, — саме в цьому
+ * сенс фіксованої сітки. Тому номери потрібні й тому, хто малює, і тому, хто
+ * редагує.
+ */
+export const CELL_KEYS: readonly string[] = Array.from({ length: PANEL_CELLS }, (_, index) =>
+	String(index)
+);
+
+/** Викласти панель цілком. Номер редакції піднімає той, хто кличе. */
+export async function publishPanel(key: string, panel: Panel): Promise<void> {
+	const { db } = await connect();
+	const { ref, set } = await import('firebase/database');
+	await set(ref(db, panelNode(key)), panel);
+}
+
+/** Підписка на панель. `null` — панелі ще немає. Повертає відписку. */
+export async function watchPanel(
+	key: string,
+	onPanel: (panel: Panel | null) => void
+): Promise<() => void> {
+	const { db } = await connect();
+	const { onValue, ref } = await import('firebase/database');
+	return onValue(ref(db, panelNode(key)), (snapshot) => onPanel(snapshot.val() as Panel | null));
+}
+
+/**
+ * Викласти положення органів.
+ *
+ * `atServer` ставить САМА БАЗА, а не той, хто кличе: годинник пристрою в залі
+ * розходиться з серверним, а правило звіряє мітку з `now`. Те саме рішення й з
+ * тієї самої причини, що в `publishState` для аудіодошки.
+ */
+export async function publishPanelState(
+	key: string,
+	state: Omit<PanelState, 'atServer'>
+): Promise<void> {
+	const { db } = await connect();
+	const { ref, serverTimestamp, set } = await import('firebase/database');
+	/*
+	 * Порожні мапи НЕ пишуться. RTDB не зберігає порожній об'єкт — вузол із ним
+	 * просто не з'являється, — тож `levels: {}` дав би запис, який при читанні
+	 * виглядає інакше, ніж при записі, і на це рано чи пізно хтось спирався б.
+	 */
+	const payload: Record<string, unknown> = { atServer: serverTimestamp() };
+	if (state.levels && Object.keys(state.levels).length > 0) payload.levels = state.levels;
+	if (state.flags && Object.keys(state.flags).length > 0) payload.flags = state.flags;
+	await set(ref(db, stateNode(key)), payload);
+}
+
+/** Підписка на положення органів. `null` — ще нічого не чіпали. */
+export async function watchPanelState(
+	key: string,
+	onState: (state: PanelState | null) => void
+): Promise<() => void> {
+	const { db } = await connect();
+	const { onValue, ref } = await import('firebase/database');
+	return onValue(ref(db, stateNode(key)), (snapshot) =>
+		onState(snapshot.val() as PanelState | null)
+	);
+}

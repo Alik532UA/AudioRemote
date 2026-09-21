@@ -332,8 +332,50 @@ export const en: Record<TranslationKey, string> = {
 	'info.boardOnline': 'Board online',
 	'info.boardOffline': 'Board offline',
 	'info.noPanel': 'No panel yet. The buttons for the assistant are added here, on the board.',
+	'info.fillStarter': 'Build a starter panel',
+	'info.offlineHint': 'The board is closed. Open it on the device by the sound desk.',
 	'info.noPanelRemote':
 		'No panel yet. It is assembled on the board — the device by the sound desk.',
+
+	// ─── The cue board panel ─────────────────────────────────────────────────
+	/*
+	 * THE DIRECTION IS GENERIC, THE SUBJECT IS IN THE CAPTION.
+	 *
+	 * “More”, not “louder”: a slider can stand for anything with a scale, and
+	 * “louder” on a cell captioned “lights” would read as a mistake. What gets
+	 * more is said by the caption the host wrote.
+	 *
+	 * The starter panel's captions are a different matter: they go into the
+	 * database as finished text and belong to the person from then on. See the
+	 * docblock in `starter.ts`.
+	 */
+	'panel.up': 'More',
+	'panel.down': 'Less',
+	'panel.on': 'On',
+	'panel.off': 'Off',
+	/* The same directions as a line in the log: “overall level — more”. */
+	'panel.wentUp': 'more',
+	'panel.wentDown': 'less',
+	'panel.turnedOn': 'turned on',
+	'panel.turnedOff': 'turned off',
+	'panel.change': 'was {from} — now {to}',
+	'panel.logTitle': 'Asked from the hall',
+	'panel.logEmpty': 'Nothing has been asked for yet.',
+	'panel.viewTitle': 'What to show',
+	'panelView.both': 'Both',
+	'panelView.panel': 'Panel',
+	'panelView.log': 'Log',
+	'panel.noAck': 'The board did not answer. Check that it is open by the sound desk.',
+	'panel.noCell': 'That cell is no longer on the panel.',
+	'panel.wrongKind': 'The cell changed while the request was on its way. Try again.',
+	'panel.badValue': 'The board did not understand the request.',
+	'panel.louder': 'louder',
+	'panel.fine': 'fine',
+	'panel.quieter': 'quieter',
+	'panel.track': 'backing track',
+	'panel.mic': 'microphone',
+	'panel.overall': 'overall level',
+	'panel.ready': 'ready',
 
 	// ─── Third role: administrator ───────────────────────────────────────────
 	'admin.title': 'Administrator',

@@ -96,7 +96,18 @@ export interface SendResult {
 export async function sendCommand<T extends string = CommandType>(
 	base: string,
 	type: T,
-	value?: string | number
+	value?: string | number,
+	/**
+	 * Поля конверта, які знає лише свій вид дошки.
+	 *
+	 * Сьогодні це `cell` в інфодошці: номер комірки потрібен усім трьом її
+	 * командам, а в звукових його немає взагалі. Класти його в `value` не
+	 * можна — там уже лежить номер кнопки чи крок повзунка.
+	 *
+	 * Окремий `sendPanelCommand` поруч розійшовся б із цим на першій же правці
+	 * поводження з часом, а саме там і ховаються дефекти каналу команд.
+	 */
+	extra?: Readonly<Record<string, string | number>>
 ): Promise<SendResult> {
 	await ensureOffset();
 	const { db, uid } = await connect();
@@ -107,6 +118,7 @@ export async function sendCommand<T extends string = CommandType>(
 	// Поле `value` пишеться лише коли воно є: `undefined` RTDB не приймає, а
 	// `null` створив би дитину, яку правило не знає.
 	if (value !== undefined) payload.value = value;
+	for (const [field, own] of Object.entries(extra ?? {})) payload[field] = own;
 
 	await set(entry, payload);
 	return { id: entry.key as string };
@@ -166,17 +178,24 @@ export async function waitForAck(base: string, id: string): Promise<Ack | null> 
  * інше — вік команди, квитанція, прибирання — робиться тут, щоб сторінка плеєра
  * не мусила пам'ятати про жодну з цих трьох речей.
  */
-export async function watchCommands<T extends string = CommandType>(
-	base: string,
-	handle: (command: Command<T>) => Promise<string | null>
-): Promise<() => void> {
+export async function watchCommands<
+	T extends string = CommandType,
+	/**
+	 * Уся форма команди, а не лише тип.
+	 *
+	 * Інфодошка возить у конверті ще й номер комірки, і без другого параметра
+	 * оброблювач бачив би `Command<T>` без нього — тобто мусив би приводити тип
+	 * руками рівно там, де помилка тиха.
+	 */
+	C extends Command<T> = Command<T>
+>(base: string, handle: (command: C) => Promise<string | null>): Promise<() => void> {
 	await ensureOffset();
 	const { db } = await connect();
 	const { onChildAdded, ref, remove, serverTimestamp, set } = await import('firebase/database');
 
 	return onChildAdded(ref(db, cmdPath(base)), (snapshot) => {
 		const id = snapshot.key;
-		const command = snapshot.val() as Command<T> | null;
+		const command = snapshot.val() as C | null;
 		if (!id || !command) return;
 
 		const drop = () => remove(ref(db, `${cmdPath(base)}/${id}`));
