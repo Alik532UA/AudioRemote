@@ -52,14 +52,26 @@ export interface UpdateSchedule {
 }
 
 export function createUpdateSchedule(host: UpdateHost): UpdateSchedule {
-	let lastAt = 0;
+	/*
+	 * `null`, а НЕ `0`, і це не смак.
+	 *
+	 * Тут стояло `let lastAt = 0` з умовою `lastAt !== 0 && …`, тобто нуль
+	 * означав «ще не питали». Але нуль — це ще й дійсна мітка часу, тож якщо
+	 * перший запит випадав рівно на неї, наступний тік не бачив проміжку й
+	 * ішов одразу — саме той подвійний запит, проти якого проміжок і стоїть.
+	 *
+	 * У житті `Date.now()` нуля не віддає, тож вада латентна. Знайшлася вона
+	 * у сусідньому `HotPaste`, коли той самий модуль там уперше накрили
+	 * перевіркою з часом від нуля.
+	 */
+	let lastAt: number | null = null;
 
 	return {
 		tick() {
 			if (!host.online()) return false;
 
 			const now = host.now();
-			if (lastAt !== 0 && now - lastAt < MIN_GAP_MS) return false;
+			if (lastAt !== null && now - lastAt < MIN_GAP_MS) return false;
 
 			lastAt = now;
 			host.update();
