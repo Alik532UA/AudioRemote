@@ -153,7 +153,7 @@
 			</p>
 		{:else}
 			<div class="room">
-				<PanelGrid {panel} {levels} {flags} {recent} {busy} live onpress={ask} />
+				<PanelGrid {panel} {levels} {flags} {recent} {busy} acts="all" onpress={ask} />
 			</div>
 		{/if}
 	{/if}

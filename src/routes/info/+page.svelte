@@ -189,6 +189,39 @@
 		}
 	}
 
+	/**
+	 * ГОСПОДАР ПОСУНУВ ОРГАН САМ — без команди й без квитанції.
+	 *
+	 * Він і так єдиний письменник цього вузла (див. `panelTypes.ts`), тож
+	 * посилати прохання самому собі через журнал команд не треба: рахунок той
+	 * самий, `applyPanelCommand`, і результат лягає в базу тим самим записом.
+	 *
+	 * У ЖУРНАЛ ЦЕ НЕ ЙДЕ. Журнал відповідає на питання «чого просять із зали», а
+	 * власний рух ручки — не прохання. Помічник побачить нове положення там, де
+	 * й завжди: у самому органі.
+	 */
+	function own(cell: string, type: PanelCommandType, value?: number) {
+		const board = boardSession.current;
+		if (!board) return;
+
+		const result = applyPanelCommand(
+			panel,
+			{ levels, flags },
+			{
+				by: 'self',
+				type,
+				at: Date.now(),
+				cell,
+				...(value === undefined ? {} : { value })
+			}
+		);
+		if (refused(result)) return;
+
+		levels = result.next.levels ?? {};
+		flags = result.next.flags ?? {};
+		void publishPanelState(board.key, result.next);
+	}
+
 	/** Скласти типову панель — рівно ті комірки, з яких починають у залі. */
 	async function fill() {
 		const board = boardSession.current;
@@ -337,8 +370,13 @@
 			<div class="halves" class:halves--one={view !== 'both'}>
 				{#if view !== 'log'}
 					<section class="card mirror" data-testid="info-panel-section">
-						<!-- Дзеркало: господар бачить те саме, але не тисне за помічника. -->
-						<PanelGrid {panel} {levels} {flags} {recent} />
+						<!--
+							НЕ ЛИШЕ ДЗЕРКАЛО: повзунки й перемикачі звукорежисер міняє сам.
+							Ручки крутить саме він, і йти по них у зал, щоб посунути на крок,
+							було б дивно. Кнопки з підписами лишаються німими: «гучніше» — це
+							прохання, і просити самого себе нема сенсу.
+						-->
+						<PanelGrid {panel} {levels} {flags} {recent} acts="values" onpress={own} />
 					</section>
 				{/if}
 

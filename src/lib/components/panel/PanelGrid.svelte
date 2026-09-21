@@ -27,12 +27,25 @@
 	 * не було б видно взагалі — ні господареві, який складає, ні помічникові,
 	 * який запам'ятовує розташування.
 	 */
+	/**
+	 * ЩО САМЕ ТУТ МОЖНА НАТИСНУТИ — три стани, а не прапорець.
+	 *
+	 * `all` — помічник у залі: він просить, тож тиснеться все. `values` —
+	 * звукорежисер за пультом: повзунки й перемикачі він міняє САМ, бо саме він
+	 * і крутить ручки, а кнопки з підписами («гучніше») — це прохання, і
+	 * просити самого себе нема сенсу. `none` — просто дивитися.
+	 *
+	 * Прапорця `live` тут не вистачало: з ним у господаря або не працювало
+	 * нічого, або зʼявлялися кнопки, які нічого не роблять, — а кнопка, що не
+	 * робить нічого, гірша за відсутню.
+	 */
+	type Acts = 'none' | 'values' | 'all';
+
 	interface Props {
 		panel: Panel;
 		levels: Record<string, number>;
 		flags: Record<string, boolean>;
-		/** `false` — дзеркало для господаря: видно те саме, але не тиснеться. */
-		live?: boolean;
+		acts?: Acts;
 		/** Доки прохання летить, другого не приймаємо. */
 		busy?: boolean;
 		/** Комірка, яку щойно попросили. Підсвічується на обох екранах. */
@@ -44,14 +57,18 @@
 		panel,
 		levels,
 		flags,
-		live = false,
+		acts = 'none',
 		busy = false,
 		recent = null,
 		onpress
 	}: Props = $props();
 
+	/** Кнопки з підписами — лише тому, хто просить. */
+	const asking = $derived(acts === 'all' && !busy);
+	/** Повзунки й перемикачі — і тому, хто просить, і тому, хто крутить ручки. */
+	const turning = $derived(acts !== 'none' && !busy);
+
 	const press = (cell: string, type: PanelCommandType, value?: number) => {
-		if (!live || busy) return;
 		onpress?.(cell, type, value);
 	};
 </script>
@@ -76,7 +93,7 @@
 							<button
 								class="key"
 								type="button"
-								disabled={!live || busy}
+								disabled={!asking}
 								onclick={() => press(key, 'press', index)}
 								data-testid="panel-press-{key}-{index}-btn"
 							>
@@ -96,7 +113,7 @@
 						<button
 							class="key"
 							type="button"
-							disabled={!live || busy}
+							disabled={!turning}
 							aria-label="{cell.caption}: {t('panel.up')}"
 							onclick={() => press(key, 'bump', cell.step ?? 10)}
 							data-testid="panel-up-{key}-btn"
@@ -109,7 +126,7 @@
 						<button
 							class="key"
 							type="button"
-							disabled={!live || busy}
+							disabled={!turning}
 							aria-label="{cell.caption}: {t('panel.down')}"
 							onclick={() => press(key, 'bump', -(cell.step ?? 10))}
 							data-testid="panel-down-{key}-btn"
@@ -124,7 +141,7 @@
 							class="key key--check"
 							class:key--on={on}
 							type="button"
-							disabled={!live || busy}
+							disabled={!turning}
 							aria-pressed={on}
 							onclick={() => press(key, 'toggle')}
 							data-testid="panel-toggle-{key}-btn"
