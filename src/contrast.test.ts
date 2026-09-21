@@ -134,7 +134,6 @@ const PAIRS: [string, string[]][] = [
 	['warn', ['bg-sunken']],
 	['danger', ['bg-surface']],
 	['danger', ['bg-page']],
-	['info', ['bg-surface']],
 
 	/*
 	 * ФАРБА НА ФАРБІ.
