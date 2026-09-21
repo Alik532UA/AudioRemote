@@ -58,6 +58,9 @@ export const en: Record<TranslationKey, string> = {
 	'settings.launchTitle': 'Launch',
 	'settings.diagTitle': 'Diagnostics',
 	'settings.startTitle': 'What to open on launch',
+	'settings.autoStart': 'Start with the system',
+	'settings.autoStartHint':
+		'The app opens by itself as soon as you sign in. Handy where the device stands in the hall and does nothing else.',
 	'settings.showTrigger': 'Mark tracks that start from an API',
 	'settings.showTriggerHint':
 		'An icon in the list row. It answers “why did that play by itself” without opening the track settings.',

@@ -35,9 +35,7 @@ describe('скільки місця просить віджет', () => {
 describe('розкладка панелі', () => {
 	it('стовпчиком віджет іде вниз по колонці', () => {
 		const { placed, free } = layoutPanel(panelOf({ '0': buttons(3) }));
-		expect(placed).toEqual([
-			{ cell: '0', row: 0, col: 0, rows: 3, cols: 1, vertical: true }
-		]);
+		expect(placed).toEqual([{ cell: '0', row: 0, col: 0, rows: 3, cols: 1, vertical: true }]);
 		// Зайнято 0, 3, 6 — решта вільна.
 		expect(free).not.toContain('3');
 		expect(free).not.toContain('6');

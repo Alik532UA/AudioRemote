@@ -23,13 +23,20 @@
 	interface Option {
 		value: string;
 		label: string;
-		/** Готовий локатор кнопки — щоб кожне місце називало свої по-своєму. */
-		testid: string;
 	}
 
 	interface Props {
 		options: readonly Option[];
 		value: string;
+		/**
+		 * Основа локатора: кнопка отримає `{prefix}-{значення}-radio`.
+		 *
+		 * САМЕ ОСНОВА, а не готовий рядок на кожен варіант. Готовий рядок довелося
+		 * б збирати в JS того, хто кличе, — і тоді сканер локаторів
+		 * (`testid.test.ts`) перестав би їх бачити взагалі: він читає розмітку.
+		 * Гейт, повз який можна пройти, переставивши рядок в інший файл, не гейт.
+		 */
+		prefix: string;
 		/** `id` підпису поруч. Або `label` — коли підпису на екрані немає. */
 		labelledby?: string;
 		label?: string;
@@ -37,7 +44,7 @@
 		onpick: (value: string) => void;
 	}
 
-	let { options, value, labelledby, label, row = false, onpick }: Props = $props();
+	let { options, value, prefix, labelledby, label, row = false, onpick }: Props = $props();
 </script>
 
 <div
@@ -54,7 +61,7 @@
 			role="radio"
 			aria-checked={value === option.value}
 			onclick={() => onpick(option.value)}
-			data-testid={option.testid}
+			data-testid="{prefix}-{option.value}-radio"
 		>
 			{option.label}
 		</button>

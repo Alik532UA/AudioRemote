@@ -171,11 +171,8 @@
 			<Picker
 				labelledby="cell-kind-label"
 				value={kind}
-				options={KINDS.map((which) => ({
-					value: which,
-					label: t(`panelKind.${which}`),
-					testid: `cell-kind-${which}-radio`
-				}))}
+				prefix="cell-kind"
+				options={KINDS.map((which) => ({ value: which, label: t(`panelKind.${which}`) }))}
 				onpick={(next) => (kind = next as Choice)}
 			/>
 		</div>
@@ -228,9 +225,10 @@
 					row
 					labelledby="cell-turn-label"
 					value={vertical ? 'down' : 'across'}
+					prefix="cell-turn"
 					options={[
-						{ value: 'down', label: t('panel.turnDown'), testid: 'cell-turn-down-radio' },
-						{ value: 'across', label: t('panel.turnAcross'), testid: 'cell-turn-across-radio' }
+						{ value: 'down', label: t('panel.turnDown') },
+						{ value: 'across', label: t('panel.turnAcross') }
 					]}
 					onpick={(next) => (vertical = next === 'down')}
 				/>

@@ -16,6 +16,7 @@
 	import DiagnosticsTrail from './DiagnosticsTrail.svelte';
 	import HardResetButton from './HardResetButton.svelte';
 	import MusicFolderCard from './MusicFolderCard.svelte';
+	import AutoStartSwitch from './AutoStartSwitch.svelte';
 	import { IconCheck, IconDice, IconTrash, IconWarning } from '$lib/config/icons';
 	import { i18n, LOCALES, t, type Locale } from '$lib/i18n/i18n.svelte';
 	import {
@@ -25,10 +26,16 @@
 		normalizePassword
 	} from '$lib/board/secret';
 	import { settings } from '$lib/settings/settings.svelte';
-	import { START_BOARDS, START_PAGES } from '$lib/settings/startPage.svelte';
+	import {
+		START_BOARDS,
+		START_PAGES,
+		type StartBoard,
+		type StartPage
+	} from '$lib/settings/startPage.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import ThemeSwitcher from '$lib/components/ui/ThemeSwitcher.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
+	import Picker from '$lib/components/ui/Picker.svelte';
 	import { isEmulator } from '$lib/net/firebase';
 
 	const LOCALE_NAMES: Record<Locale, string> = { uk: 'Українська', en: 'English' };
@@ -149,22 +156,22 @@
 					спершу його відкрити. Тут усі пʼять видно одразу, і обраний видно
 					теж — без жодного натискання.
 				-->
-				<div class="picker" role="radiogroup" aria-labelledby="start-label">
-					{#each START_PAGES as page (page)}
-						<button
-							class="picker__item"
-							type="button"
-							role="radio"
-							aria-checked={settings.startPage === page}
-							onclick={() => settings.save({ startPage: page })}
-							data-testid="settings-start-{page}"
-						>
-							{t(`start.${page}`)}
-						</button>
-					{/each}
-				</div>
+				<Picker
+					labelledby="start-label"
+					value={settings.startPage}
+					prefix="settings-start"
+					options={START_PAGES.map((page) => ({ value: page, label: t(`start.${page}`) }))}
+					onpick={(next) => settings.save({ startPage: next as StartPage })}
+				/>
 				<p class="muted">{t('settings.startLead')}</p>
 			</div>
+
+			<!--
+				Автозапуск стоїть у «Запуску» — тобто там, де вже вирішують, що
+				відкрити при старті. У браузері його не буде: сам компонент про це
+				знає й не малює нічого.
+			-->
+			<AutoStartSwitch />
 
 			<div class="field">
 				<Switch
@@ -194,20 +201,16 @@
 			{#if boardChoiceShown}
 				<div class="field">
 					<span class="field__label" id="start-board-label">{t('settings.startBoardTitle')}</span>
-					<div class="picker" role="radiogroup" aria-labelledby="start-board-label">
-						{#each START_BOARDS as which (which)}
-							<button
-								class="picker__item"
-								type="button"
-								role="radio"
-								aria-checked={settings.startBoard === which}
-								onclick={() => settings.save({ startBoard: which })}
-								data-testid="settings-board-{which}"
-							>
-								{t(`startBoard.${which}`)}
-							</button>
-						{/each}
-					</div>
+					<Picker
+						labelledby="start-board-label"
+						value={settings.startBoard}
+						prefix="settings-board"
+						options={START_BOARDS.map((which) => ({
+							value: which,
+							label: t(`startBoard.${which}`)
+						}))}
+						onpick={(next) => settings.save({ startBoard: next as StartBoard })}
+					/>
 				</div>
 
 				{#if settings.startBoard === 'fixed'}
@@ -450,57 +453,6 @@
 	 */
 	.cards :global(.stack) {
 		margin-block: 0;
-	}
-
-	/*
-	 * Перемикач списком: кнопки без власних рамок у спільній рамці.
-	 *
-	 * Ряд окремих кнопок на пʼять довгих підписів розсипався б на пʼять рядків
-	 * із проміжками між ними — і перестав би читатися як ОДИН вибір.
-	 */
-	.picker {
-		display: flex;
-		flex-direction: column;
-		overflow: hidden;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--bg-surface-raised);
-	}
-
-	.picker__item {
-		display: flex;
-		align-items: center;
-		gap: var(--gap-sm);
-		min-height: var(--tap);
-		padding: 0 var(--gap);
-		border: 0;
-		border-top: 1px solid var(--border);
-		background: none;
-		color: var(--text-primary);
-		cursor: pointer;
-		font: inherit;
-		font-size: 0.9rem;
-		text-align: start;
-	}
-
-	.picker__item:first-child {
-		border-top: 0;
-	}
-
-	.picker__item:hover,
-	.picker__item:focus-visible {
-		background: var(--bg-sunken);
-	}
-
-	/*
-	 * Обраний позначено смугою збоку, а не самим лише тлом: тло в темній темі
-	 * відрізняється на кілька відсотків яскравості й на проєкторі в залі
-	 * зникає зовсім.
-	 */
-	.picker__item[aria-checked='true'] {
-		box-shadow: inset 3px 0 0 var(--accent);
-		background: var(--accent-soft);
-		font-weight: 600;
 	}
 
 	.subtitle {
