@@ -9,6 +9,14 @@
 	 * без одного не працює: підсвічена комірка зникає з поля зору за секунду, а
 	 * звукорежисер у цю секунду дивився на пульт, а не в телефон.
 	 *
+	 * ## Чому в журналі й СВОЇ дії теж
+	 *
+	 * Бо журнал відповідає на питання «що тут щойно сталося», а не «хто винен».
+	 * Звукорежисер, який сам посунув повзунок і за хвилину дивиться, чому звук
+	 * не той, мусить бачити обидві половини картини. Власні рядки позначені
+	 * тихою міткою: без неї людина шукала б у залі того, хто попросив, хоч
+	 * просила вона сама.
+	 *
 	 * ## Останнє — ЗВЕРХУ, і воно більше за решту
 	 *
 	 * Бо читають тут одне: що просять ЗАРАЗ. Історія нижче потрібна на випадок
@@ -21,7 +29,7 @@
 	 * відповідає на те саме питання й не рухається.
 	 */
 	interface Props {
-		notices: readonly (PanelNotice & { id: string; at: number })[];
+		notices: readonly (PanelNotice & { id: string; at: number; own: boolean })[];
 	}
 
 	let { notices }: Props = $props();
@@ -62,6 +70,9 @@
 			>
 				<span class="log__time mono">{clock(notice.at)}</span>
 				<span class="log__what">
+					{#if notice.own}
+						<span class="log__own">{t('panel.byHost')}</span>
+					{/if}
 					{#if notice.caption}
 						<strong>{notice.caption}</strong>
 					{/if}
@@ -111,6 +122,19 @@
 		flex: none;
 		color: var(--text-secondary);
 		font-size: 0.75rem;
+	}
+
+	/*
+	 * Мітка «сам» — тиха: вона уточнює рядок, а не сперечається з ним. Тому
+	 * дрібна рамка кольору тексту, а не акцент і не попередження.
+	 */
+	.log__own {
+		flex: none;
+		padding: 0 6px;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-full);
+		color: var(--text-secondary);
+		font-size: 0.7rem;
 	}
 
 	.log__what {

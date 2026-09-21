@@ -29,49 +29,30 @@
 	 * який запам'ятовує розташування.
 	 */
 	/**
-	 * ЩО САМЕ ТУТ МОЖНА НАТИСНУТИ — три стани, а не прапорець.
+	 * ТИСНЕТЬСЯ ВСЕ Й ОБОМА — і прапорця «кому що можна» тут більше немає.
 	 *
-	 * `all` — помічник у залі: він просить, тож тиснеться все. `values` —
-	 * звукорежисер за пультом: повзунки й перемикачі він міняє САМ, бо саме він
-	 * і крутить ручки, а кнопки з підписами («гучніше») — це прохання, і
-	 * просити самого себе нема сенсу. `none` — просто дивитися.
+	 * Спершу господареві лишили самі лише повзунки й перемикачі: мовляв,
+	 * «гучніше» — це прохання, а просити самого себе нема сенсу. На практиці це
+	 * вийшло розумуванням за людину. Звукорежисер тисне ту саму кнопку не щоб
+	 * попросити себе, а щоб ПОЗНАЧИТИ дію: рядок у журналі — це те, що потім
+	 * читають обидва, і зроблене руками за пультом має лишати такий самий слід,
+	 * як прохання із зали.
 	 *
-	 * Прапорця `live` тут не вистачало: з ним у господаря або не працювало
-	 * нічого, або зʼявлялися кнопки, які нічого не роблять, — а кнопка, що не
-	 * робить нічого, гірша за відсутню.
+	 * Тому сітка тепер одна на обох, і єдине, що вимикає кнопки, — це `busy`:
+	 * доки прохання летить, другого не приймаємо.
 	 */
-	type Acts = 'none' | 'values' | 'all';
-
 	interface Props {
 		panel: Panel;
 		levels: Record<string, number>;
 		flags: Record<string, boolean>;
-		acts?: Acts;
 		/** Доки прохання летить, другого не приймаємо. */
 		busy?: boolean;
-		/** Комірка, яку щойно попросили. Підсвічується на обох екранах. */
+		/** Комірка, яку щойно чіпали. Підсвічується на обох екранах. */
 		recent?: string | null;
-		onpress?: (cell: string, type: PanelCommandType, value?: number) => void;
+		press: (cell: string, type: PanelCommandType, value?: number) => void;
 	}
 
-	let {
-		panel,
-		levels,
-		flags,
-		acts = 'none',
-		busy = false,
-		recent = null,
-		onpress
-	}: Props = $props();
-
-	/** Кнопки з підписами — лише тому, хто просить. */
-	const asking = $derived(acts === 'all' && !busy);
-	/** Повзунки й перемикачі — і тому, хто просить, і тому, хто крутить ручки. */
-	const turning = $derived(acts !== 'none' && !busy);
-
-	const press = (cell: string, type: PanelCommandType, value?: number) => {
-		onpress?.(cell, type, value);
-	};
+	let { panel, levels, flags, busy = false, recent = null, press }: Props = $props();
 
 	/**
 	 * ДЕ ЩО СТОЇТЬ — рахується один раз на панель, а не вгадується розміткою.
@@ -138,7 +119,7 @@
 							<button
 								class="key"
 								type="button"
-								disabled={!asking}
+								disabled={busy}
 								onclick={() => press(key, 'press', index)}
 								data-testid="panel-press-{key}-{index}-btn"
 							>
@@ -158,7 +139,7 @@
 						<button
 							class="key"
 							type="button"
-							disabled={!turning}
+							disabled={busy}
 							aria-label="{cell.caption}: {t('panel.up')}"
 							onclick={() => press(key, 'bump', cell.step ?? 10)}
 							data-testid="panel-up-{key}-btn"
@@ -171,7 +152,7 @@
 						<button
 							class="key"
 							type="button"
-							disabled={!turning}
+							disabled={busy}
 							aria-label="{cell.caption}: {t('panel.down')}"
 							onclick={() => press(key, 'bump', -(cell.step ?? 10))}
 							data-testid="panel-down-{key}-btn"
@@ -186,7 +167,7 @@
 							class="key key--check"
 							class:key--on={on}
 							type="button"
-							disabled={!turning}
+							disabled={busy}
 							aria-pressed={on}
 							onclick={() => press(key, 'toggle')}
 							data-testid="panel-toggle-{key}-btn"

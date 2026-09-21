@@ -450,8 +450,10 @@ export const uk = {
 	'panel.turnedOn': 'увімкнено',
 	'panel.turnedOff': 'вимкнено',
 	'panel.change': 'було {from} — стало {to}',
-	'panel.logTitle': 'Прохання із зали',
-	'panel.logEmpty': 'Поки що нічого не просили.',
+	'panel.logTitle': 'Останні дії',
+	/* Мітка рядка, який зробили тут-таки, а не попросили із зали. */
+	'panel.byHost': 'сам',
+	'panel.logEmpty': 'Поки що нічого не відбувалося.',
 	'panel.viewTitle': 'Що показувати',
 	'panelView.both': 'І те, і те',
 	'panelView.panel': 'Панель',

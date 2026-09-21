@@ -17,7 +17,12 @@
 		watchPanelState
 	} from '$lib/net/panel';
 	import type { Panel, PanelCell, PanelCommand, PanelCommandType } from '$lib/net/panelTypes';
-	import { applyPanelCommand, refused, type PanelNotice } from '$lib/panel/apply';
+	import {
+		applyPanelCommand,
+		refused,
+		type PanelNotice,
+		type PanelOutcome
+	} from '$lib/panel/apply';
 	import { starterPanel } from '$lib/panel/starter';
 	import { fits, isVertical, spanOf } from '$lib/panel/layout';
 	import { mark } from '$lib/services/breadcrumbs';
@@ -61,7 +66,7 @@
 	let flags = $state<Record<string, boolean>>({});
 	/** Комірка, яку щойно попросили. Підсвічується, доки не прийде наступна. */
 	let recent = $state<string | null>(null);
-	let notices = $state<(PanelNotice & { id: string; at: number })[]>([]);
+	let notices = $state<(PanelNotice & { id: string; at: number; own: boolean })[]>([]);
 	let filling = $state(false);
 	/** Режим складання. Поки він увімкнений, сітка показує місця, а не органи. */
 	let editing = $state(false);
@@ -152,16 +157,24 @@
 		const result = applyPanelCommand(panel, { levels, flags }, command);
 		if (refused(result)) return result;
 
-		levels = result.next.levels ?? {};
-		flags = result.next.flags ?? {};
-		recent = command.cell;
-		notices = [
-			{ ...result.notice, id: `${command.at}-${command.cell}`, at: Date.now() },
-			...notices
-		].slice(0, KEPT);
-
+		remember(result, command.cell, `${command.at}-${command.cell}`, false);
 		await publishPanelState(board.key, result.next);
 		return null;
+	}
+
+	/**
+	 * Записати наслідок: нове положення органів, підсвітка й рядок у журналі.
+	 *
+	 * Спільне для прохання із зали й для власного натискання — саме тому, що
+	 * різниці між ними майже немає. Уся різниця — мітка `own`, і вона потрібна
+	 * рівно для того, щоб людина не шукала в залі того, хто попросив, коли
+	 * просила вона сама.
+	 */
+	function remember(result: PanelOutcome, cell: string, id: string, own: boolean): void {
+		levels = result.next.levels ?? {};
+		flags = result.next.flags ?? {};
+		recent = cell;
+		notices = [{ ...result.notice, id, at: Date.now(), own }, ...notices].slice(0, KEPT);
 	}
 
 	/**
@@ -191,35 +204,30 @@
 	}
 
 	/**
-	 * ГОСПОДАР ПОСУНУВ ОРГАН САМ — без команди й без квитанції.
+	 * ГОСПОДАР НАТИСНУВ САМ — без команди й без квитанції, але В ЖУРНАЛ.
 	 *
-	 * Він і так єдиний письменник цього вузла (див. `panelTypes.ts`), тож
-	 * посилати прохання самому собі через журнал команд не треба: рахунок той
-	 * самий, `applyPanelCommand`, і результат лягає в базу тим самим записом.
+	 * Команди немає, бо він і так єдиний письменник цього вузла (див.
+	 * `panelTypes.ts`): посилати прохання самому собі через журнал команд не
+	 * треба, рахунок той самий — `applyPanelCommand`.
 	 *
-	 * У ЖУРНАЛ ЦЕ НЕ ЙДЕ. Журнал відповідає на питання «чого просять із зали», а
-	 * власний рух ручки — не прохання. Помічник побачить нове положення там, де
-	 * й завжди: у самому органі.
+	 * А от рядок у журналі є. Журнал відповідає на «що тут щойно сталося», і
+	 * зроблене руками за пультом лишає такий самий слід, як прохання із зали:
+	 * інакше картина, за якою потім розбираються, буде з діркою. Мітка `own`
+	 * каже, чия це була рука.
 	 */
 	function own(cell: string, type: PanelCommandType, value?: number) {
 		const board = boardSession.current;
 		if (!board) return;
 
+		const at = Date.now();
 		const result = applyPanelCommand(
 			panel,
 			{ levels, flags },
-			{
-				by: 'self',
-				type,
-				at: Date.now(),
-				cell,
-				...(value === undefined ? {} : { value })
-			}
+			{ by: 'self', type, at, cell, ...(value === undefined ? {} : { value }) }
 		);
 		if (refused(result)) return;
 
-		levels = result.next.levels ?? {};
-		flags = result.next.flags ?? {};
+		remember(result, cell, `self-${at}-${cell}`, true);
 		void publishPanelState(board.key, result.next);
 	}
 
@@ -392,12 +400,11 @@
 				{#if view !== 'log'}
 					<section class="card mirror" data-testid="info-panel-section">
 						<!--
-							НЕ ЛИШЕ ДЗЕРКАЛО: повзунки й перемикачі звукорежисер міняє сам.
-							Ручки крутить саме він, і йти по них у зал, щоб посунути на крок,
-							було б дивно. Кнопки з підписами лишаються німими: «гучніше» — це
-							прохання, і просити самого себе нема сенсу.
+							НЕ ДЗЕРКАЛО: та сама панель, і тиснеться вона так само. Ручки
+							крутить саме звукорежисер, а кнопку з підписом він тисне, щоб
+							позначити зроблене — і рядок про це лягає в той самий журнал.
 						-->
-						<PanelGrid {panel} {levels} {flags} {recent} acts="values" onpress={own} />
+						<PanelGrid {panel} {levels} {flags} {recent} press={own} />
 					</section>
 				{/if}
 
