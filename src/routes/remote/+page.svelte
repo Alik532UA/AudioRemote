@@ -230,8 +230,12 @@
 	{#if controller && boardSession.current}
 		{@const board = boardSession.current}
 		<header class="head" class:card={!narrow.matches} data-testid="board-head">
+			<!-- Роль окремим рядком, а не замість назви — як і в плеєра. -->
 			<div class="head__who">
-				<h1 class="head__title">{controller.info?.name || t('remote.title')}</h1>
+				<h1 class="head__role" data-testid="board-role-title">{t('remote.title')}</h1>
+				{#if controller.info?.name}
+					<p class="head__title">{controller.info.name}</p>
+				{/if}
 				<p class="muted mono">{board.id}</p>
 			</div>
 			<div class="head__side">

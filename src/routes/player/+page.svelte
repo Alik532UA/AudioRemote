@@ -215,8 +215,19 @@
 	{#if controller && boardSession.current}
 		{@const board = boardSession.current}
 		<header class="head" class:card={!narrow.matches} data-testid="board-head">
+			<!--
+				РОЛЬ ОКРЕМИМ РЯДКОМ, а не замість назви.
+
+				Доти тут стояло `board.name || t('player.title')`: дошка з назвою
+				втрачала слово «Плеєр» зовсім. А саме воно й відповідає на питання,
+				яке ставлять із іншого кінця зали, — «на цьому пристрої що?».
+				Назва відповідає на інше: «яка це з дощок».
+			-->
 			<div class="head__who">
-				<h1 class="head__title">{board.name || t('player.title')}</h1>
+				<h1 class="head__role" data-testid="board-role-title">{t('player.title')}</h1>
+				{#if board.name}
+					<p class="head__title">{board.name}</p>
+				{/if}
 				<p class="muted mono">{board.id}</p>
 			</div>
 			<div class="head__side">
