@@ -188,6 +188,12 @@ export const en: Record<TranslationKey, string> = {
 	'player.moveDown': 'Move down',
 	'player.configReadonly':
 		'The folder was granted read-only, so order, colours and keys will not be saved. Choose the folder again and allow writing.',
+	'player.autoNext': 'Next track by itself',
+	'player.repeatTitle': 'Repeat',
+	'repeat.none': 'No repeat',
+	'repeat.all': 'List',
+	'repeat.one': 'Track',
+	'player.repeatIdle': 'With the next-track switch off there is nothing to loop.',
 	'player.volume': 'Volume',
 	'player.seek': 'Seek',
 	'player.connect': 'Connect a remote',

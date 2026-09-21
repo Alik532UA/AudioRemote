@@ -191,6 +191,16 @@ export class AudioEngine {
 		this.durationMs = Math.min(DAY_MS, queueTotal(this.clipMs, this.gapMs, this.plays));
 	}
 
+	/**
+	 * КОГО ПОКЛИКАТИ, КОЛИ ТРЕК ДОГРАВ САМ.
+	 *
+	 * Саме САМ: «стоп», пауза й запуск іншого треку сюди не потрапляють — це
+	 * наміри людини, і продовжувати за неї нема чого. Рушій лише повідомляє
+	 * факт; що робити далі — репертуар, і він знає його не більше, ніж знає
+	 * список треків.
+	 */
+	onFinished: ((trackId: string) => void) | null = null;
+
 	private element: HTMLAudioElement | null = null;
 	private objectUrl: string | null = null;
 	/**
@@ -740,10 +750,15 @@ export class AudioEngine {
 			 * «стоп» тиснуть між номерами, щоб запустити те саме ще раз. Тут же
 			 * нічого не тиснули: звук закінчився сам.
 			 */
+			const finished = this.trackId;
 			this.forgetQueue();
 			this.playing = false;
 			this.positionMs = 0;
 			this.trackId = null;
+			// Після скидання, а не до: той, хто слухає, зазвичай одразу запускає
+			// наступний трек, і робити це поверх ще не прибраного стану означало б
+			// оголосити пульту трек, якого вже немає.
+			if (finished) this.onFinished?.(finished);
 		});
 		element.addEventListener('timeupdate', () => {
 			// Після «стопу» позиція вже нуль, а елемент ще догасає: його час не має

@@ -33,6 +33,7 @@
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import FolderHintDialog from '$lib/components/player/FolderHintDialog.svelte';
 	import FolderBar from '$lib/components/player/FolderBar.svelte';
+	import PlaybackPolicy from '$lib/components/player/PlaybackPolicy.svelte';
 	import ArmDialog from '$lib/components/player/ArmDialog.svelte';
 	import Equalizer from '$lib/components/ui/Equalizer.svelte';
 	import { releaseAfterTap } from '$lib/services/focus';
@@ -508,6 +509,15 @@
 								</button>
 							{/if}
 						</div>
+
+						{#if full}
+							<!--
+								Питання «а що заграє далі» виникає саме там, де дивляться, що
+								грає зараз. У згорнутій деці його немає з тієї ж причини, що й
+								решти: там показують один рядок гучності.
+							-->
+							<PlaybackPolicy {controller} />
+						{/if}
 					</section>
 
 					{#if controller.trouble}

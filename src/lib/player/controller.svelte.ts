@@ -4,13 +4,13 @@ import { LocalFolderSource } from '$lib/audio/localSource';
 import { runningInTauri, TauriFolderSource } from '$lib/audio/tauriSource';
 import type { AudioSource, SourceStatus } from '$lib/audio/source';
 import {
-	emptyConfig,
+	DEFAULT_PLAY,
 	isVisibility,
 	MAX_GAP_SEC,
 	MAX_ICON,
 	MAX_PLAYS,
 	toTrigger,
-	type BoardConfig,
+	type PlayPolicy,
 	type TrackVisibility
 } from '$lib/audio/boardConfig';
 import { adminPath, boardPath, deriveAdminKey } from '$lib/board/boardPath';
@@ -32,6 +32,8 @@ import { describeError } from '$lib/net/describeError';
 import { mark } from '$lib/services/breadcrumbs';
 import { emptyTrigger, type TrackTrigger } from '$lib/triggers/trigger';
 import { triggerWatcher } from '$lib/triggers/watcher.svelte';
+import { AUTO_MIN_MS, nextAfter } from './nextTrack';
+import { toConfig, toEntries } from './configMap';
 
 /** Трек так, як його бачить дошка. Форма спільна з пультом — див. `editor.ts`. */
 export type { BoardTrack };
@@ -181,6 +183,44 @@ export class PlayerController implements BoardEditor {
 		 */
 		this.source = source ?? (runningInTauri() ? new TauriFolderSource() : new LocalFolderSource());
 		this.engine = new AudioEngine(this.source);
+		this.engine.onFinished = (trackId) => this.continueAfter(trackId);
+	}
+
+	/**
+	 * ЩО РОБИТИ ПІСЛЯ ТРЕКУ — рішення репертуару, а не рушія.
+	 *
+	 * Живе у файлі поруч із музикою (`BoardConfig.play`), а не в налаштуваннях
+	 * браузера: «грати підряд» — властивість ЦІЄЇ програми, і при переїзді папки
+	 * на другий компʼютер школи вона мусить переїхати разом із нею.
+	 */
+	play = $state<PlayPolicy>({ ...DEFAULT_PLAY });
+
+	/**
+	 * Коли востаннє продовжили САМІ. Захист від кола на порожньому файлі.
+	 *
+	 * Файл нульової довжини кидає `ended` одразу, тож «повторювати трек» на
+	 * ньому крутилося б сотні разів на секунду й вішало вкладку. Два
+	 * продовження підряд швидше за чверть секунди — це не музика, і далі ми не
+	 * йдемо.
+	 */
+	private lastAuto = 0;
+
+	private continueAfter(trackId: string): void {
+		const now = Date.now();
+		if (now - this.lastAuto < AUTO_MIN_MS) return;
+
+		const next = nextAfter(this.visible, trackId, this.play);
+		if (!next) return;
+
+		this.lastAuto = now;
+		void this.playLocal(next);
+	}
+
+	/** Змінити політику. Пишеться у файл теки так само відкладено, як і решта. */
+	setPlay(patch: Partial<PlayPolicy>): void {
+		this.play = { ...this.play, ...patch };
+		if (this.saveTimer) clearTimeout(this.saveTimer);
+		this.saveTimer = setTimeout(() => void this.save(), SAVE_DELAY_MS);
 	}
 
 	get supported(): boolean {
@@ -396,39 +436,8 @@ export class PlayerController implements BoardEditor {
 			const scanned = await this.source.scan();
 			const config = await this.source.readConfig();
 
-			/*
-			 * Звичайні обʼєкти, а не `Map`: це короткі довідники в межах одного
-			 * виклику, і реактивними вони бути не мусять. Правило
-			 * `prefer-svelte-reactivity` вимагає `SvelteMap` від будь-якого `Map` у
-			 * файлі з рунами — тут це було б реактивне сховище заради двох пошуків.
-			 */
-			const settings: Record<string, (typeof config.tracks)[number] | undefined> = {};
-			for (const entry of config.tracks) settings[entry.path] = entry;
-
-			const byPath: Record<string, (typeof scanned)[number] | undefined> = {};
-			for (const track of scanned) byPath[track.path] = track;
-
-			const inConfigOrder = config.tracks
-				.map((entry) => byPath[entry.path])
-				.filter((track): track is NonNullable<typeof track> => track !== undefined);
-			const fresh = scanned.filter((track) => settings[track.path] === undefined);
-
-			this.entries = [...inConfigOrder, ...fresh].map((track) => {
-				const setting = settings[track.path];
-				return {
-					id: track.id,
-					path: track.path,
-					fileName: track.title,
-					title: setting?.title ?? track.title,
-					color: setting?.color ?? null,
-					icon: setting?.icon ?? null,
-					hotkey: setting?.hotkey ?? null,
-					visibility: setting?.visibility ?? 'all',
-					plays: setting?.plays ?? 1,
-					gapSec: setting?.gapSec ?? 0,
-					trigger: setting?.trigger ?? null
-				};
-			});
+			this.entries = toEntries(scanned, config);
+			this.play = { ...DEFAULT_PLAY, ...(config.play ?? {}) };
 
 			this.engine.setOrder(this.visible);
 			triggerWatcher.sync(this.snapshot());
@@ -587,22 +596,7 @@ export class PlayerController implements BoardEditor {
 
 	private async save(): Promise<void> {
 		if (this.stopped) return;
-		const config: BoardConfig = {
-			...emptyConfig(),
-			tracks: this.entries.map((entry) => ({
-				path: entry.path,
-				// Підпис пишеться, лише коли він СВІЙ: інакше файл заповнювався б
-				// іменами файлів, і перейменування файлу нічого б не змінило.
-				...(entry.title !== entry.fileName ? { title: entry.title } : {}),
-				...(entry.color ? { color: entry.color } : {}),
-				...(entry.icon ? { icon: entry.icon } : {}),
-				...(entry.hotkey ? { hotkey: entry.hotkey } : {}),
-				...(entry.visibility === 'all' ? {} : { visibility: entry.visibility }),
-				...(entry.plays > 1 ? { plays: entry.plays } : {}),
-				...(entry.gapSec > 0 ? { gapSec: entry.gapSec } : {}),
-				...(entry.trigger ? { trigger: entry.trigger } : {})
-			}))
-		};
+		const config = toConfig(this.entries, this.play);
 		this.configWritable = await this.source.writeConfig(config);
 	}
 

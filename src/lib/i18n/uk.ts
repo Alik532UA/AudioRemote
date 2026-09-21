@@ -202,6 +202,12 @@ export const uk = {
 	'player.moveDown': 'Нижче в списку',
 	'player.configReadonly':
 		'Папку видано лише на читання, тож порядок, кольори й клавіші не збережуться. Оберіть папку ще раз і дозвольте запис.',
+	'player.autoNext': 'Наступний трек сам',
+	'player.repeatTitle': 'Повторення',
+	'repeat.none': 'Не повторювати',
+	'repeat.all': 'Список',
+	'repeat.one': 'Трек',
+	'player.repeatIdle': 'Поки перехід вимкнено, список нема чому замикати.',
 	'player.volume': 'Гучність',
 	'player.seek': 'Перемотка',
 	'player.connect': 'Підключити пульт',

@@ -131,13 +131,53 @@ export interface TrackSetting {
 	trigger?: TrackTrigger;
 }
 
+/**
+ * ЩО РОБИТИ, КОЛИ ТРЕК ДОГРАВ САМ.
+ *
+ * Стосується лише природного кінця: «стоп», пауза й запуск іншого треку — це
+ * наміри людини, і політика в них не втручається.
+ *
+ * `none` — зупинитися; `all` — пройти список і почати спочатку; `one` —
+ * крутити той самий трек. Повтори ВСЕРЕДИНІ треку (`plays`) — інша річ і
+ * лишаються собою: спершу трек звучить скільки сказано, і вже потім діє це.
+ */
+export type RepeatMode = 'none' | 'all' | 'one';
+
+export interface PlayPolicy {
+	/** Самому переходити до наступного треку. */
+	autoNext: boolean;
+	repeat: RepeatMode;
+}
+
+/**
+ * ТИПОВО — НІЧОГО САМЕ НЕ ГРАЄ, і це не обережність заради обережності.
+ *
+ * Дошка стоїть у залі, де тишу між номерами роблять навмисно. Автоматичний
+ * перехід, увімкнений за нас, означав би, що наступний трек заграє посеред
+ * оголошення ведучого — і саме там, де виправити це нікому.
+ */
+export const DEFAULT_PLAY: PlayPolicy = { autoNext: false, repeat: 'none' };
+
 export interface BoardConfig {
 	schema: number;
 	/** Порядок треків — це порядок цього масиву. */
 	tracks: TrackSetting[];
+	/** Як поводитися після кінця треку. Відсутнє — типове (нічого). */
+	play?: PlayPolicy;
 }
 
 export const emptyConfig = (): BoardConfig => ({ schema: SCHEMA, tracks: [] });
+
+/** Чи схоже це на нашу політику відтворення. Чуже або зіпсуте — це типове. */
+function toPlay(value: unknown): PlayPolicy | null {
+	if (typeof value !== 'object' || value === null) return null;
+	const record = value as Record<string, unknown>;
+	const repeat = record.repeat;
+	return {
+		autoNext: record.autoNext === true,
+		repeat: repeat === 'all' || repeat === 'one' ? repeat : 'none'
+	};
+}
 
 /** Чи схоже це на наш запис про трек. Чуже поле просто не читається. */
 function toSetting(value: unknown): TrackSetting | null {
@@ -305,7 +345,8 @@ export function parseConfig(text: string): BoardConfig {
 			? record.tracks.map(toSetting).filter((entry): entry is TrackSetting => entry !== null)
 			: [];
 
-		return { schema: SCHEMA, tracks };
+		const play = toPlay(record.play);
+		return { schema: SCHEMA, tracks, ...(play ? { play } : {}) };
 	} catch {
 		// Зіпсований файл — це «налаштувань немає», а не привід падати.
 		return emptyConfig();
