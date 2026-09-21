@@ -34,6 +34,9 @@ class ThemeState {
 	/** Триває перемикання: доти прев'ю не знімається (§ 2.2). */
 	private changing = false;
 
+	/** Такт спалаху, який ще не завершився. `null` — не блимаємо. */
+	private flashing: number | null = null;
+
 	/** Що зараз бачить око: показане має пріоритет над обраним. */
 	get effective(): Theme | null {
 		return this.previewed ?? this.chosen;
@@ -63,6 +66,37 @@ class ThemeState {
 	 */
 	toggle(): void {
 		this.choose(this.isDark ? 'light' : 'dark');
+	}
+
+	/**
+	 * СПАЛАХНУТИ ПРОТИЛЕЖНОЮ ТЕМОЮ — і повернутися.
+	 *
+	 * Потрібне інфодошці: віджет, позначений важливим, мусить бути помітним
+	 * тому, хто на екран НЕ дивиться. Яскрава рамка на самому віджеті цього не
+	 * робить — її видно лише тоді, коли вже дивишся. Мить, у яку весь екран
+	 * став протилежним, ловиться краєм ока через увесь зал.
+	 *
+	 * Це ПОКАЗ, а не вибір: пишеться в `previewed`, не торкається сховища й
+	 * лишає позначку «обрана тема» там, де вона й була. Тому ж повторний спалах
+	 * спершу знімає попередній — інакше «протилежна» рахувалася б від уже
+	 * перевернутої, і друге натискання поверталo б тему назад замість спалаху.
+	 */
+	flash(ms: number): void {
+		if (typeof window === 'undefined') return;
+
+		if (this.flashing !== null) {
+			window.clearTimeout(this.flashing);
+			this.previewed = null;
+		}
+
+		this.previewed = this.isDark ? 'light' : 'dark';
+		this.applyTheme(this.previewed, { animate: true });
+
+		this.flashing = window.setTimeout(() => {
+			this.flashing = null;
+			this.previewed = null;
+			this.applyTheme(this.chosen, { animate: true });
+		}, ms);
 	}
 
 	/** Прочитати збережений вибір. Атрибут уже виставив скрипт у `app.html`. */
