@@ -476,7 +476,6 @@
 	 * Рамки немає в жодного: тло вже відділяє їх від сторінки, а лінія поверх
 	 * нього лише додає шуму в смугу, де й так три предмети.
 	 */
-	.shell__mark,
 	.shell__back,
 	.shell__settings {
 		transition:
@@ -487,13 +486,31 @@
 		background: var(--bg-header-btn);
 	}
 
+	/*
+	 * ЗНАК — БЕЗ ПІДКЛАДКИ, на відміну від сусідніх кнопок.
+	 *
+	 * Сусіди — значки в кольорі тексту, і сіре коло каже про них головне: це
+	 * кнопка. Знак застосунку каже це сам: помаранчевий квадрат на тлі шапки
+	 * ні з чим не сплутати. Підкладка під ним лише домальовувала другу рамку
+	 * навколо того, що вже має свою.
+	 *
+	 * Ціль лишається 44×44 (`--tap`) — палець не знає, що підкладки немає.
+	 * Фокус натомість малюється обведенням: доти його показувала саме зміна
+	 * тла, і разом із ним зник би єдиний знак, що знак у фокусі.
+	 */
 	.shell__mark {
 		display: grid;
 		place-items: center;
 		width: var(--tap);
 		height: var(--tap);
+		border-radius: var(--radius-full);
 		color: var(--text-primary);
 		text-decoration: none;
+	}
+
+	.shell__mark:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
 	}
 
 	.shell__controls {
@@ -511,8 +528,6 @@
 		color: var(--text-secondary);
 	}
 
-	.shell__mark:hover,
-	.shell__mark:focus-visible,
 	.shell__back:hover,
 	.shell__back:focus-visible,
 	.shell__settings:hover,
@@ -522,7 +537,6 @@
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.shell__mark,
 		.shell__back,
 		.shell__settings {
 			transition: none;
