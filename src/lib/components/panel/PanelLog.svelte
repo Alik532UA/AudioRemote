@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { t } from '$lib/i18n/i18n.svelte';
+	import { IconCheck } from '$lib/config/icons';
 	import type { PanelNotice } from '$lib/panel/apply';
 
 	/**
@@ -34,6 +35,28 @@
 
 	let { notices }: Props = $props();
 
+	/**
+	 * ПІДСВІТКУ ВЕРХНЬОГО РЯДКА МОЖНА ПРИБРАТИ — і саме тут, а не на панелі.
+	 *
+	 * На панелі підсвітка гасне сама за три секунди: там питання «що просять
+	 * ЗАРАЗ», і відповідь на нього псується від часу. У журналі вона тримається
+	 * скільки завгодно, бо питання інше — «що було останнім», і відповідь на
+	 * нього не псується ніколи.
+	 *
+	 * Але «останнє» і «те, чим я ще займаюся» — різні речі. Звукорежисер, який
+	 * прохання вже виконав, лишається з яскравим рядком, що каже «дивись сюди»,
+	 * і єдиний спосіб його прибрати — дочекатися наступного прохання. Тому
+	 * галочка: вона позначає рядок як опрацьований і НІЧОГО не видаляє — рядок
+	 * лишається на місці, тьмяніючи нарівні з рештою.
+	 *
+	 * Стан тут ЛОКАЛЬНИЙ навмисно: він про те, що прочитала людина біля цього
+	 * екрана, а не про дошку. У базі йому не було б чого робити, а сторінці не
+	 * довелося б нести ще одне поле заради чужої галочки.
+	 */
+	let hushed = $state<string | null>(null);
+
+	const head = $derived(notices.length > 0 && notices[0].id !== hushed ? notices[0].id : null);
+
 	const clock = (at: number) =>
 		new Date(at).toLocaleTimeString(undefined, {
 			hour: '2-digit',
@@ -65,7 +88,7 @@
 		{#each notices as notice, index (notice.id)}
 			<li
 				class="log__row"
-				class:log__row--head={index === 0}
+				class:log__row--head={head === notice.id}
 				data-testid="panel-notice-{index}-row"
 			>
 				<span class="log__time mono">{clock(notice.at)}</span>
@@ -83,6 +106,19 @@
 						</span>
 					{/if}
 				</span>
+
+				{#if head === notice.id}
+					<button
+						class="log__hush"
+						type="button"
+						title={t('panel.hush')}
+						aria-label={t('panel.hush')}
+						onclick={() => (hushed = notice.id)}
+						data-testid="panel-hush-btn"
+					>
+						<IconCheck size={16} aria-hidden="true" />
+					</button>
+				{/if}
 			</li>
 		{/each}
 	</ul>
@@ -164,6 +200,30 @@
 		border-radius: var(--radius-full);
 		color: var(--text-secondary);
 		font-size: 0.7rem;
+	}
+
+	/*
+	 * Галочка тиха: вона прибирає підсвітку, а не рядок, і не мусить
+	 * сперечатися за увагу з тим, що в рядку написано.
+	 */
+	.log__hush {
+		display: grid;
+		flex: none;
+		place-items: center;
+		margin-inline-start: auto;
+		inline-size: 28px;
+		block-size: 28px;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-sm);
+		background: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+	}
+
+	.log__hush:hover,
+	.log__hush:focus-visible {
+		border-color: var(--accent);
+		color: var(--accent);
 	}
 
 	.log__what {

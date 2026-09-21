@@ -454,9 +454,10 @@ export const uk = {
 	'panel.change': 'було {from} — стало {to}',
 	'panel.logTitle': 'Останні дії',
 	/* Мітка рядка, який зробили тут-таки, а не попросили із зали. */
+	'panel.hush': 'Прибрати підсвітку',
 	'panel.byHost': 'сам',
 	'panel.logEmpty': 'Поки що нічого не відбувалося.',
-	'panel.viewTitle': 'Що показувати',
+	'panel.viewTitle': 'Відображати на цій сторінці',
 	'panelView.both': 'І те, і те',
 	'panelView.panel': 'Панель',
 	'panelView.log': 'Журнал',
