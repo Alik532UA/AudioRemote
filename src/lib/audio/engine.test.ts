@@ -101,6 +101,15 @@ const TRACKS: SourceTrack[] = [
 /** Скільки адрес Blob відкликано — саме цим пізній запуск глушив чужий звук. */
 let revoked: string[] = [];
 
+/**
+ * Елементи `<audio>`, які створив рушій.
+ *
+ * Він робить їх через `new Audio()` і в документ не вставляє — знайти їх
+ * запитом до DOM неможливо. А потрібні вони, щоб надіслати справжню подію
+ * `timeupdate`: саме нею браузер і переписував позицію після «стопу».
+ */
+let elements: HTMLAudioElement[] = [];
+
 function build() {
 	const source = new SlowSource();
 	source.add('a.mp3', 'AAA');
@@ -117,6 +126,17 @@ function build() {
 	vi.spyOn(HTMLMediaElement.prototype, 'pause').mockReturnValue(undefined);
 
 	revoked = [];
+	elements = [];
+	const NativeAudio = globalThis.Audio;
+	vi.stubGlobal(
+		'Audio',
+		class RecordedAudio extends NativeAudio {
+			constructor() {
+				super();
+				elements.push(this);
+			}
+		}
+	);
 	vi.stubGlobal('URL', {
 		...URL,
 		createObjectURL: (file: Blob) => `blob:${(file as File).name}`,
@@ -224,5 +244,76 @@ describe('гонка запусків (engine.svelte.ts)', () => {
 
 		expect(engine.trackId, 'запуск пережив вихід із дошки').toBeNull();
 		expect(engine.playing).toBe(false);
+	});
+});
+
+/**
+ * «СТОП» ПЕРЕМОТУЄ ОДРАЗУ, А НЕ В КІНЦІ ЗГАСАННЯ.
+ *
+ * Дефект було видно лише на ПУЛЬТІ, і тому він жив довго. Плеєр оголошує стан
+ * одразу після команди, а позиція оберталася на нуль аж у кінці секундного
+ * згасання — тобто на пульт їхало старе число. На своєму екрані це нічого не
+ * означало (через секунду смужка все одно спадала), а пульт лишався з ним
+ * назавжди: трек зупинився, а смужка стоїть посеред треку.
+ *
+ * Тут міряється саме те, що побачить пульт: `positionMs` ОДРАЗУ після
+ * `stop()`, без жодного очікування.
+ */
+describe('«стоп» і позиція (engine.svelte.ts)', () => {
+	/** Рушій, у якому вже грає трек: без нього `seek()` мовчки виходить. */
+	async function playing() {
+		const { engine, source } = build();
+		const started = engine.play('a');
+		source.release('a.mp3');
+		await started;
+		return { engine, source };
+	}
+
+	it('перевірка жива: позиція взагалі рухається', async () => {
+		const { engine } = await playing();
+		engine.seek(5000);
+		expect(engine.positionMs, 'позиція не рухається — далі все зелене дарма').toBe(5000);
+	});
+
+	it('після «стоп» позиція нульова ОДРАЗУ', async () => {
+		const { engine } = await playing();
+		engine.seek(5000);
+
+		engine.stop();
+
+		expect(
+			engine.positionMs,
+			'пульт отримає це число й лишиться з ним: трек зупинено, а смужка стоїть посеред нього'
+		).toBe(0);
+	});
+
+	it('звук, що догасає, не воскрешає позицію', async () => {
+		/*
+		 * Секунду після «стопу» елемент ще ГРАЄ й сипле `timeupdate`. Без захисту
+		 * вони писали б позицію назад, і смужка стрибала б угору, щоб за мить
+		 * упасти.
+		 */
+		const { engine } = await playing();
+		engine.seek(5000);
+		engine.stop();
+
+		const element = elements.at(-1);
+		expect(element, 'рушій не створив елемента — перевірка мертва').toBeDefined();
+		element?.dispatchEvent(new Event('timeupdate'));
+
+		expect(engine.positionMs, 'час елемента переписав нуль, поставлений «стопом»').toBe(0);
+	});
+
+	it('новий запуск знімає утримання нуля', async () => {
+		// Інакше «стоп», натиснутий раз, прибивав би смужку до нуля назавжди.
+		const { engine, source } = await playing();
+		engine.stop();
+
+		const again = engine.play('b');
+		source.release('b.mp3');
+		await again;
+
+		engine.seek(3000);
+		expect(engine.positionMs, 'після запуску позиція лишилася прибитою до нуля').toBe(3000);
 	});
 });

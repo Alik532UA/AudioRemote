@@ -124,6 +124,22 @@ export class AudioEngine {
 	durationMs = $state(0);
 
 	/**
+	 * «СТОП» УЖЕ ПЕРЕМОТАВ, А ЗВУК ЩЕ ГАСНЕ.
+	 *
+	 * Згасання триває секунду, і весь цей час елемент ГРАЄ — тобто сипле
+	 * `timeupdate`, які писали б позицію назад. Доти позиція оберталася на нуль
+	 * аж у кінці згасання, і саме там ховався дефект: плеєр оголошує стан ОДРАЗУ
+	 * після «стопу», тобто зі старим числом. На своєму екрані це було непомітно
+	 * (через секунду смужка все одно спадала), а пульт лишався з тим числом
+	 * назавжди — зупинився, а смужка стоїть посеред треку.
+	 *
+	 * Тому «стоп» ставить нуль одразу, а цей прапорець тримає його, поки
+	 * догасає звук. Знімає його той, хто позицію задає навмисно: запуск,
+	 * перемотка й «грати».
+	 */
+	private rewound = false;
+
+	/**
 	 * ПОВТОРИ ЦЬОГО САМОГО ТРЕКУ.
 	 *
 	 * `left` — скільки відтворень ще лишилося після поточного, `gapMs` — пауза
@@ -344,6 +360,9 @@ export class AudioEngine {
 	seek(positionMs: number): void {
 		if (!this.element || !this.trackId) return;
 
+		// Перемотка задає позицію навмисно — тримати нуль від «стопу» більше не треба.
+		this.rewound = false;
+
 		const total = this.durationMs > 0 ? this.durationMs : Number.POSITIVE_INFINITY;
 		const clamped = Math.max(0, Math.min(total, positionMs));
 
@@ -381,6 +400,8 @@ export class AudioEngine {
 
 		/** Цей запуск — останній відомий намір, доки не прийде наступний. */
 		const intent = ++this.intent;
+		// Новий запуск сам вирішує, де позиція: тримати нуль від «стопу» вже не треба.
+		this.rewound = false;
 
 		/*
 		 * План повторів ставиться ДО відтворення й затирає попередній: натиснули
@@ -485,6 +506,8 @@ export class AudioEngine {
 		 * `await`, а кадр устигає раніше.
 		 */
 		this.cancelFade();
+		// «Грати» веде звук далі з місця паузи — нуль від «стопу» тут не діє.
+		this.rewound = false;
 
 		/*
 		 * «ГРАТИ» — ТЕЖ НАМІР, і він скасовує запуск, що був у дорозі.
@@ -537,12 +560,17 @@ export class AudioEngine {
 		this.forgetQueue();
 		// Так само, як у паузі: кнопка не чекає кінця згасання.
 		this.playing = false;
+		/*
+		 * ПЕРЕМОТКА — ОДРАЗУ, а не в кінці згасання: саме це число за мить
+		 * поїде на пульт (`announce()` після команди). Див. `rewound`.
+		 */
+		this.rewound = true;
+		this.positionMs = 0;
 		this.fadeTo(0, () => {
 			const element = this.element;
 			if (!element) return;
 			element.pause();
 			element.currentTime = 0;
-			this.positionMs = 0;
 		});
 	}
 
@@ -718,6 +746,9 @@ export class AudioEngine {
 			this.trackId = null;
 		});
 		element.addEventListener('timeupdate', () => {
+			// Після «стопу» позиція вже нуль, а елемент ще догасає: його час не має
+			// права її воскресити (див. `rewound`).
+			if (this.rewound) return;
 			// Позиція В ЧЕРЗІ: скільки відтворень уже позаду плюс час у поточному.
 			this.positionMs = Math.round(this.done * this.unit + element.currentTime * 1000);
 		});
