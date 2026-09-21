@@ -333,6 +333,8 @@ export const en: Record<TranslationKey, string> = {
 	'info.boardOffline': 'Board offline',
 	'info.noPanel': 'No panel yet. The buttons for the assistant are added here, on the board.',
 	'info.fillStarter': 'Build a starter panel',
+	'info.fillStarterHint':
+		'Two groups of buttons, a slider and a switch — what a hall starts with. Everything is editable afterwards.',
 	'info.offlineHint': 'The board is closed. Open it on the device by the sound desk.',
 	'info.noPanelRemote':
 		'No panel yet. It is assembled on the board — the device by the sound desk.',
@@ -349,6 +351,33 @@ export const en: Record<TranslationKey, string> = {
 	 * database as finished text and belong to the person from then on. See the
 	 * docblock in `starter.ts`.
 	 */
+	'panel.edit': 'Build the panel',
+	'panel.editDone': 'Done',
+	'panel.editHint':
+		'Tap a cell to put buttons, a slider or a switch into it. Empty places stay empty — they are what keeps the grid steady.',
+	'panel.cellTitle': 'Cell {n}',
+	'panel.kind': 'What is in the cell',
+	'panelKind.none': 'Empty',
+	'panelKind.buttons': 'Buttons',
+	'panelKind.slider': 'Slider',
+	'panelKind.check': 'Switch',
+	'panel.caption': 'Cell caption',
+	'panel.captionHint': 'Keep it short: “microphone”, “backing track”. A long one will not fit.',
+	'panel.buttonsTitle': 'Button labels',
+	'panel.buttonsHint':
+		'Empty fields do not become buttons. Four is the limit: a fifth will not fit alongside the caption.',
+	'panel.buttonLabel': 'Button {n}',
+	'panel.addButton': 'Add a button',
+	'panel.step': 'Step',
+	'panel.stepHint': 'How much one press moves it.',
+	'panel.save': 'Save',
+	'panel.clearCell': 'Empty the cell',
+	'panel.cellEmpty': 'empty',
+	'panel.summarySlider': 'slider, step {step}',
+	'panel.summaryCheck': 'switch',
+	'panel.buttonsOne': '{count} button',
+	'panel.buttonsFew': '{count} buttons',
+	'panel.buttonsMany': '{count} buttons',
 	'panel.up': 'More',
 	'panel.down': 'Less',
 	'panel.on': 'On',

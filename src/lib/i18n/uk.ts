@@ -347,6 +347,8 @@ export const uk = {
 	'info.boardOffline': 'Табло офлайн',
 	'info.noPanel': 'Панель ще не складено. Кнопки для помічника додають тут, на табло.',
 	'info.fillStarter': 'Скласти типову панель',
+	'info.fillStarterHint':
+		'Дві групи кнопок, повзунок і перемикач — те, з чого починають у залі. Далі правиться як завгодно.',
 	'info.offlineHint': 'Табло закрите. Відкрийте дошку на пристрої біля звукового пульта.',
 	'info.noPanelRemote': 'Панель ще не складено. Її складають на табло — на пристрої біля пульта.',
 
@@ -361,6 +363,33 @@ export const uk = {
 	 * Підписи типової панелі — інша річ: вони лягають у базу готовим рядком і
 	 * далі належать людині. Див. докблок `starter.ts`.
 	 */
+	'panel.edit': 'Скласти панель',
+	'panel.editDone': 'Готово',
+	'panel.editHint':
+		'Натисніть комірку, щоб поставити в неї кнопки, повзунок або перемикач. Порожні місця лишаються порожніми — саме вони й тримають сітку сталою.',
+	'panel.cellTitle': 'Комірка {n}',
+	'panel.kind': 'Що в комірці',
+	'panelKind.none': 'Порожньо',
+	'panelKind.buttons': 'Кнопки',
+	'panelKind.slider': 'Повзунок',
+	'panelKind.check': 'Перемикач',
+	'panel.caption': 'Підпис комірки',
+	'panel.captionHint': 'Коротко: «мікрофон», «фонограма». Довгий підпис не вміститься.',
+	'panel.buttonsTitle': 'Підписи кнопок',
+	'panel.buttonLabel': 'Кнопка {n}',
+	'panel.buttonsHint':
+		'Порожні поля не стають кнопками. Чотири — межа: п’ята в комірку не влізе разом із підписом.',
+	'panel.addButton': 'Додати кнопку',
+	'panel.step': 'Крок',
+	'panel.stepHint': 'На скільки міняє положення одне натискання.',
+	'panel.save': 'Зберегти',
+	'panel.clearCell': 'Спорожнити комірку',
+	'panel.cellEmpty': 'порожня',
+	'panel.summarySlider': 'повзунок, крок {step}',
+	'panel.summaryCheck': 'перемикач',
+	'panel.buttonsOne': '{count} кнопка',
+	'panel.buttonsFew': '{count} кнопки',
+	'panel.buttonsMany': '{count} кнопок',
 	'panel.up': 'Більше',
 	'panel.down': 'Менше',
 	'panel.on': 'Увімк.',

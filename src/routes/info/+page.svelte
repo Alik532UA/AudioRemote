@@ -16,14 +16,17 @@
 		watchPanel,
 		watchPanelState
 	} from '$lib/net/panel';
-	import type { Panel, PanelCommand, PanelCommandType } from '$lib/net/panelTypes';
+	import type { Panel, PanelCell, PanelCommand, PanelCommandType } from '$lib/net/panelTypes';
 	import { applyPanelCommand, refused, type PanelNotice } from '$lib/panel/apply';
 	import { starterPanel } from '$lib/panel/starter';
 	import { mark } from '$lib/services/breadcrumbs';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
+	import { IconSliders } from '$lib/config/icons';
 	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
+	import PanelEditorGrid from '$lib/components/panel/PanelEditorGrid.svelte';
 	import PanelLog from '$lib/components/panel/PanelLog.svelte';
+	import CellDialog from '$lib/components/panel/CellDialog.svelte';
 	import type { TranslationKey } from '$lib/i18n/i18n.svelte';
 
 	/**
@@ -58,6 +61,10 @@
 	let recent = $state<string | null>(null);
 	let notices = $state<(PanelNotice & { id: string; at: number })[]>([]);
 	let filling = $state(false);
+	/** Режим складання. Поки він увімкнений, сітка показує місця, а не органи. */
+	let editing = $state(false);
+	/** Яку комірку зараз правлять. Порожньо — вікно закрите. */
+	let picked = $state<string | null>(null);
 
 	const empty = $derived(Object.keys(panel.cells).length === 0);
 
@@ -141,6 +148,32 @@
 		return null;
 	}
 
+	/**
+	 * ПОСТАВИТИ (або прибрати) КОМІРКУ.
+	 *
+	 * Пишеться ВСЯ панель одним записом, а не одна комірка: `publishPanel` —
+	 * це `set` на весь вузол, і саме так вона й читається помічником. Часткове
+	 * оновлення дало б мить, у яку в залі видно панель, якої не існувало
+	 * ніколи.
+	 *
+	 * `rev` іде від годинника: номер редакції потрібен тому, хто колись
+	 * правитиме дошку з пульта, а не самому табло.
+	 */
+	async function putCell(at: string, cell: PanelCell | null) {
+		const board = boardSession.current;
+		if (!board) return;
+
+		const cells = { ...panel.cells };
+		if (cell) cells[at] = cell;
+		else delete cells[at];
+
+		try {
+			await publishPanel(board.key, { rev: Date.now(), cells });
+		} catch (error) {
+			fatal = describeError(error);
+		}
+	}
+
 	/** Скласти типову панель — рівно ті комірки, з яких починають у залі. */
 	async function fill() {
 		const board = boardSession.current;
@@ -175,6 +208,31 @@
 				</p>
 
 				<!--
+					СКЛАДАННЯ — ОКРЕМИЙ РЕЖИМ, а не олівець біля кожної комірки.
+					Складають панель раз на сезон, а дивляться на неї щовечора; олівці
+					стояли б на екрані весь той час, поки вони не потрібні.
+
+					На порожній дошці кнопки тут немає: те саме слово стоїть посеред
+					картки, яка пояснює, чому екран порожній, — і двічі одне й те саме
+					питає, чим воно відрізняється.
+				-->
+				{#if !empty || editing}
+					<button
+						class="btn btn--sm"
+						type="button"
+						aria-pressed={editing}
+						onclick={() => {
+							editing = !editing;
+							picked = null;
+						}}
+						data-testid="info-edit-btn"
+					>
+						<IconSliders size={18} aria-hidden="true" />
+						{editing ? t('panel.editDone') : t('panel.edit')}
+					</button>
+				{/if}
+
+				<!--
 					Вибір стоїть у шапці, а не над сіткою: це не дія над панеллю, а
 					налаштування ЦЬОГО екрана. За широким пультом видно обидві половини,
 					за вузьким доводиться обирати.
@@ -197,6 +255,24 @@
 
 		{#if !ready}
 			<p class="card muted" data-testid="info-wait-text">{t('common.loading')}</p>
+		{:else if editing}
+			<section class="card stack" data-testid="info-editor-section">
+				<p class="muted">{t('panel.editHint')}</p>
+				<PanelEditorGrid {panel} onpick={(cell) => (picked = cell)} />
+
+				{#if empty}
+					<button
+						class="btn"
+						type="button"
+						disabled={filling}
+						onclick={fill}
+						data-testid="info-fill-btn"
+					>
+						{filling ? t('common.loading') : t('info.fillStarter')}
+					</button>
+					<p class="muted">{t('info.fillStarterHint')}</p>
+				{/if}
+			</section>
 		{:else if empty}
 			<!--
 				ПАНЕЛІ ЩЕ НЕМАЄ, і сказано про це прямо разом із виходом. Порожня
@@ -205,14 +281,19 @@
 			-->
 			<section class="card stack" data-testid="info-empty-section">
 				<p>{t('info.noPanel')}</p>
+				<!--
+					ОДИН ВИХІД, А НЕ ДВА. «Скласти типову панель» живе в самому
+					складальнику, поруч із сіткою, яку вона заповнить: дві кнопки тут
+					питали б у людини, яка ще не бачила жодної комірки, чим типова
+					панель відрізняється від власної.
+				-->
 				<button
 					class="btn btn--primary"
 					type="button"
-					disabled={filling}
-					onclick={fill}
-					data-testid="info-fill-btn"
+					onclick={() => (editing = true)}
+					data-testid="info-start-edit-btn"
 				>
-					{filling ? t('common.loading') : t('info.fillStarter')}
+					{t('panel.edit')}
 				</button>
 			</section>
 		{:else}
@@ -231,6 +312,15 @@
 					</section>
 				{/if}
 			</div>
+		{/if}
+
+		{#if picked !== null}
+			<CellDialog
+				index={picked}
+				cell={panel.cells[picked] ?? null}
+				onsave={(cell) => void putCell(picked as string, cell)}
+				onclose={() => (picked = null)}
+			/>
 		{/if}
 	{/if}
 </div>
