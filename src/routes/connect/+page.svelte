@@ -13,11 +13,28 @@
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
+	import Equalizer from '$lib/components/ui/Equalizer.svelte';
 
 	/** Вид дошки приходить адресою — форма підключення одна на обидва. */
 	const kind = $derived(kindFromSearch(page.url.search));
 	/** Куди вести після вдалого входу. Роль та сама, екран інший. */
 	const target = $derived(kind === 'info' ? '/info-remote' : '/remote');
+
+	/**
+	 * ЗАЙШЛИ ЗА ПОСИЛАННЯМ — І ФОРМИ НЕ БАЧАТЬ ВЗАГАЛІ.
+	 *
+	 * Доти показувалася звичайна форма: два порожні поля, обидва заблоковані, і
+	 * кнопка «Шукаємо дошку…». Перші секунди людина дивилася на поля й
+	 * намагалася зрозуміти, чому в них не можна писати, — тобто читала питання,
+	 * на яке вже відповіли за неї.
+	 *
+	 * Прапорець ставиться СИНХРОННО в `onMount`, до першого малювання: постав
+	 * його після `await`, і форма встигла б блимнути.
+	 *
+	 * Знімається він лише при відмові — тоді поля потрібні: посилання застаріло,
+	 * і далі людина вводить пару руками.
+	 */
+	let byLink = $state(false);
 
 	let boardId = $state('');
 	let password = $state('');
@@ -61,6 +78,7 @@
 		const linkedId = fromLink.get('id');
 
 		if (linkedKey && isBoardKey(linkedKey)) {
+			byLink = true;
 			history.replaceState(null, '', window.location.pathname + window.location.search);
 			void openByKey(linkedKey, linkedId ?? '', fromLink.get('start') === '1');
 			return;
@@ -100,6 +118,9 @@
 			if (!(await boardExists(key))) {
 				failure = 'connect.notFound';
 				busy = false;
+				// Посилання не спрацювало — далі пара вводиться руками, отже форма
+				// потрібна. Заставка тут лишилася б вічним «зачекайте».
+				byLink = false;
 				return;
 			}
 
@@ -128,6 +149,7 @@
 			await goto(resolve(target));
 		} catch (error) {
 			busy = false;
+			byLink = false;
 			failure = describeError(error);
 		}
 	}
@@ -177,48 +199,79 @@
 </script>
 
 <div class="stack stack--auth">
-	<form class="card card--auth stack" onsubmit={submit}>
-		<h1 class="title">{kind === 'info' ? t('info.connectTitle') : t('connect.title')}</h1>
-
-		<div class="field">
-			<label class="field__label" for="connect-id">{t('connect.idLabel')}</label>
-			<input
-				id="connect-id"
-				class="input mono"
-				type="text"
-				bind:value={boardId}
-				maxlength="16"
-				autocapitalize="characters"
-				autocorrect="off"
-				spellcheck="false"
-				inputmode="text"
-				data-testid="connect-id"
-			/>
+	{#if byLink}
+		<!--
+			ТА САМА ЗАСТАВКА, ЩО Й НА ТРЕКУ, ЯКИЙ ЗВУЧИТЬ. Смужки не міряють нічого
+			й тут теж — вони відповідають на єдине питання людини в цю мить: «воно
+			взагалі щось робить?». Заводити другий вигляд «зачекайте» заради цього
+			екрана означало б мати два різні знаки однієї відповіді.
+		-->
+		<div class="card card--auth waiting" data-testid="connect-waiting-section">
+			<Equalizer size={28} />
+			<p class="waiting__text">{t('connect.searching')}</p>
 		</div>
+	{:else}
+		<form class="card card--auth stack" onsubmit={submit}>
+			<h1 class="title">{kind === 'info' ? t('info.connectTitle') : t('connect.title')}</h1>
 
-		<PasswordField id="connect-password" label={t('connect.passwordLabel')} bind:value={password} />
+			<div class="field">
+				<label class="field__label" for="connect-id">{t('connect.idLabel')}</label>
+				<input
+					id="connect-id"
+					class="input mono"
+					type="text"
+					bind:value={boardId}
+					maxlength="16"
+					autocapitalize="characters"
+					autocorrect="off"
+					spellcheck="false"
+					inputmode="text"
+					data-testid="connect-id"
+				/>
+			</div>
 
-		<label class="check">
-			<input type="checkbox" bind:checked={remember} data-testid="connect-remember" />
-			<span>{t('connect.remember')}</span>
-		</label>
+			<PasswordField
+				id="connect-password"
+				label={t('connect.passwordLabel')}
+				bind:value={password}
+			/>
 
-		{#if failure}
-			<Failure reason={failure} testid="connect-error" />
-		{/if}
+			<label class="check">
+				<input type="checkbox" bind:checked={remember} data-testid="connect-remember" />
+				<span>{t('connect.remember')}</span>
+			</label>
 
-		<button
-			class="btn btn--primary btn--block"
-			type="submit"
-			disabled={!ready}
-			data-testid="connect-submit"
-		>
-			{busy ? t('connect.searching') : t('connect.submit')}
-		</button>
-	</form>
+			{#if failure}
+				<Failure reason={failure} testid="connect-error" />
+			{/if}
+
+			<button
+				class="btn btn--primary btn--block"
+				type="submit"
+				disabled={!ready}
+				data-testid="connect-submit"
+			>
+				{busy ? t('connect.searching') : t('connect.submit')}
+			</button>
+		</form>
+	{/if}
 </div>
 
 <style>
+	/* Заставка: смужки над підписом, обоє по центру картки. */
+	.waiting {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--gap);
+		padding-block: var(--gap-lg);
+		color: var(--accent);
+	}
+
+	.waiting__text {
+		color: var(--text-secondary);
+	}
+
 	.title {
 		font-size: 1.3rem;
 	}
