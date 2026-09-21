@@ -237,7 +237,21 @@ describe('CI (CI-CD-AND-TOOLS-v9 § 1)', () => {
 		'actions/checkout': 'v5',
 		'actions/setup-node': 'v5',
 		'actions/setup-java': 'v5',
-		'peaceiris/actions-gh-pages': 'v4'
+		'peaceiris/actions-gh-pages': 'v4',
+		/*
+		 * Додані з `release.yml` (випуск застосунку для компʼютера). Прочитано
+		 * з `action.yml` відповідного мажора 2026-09-21:
+		 *
+		 *   Swatinem/rust-cache@v2   → runs.using: "node24"
+		 *   tauri-apps/tauri-action@v0 → runs.using: 'node24'
+		 *
+		 * `dtolnay/rust-toolchain@stable` сюди НЕ потрапляє й не мусить:
+		 * перевірка бере лише `@vN`, а `@stable` — рухома мітка. Це окремий
+		 * ризик (вміст мітки міняється без нашого відома), і вкладати його в
+		 * перелік «перевірених мажорів» означало б вдавати, ніби його заміряли.
+		 */
+		'Swatinem/rust-cache': 'v2',
+		'tauri-apps/tauri-action': 'v0'
 	};
 
 	it('перевірка жива: дії в workflow знайдено', () => {

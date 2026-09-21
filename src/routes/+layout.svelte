@@ -10,6 +10,7 @@
 	import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte';
 	import AppMark from '$lib/components/ui/AppMark.svelte';
 	import ReloadPrompt from '$lib/components/ui/ReloadPrompt.svelte';
+	import DesktopUpdatePrompt from '$lib/components/ui/DesktopUpdatePrompt.svelte';
 	import { IconBack, IconMenu, IconSettings } from '$lib/config/icons';
 	import { mark, rotate } from '$lib/services/breadcrumbs';
 	import { logCrashes } from '$lib/services/crashLog';
@@ -271,6 +272,19 @@
 {/if}
 
 <ReloadPrompt />
+<!--
+	ДВІ РІЗНІ ПРОПОЗИЦІЇ, І ЦЕ НАВМИСНО.
+
+	`ReloadPrompt` оновлює СТОРІНКУ: новий service worker уже завантажений,
+	перезавантаження триває мить. `DesktopUpdatePrompt` — ВСТАНОВЛЕНИЙ
+	ЗАСТОСУНОК: інсталятор закриває вікно й відкриває заново, тобто звук у залі
+	зникає на кілька секунд.
+
+	Звести їх в одну панель означало б сховати саме ту різницю, яка людину й
+	цікавить. У браузері друга не показується взагалі — перевірка одразу віддає
+	«не застосунок».
+-->
+<DesktopUpdatePrompt />
 
 <style>
 	.shell {

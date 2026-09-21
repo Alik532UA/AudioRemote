@@ -1,0 +1,112 @@
+name: Випуск застосунку для компʼютера
+
+# ЗАПУСК ЛИШЕ ЗА ТЕГОМ.
+#
+# Не на кожен пуш: збірка Rust на Windows триває хвилини, а випуск — рішення
+# людини, а не наслідок коміту. Особливо тут: оболонка міняється кілька разів
+# на рік, і пускати релізну збірку на кожну правку сторінки не має сенсу.
+#
+# `workflow_dispatch` лишається для повторного випуску того самого тегу, коли
+# впав крок публікації.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# `cancel-in-progress: false` навмисно: скасований посеред публікації прогін
+# лишає реліз із половиною файлів, і оновлення в людей починає качати те, чого
+# немає.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # КЛЮЧІ ПЕРЕВІРЯЮТЬСЯ ПЕРШИМИ, ДО ЗБІРКИ.
+      #
+      # Без приватного ключа `tauri build` із `createUpdaterArtifacts` однаково
+      # впаде — але через двадцять хвилин і з повідомленням про підпис, у якому
+      # не видно, що робити. Тут відмова настає за секунду й називає обидва
+      # секрети.
+      #
+      # Друга половина важливіша за першу: відкритий ключ лежить у репозиторії,
+      # і поки там заглушка, зібраний застосунок НЕ ЗМОЖЕ прийняти жодного
+      # оновлення. Помітити це можна було б лише на живій машині через місяць.
+      - name: Ключі підпису на місці
+        shell: bash
+        env:
+          SIGNING_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SIGNING_KEY" ]; then
+            echo "::error title=Немає ключа підпису::Секрет TAURI_SIGNING_PRIVATE_KEY не заданий. Згенеруйте пару: npx tauri signer generate -w audioremote.key — і покладіть ПРИВАТНУ частину в секрети репозиторію разом із TAURI_SIGNING_PRIVATE_KEY_PASSWORD."
+            exit 1
+          fi
+          if grep -q 'ЗАМІНІТЬ_ЦЕ_НА_ВІДКРИТИЙ_КЛЮЧ' src-tauri/tauri.conf.release.json; then
+            echo "::error title=Відкритий ключ не підставлений::У src-tauri/tauri.conf.release.json лишилася заглушка. Вставте туди ВІДКРИТУ частину пари — інакше застосунок зібереться, опублікується й не прийме жодного оновлення."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Кеш збірки Rust. Без нього кожен випуск компілює всі залежності з нуля.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      # Гейти перед випуском. Випускати збірку, яка не проходить перевірки,
+      # гірше за невипущену: відкотити встановлений застосунок людина не може.
+      - name: Типи
+        run: npm run check
+
+      - name: Юніт-перевірки
+        if: ${{ !cancelled() }}
+        run: npm test
+
+      # МЕЖА ДОСТУПУ ДО ДИСКА — саме тут, а не лише в юніт-прогоні.
+      #
+      # `npm test` перевіряє написання `remote.urls` текстом; що патерн
+      # ПРОПУСКАЄ, доводить лише `cargo test`, який будує його тим самим типом,
+      # що судить у застосунку. Випуск — останній момент, коли це ще можна
+      # спинити: далі exe поїде на машини школи.
+      - name: Межа capability на Rust
+        if: ${{ !cancelled() }}
+        working-directory: src-tauri
+        run: cargo test --lib
+
+      # `--config` НАКЛАДАЄТЬСЯ на основний конфіг, а не замінює його.
+      #
+      # Саме тому налаштування оновлення живуть окремим файлом: у дереві
+      # розробника їх немає, тож локальна збірка не вимагає ключа підпису й не
+      # обіцяє оновлень, яких нікуди слати.
+      - name: Збірка застосунку й публікація
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'AudioRemote ${{ github.ref_name }}'
+          releaseBody: 'Встановлений застосунок оновиться сам — він запропонує це при наступному запуску. Для першої установки завантажте `.exe` нижче.'
+          releaseDraft: false
+          prerelease: false
+          # `latest.json` — це і є те, що читає встановлений застосунок.
+          # Без нього реліз виглядає повним, а оновлення не приходить нікому.
+          includeUpdaterJson: true
+          args: --config src-tauri/tauri.conf.release.json --bundles nsis

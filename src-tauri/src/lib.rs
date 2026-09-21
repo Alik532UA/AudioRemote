@@ -33,12 +33,28 @@ fn allow_folder(app: tauri::AppHandle, path: String) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    #[allow(unused_mut)]
+    let mut builder = tauri::Builder::default()
         // Порядок має значення: `persisted-scope` відновлює збережені дозволи
         // при старті, тож його плагін мусить стояти після `fs`.
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_persisted_scope::init())
+        .plugin(tauri_plugin_process::init());
+
+    /*
+     * Оновлювач — лише там, де він існує.
+     *
+     * Крейт підключений під `cfg(not(android|ios))`, тож на мобільних цього
+     * рядка не має бути взагалі: інакше збірка падає на невідомому імені, а не
+     * на зрозумілій відмові.
+     */
+    #[cfg(desktop)]
+    {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
+
+    builder
         .invoke_handler(tauri::generate_handler![allow_folder])
         .run(tauri::generate_context!())
         .expect("не вдалося запустити AudioRemote");

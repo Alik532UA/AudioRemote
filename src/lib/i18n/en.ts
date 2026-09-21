@@ -27,6 +27,12 @@ export const en: Record<TranslationKey, string> = {
 	'reload.apply': 'Update now',
 	'reload.later': 'Later',
 
+	'shell.ready': 'A new version of the app is out ({version}).',
+	'shell.apply': 'Install and restart',
+	'shell.later': 'Not now',
+	'shell.warning': 'The app will close and reopen — sound stops for that moment.',
+	'shell.failed': 'The update could not be installed. Try again, or download the app afresh.',
+
 	'field.reveal': 'Show the password',
 	'field.hide': 'Hide the password',
 	'field.capsLock': 'Caps Lock is on',

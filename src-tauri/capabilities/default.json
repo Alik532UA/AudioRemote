@@ -11,6 +11,8 @@
 		"core:default",
 		"dialog:default",
 		"dialog:allow-open",
+		"updater:default",
+		"process:allow-restart",
 		"fs:default",
 		"fs:allow-exists",
 		"fs:allow-read-dir",

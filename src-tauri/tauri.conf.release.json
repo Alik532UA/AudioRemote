@@ -1,0 +1,17 @@
+{
+	"$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+	"bundle": {
+		"createUpdaterArtifacts": true
+	},
+	"plugins": {
+		"updater": {
+			"endpoints": [
+				"https://github.com/Alik532UA/AudioRemote/releases/latest/download/latest.json"
+			],
+			"windows": {
+				"installMode": "passive"
+			},
+			"pubkey": "ЗАМІНІТЬ_ЦЕ_НА_ВІДКРИТИЙ_КЛЮЧ"
+		}
+	}
+}
