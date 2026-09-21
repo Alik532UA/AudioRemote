@@ -1,11 +1,28 @@
 import { readItem, writeItem } from '$lib/services/storage';
-import { en } from './en';
 import { uk, type TranslationKey } from './uk';
 
 export const LOCALES = ['uk', 'en'] as const;
 export type Locale = (typeof LOCALES)[number];
 
-const DICTIONARIES: Record<Locale, Record<TranslationKey, string>> = { uk, en };
+/**
+ * АНГЛІЙСЬКИЙ СЛОВНИК ПРИЇЖДЖАЄ ОКРЕМО, і це замір, а не смак.
+ *
+ * Обидва словники разом важили 15.7 КБ gzip і лежали в чанку, який тягне КОЖНА
+ * сторінка — включно з тією, де дві кнопки. Бюджет сторінки (`check:bundle`)
+ * від цього перейшов межу: 132.6 КБ при стелі 132, і найважчою половиною був
+ * текст мови, якої в цьому залі ніхто не бачить.
+ *
+ * Українська лишається статичною з двох причин. Вона типова — отже майже
+ * завжди потрібна одразу. І саме з неї виводиться `TranslationKey`, тобто
+ * відкласти її означало б відкласти перевірку типів.
+ *
+ * ЦІНА НАЗВАНА: той, хто обрав англійську, на першому кадрі побачить
+ * українську, доки не приїде чанк. Це один кадр і один невеликий запит, і
+ * саме так у цьому проєкті й розставлені пріоритети: «англійська тут —
+ * запасна, а не основна».
+ */
+const loadEnglish = () => import('./en').then((module) => module.en);
+
 const STORAGE_KEY = 'lang';
 
 const isLocale = (value: unknown): value is Locale =>
@@ -23,6 +40,21 @@ class I18nState {
 	locale = $state<Locale>('uk');
 
 	/**
+	 * Словник НЕтипової мови, коли він уже приїхав.
+	 *
+	 * `null` означає «ще не приїхав», а не «немає»: доти показується українська,
+	 * і текст сам зміниться, щойно чанк дійде.
+	 */
+	private other = $state<Record<TranslationKey, string> | null>(null);
+	/** Щоб не замовляти той самий чанк двічі, поки перший у дорозі. */
+	private pending: Promise<void> | null = null;
+
+	/** Словник, яким перекладати ЗАРАЗ. */
+	readonly dictionary: Record<TranslationKey, string> = $derived(
+		this.locale === 'uk' ? uk : (this.other ?? uk)
+	);
+
+	/**
 	 * Порядок джерел: збережений вибір → `?lang=` → мова браузера → українська.
 	 *
 	 * `?lang=` стоїть ПІСЛЯ сховища й нічого в нього не пише — це міжсайтовий
@@ -32,29 +64,46 @@ class I18nState {
 	init(): void {
 		const saved = readItem(STORAGE_KEY);
 		if (isLocale(saved)) {
-			this.apply(saved);
+			void this.apply(saved);
 			return;
 		}
 
 		const fromUrl = new URLSearchParams(window.location.search).get('lang');
 		if (isLocale(fromUrl)) {
-			this.apply(fromUrl);
+			void this.apply(fromUrl);
 			return;
 		}
 
 		const fromBrowser = navigator.language.slice(0, 2);
-		this.apply(isLocale(fromBrowser) ? fromBrowser : 'uk');
+		void this.apply(isLocale(fromBrowser) ? fromBrowser : 'uk');
 	}
 
-	set(locale: Locale): void {
+	/**
+	 * Обрати мову. Обіцянка виконується, коли текст уже справді той.
+	 *
+	 * Натисканню на неї чекати не треба — екран перемалюється сам. Чекають ті,
+	 * кому потрібен ГОТОВИЙ переклад одразу: перевірки.
+	 */
+	set(locale: Locale): Promise<void> {
 		writeItem(STORAGE_KEY, locale);
-		this.apply(locale);
+		return this.apply(locale);
 	}
 
-	private apply(locale: Locale): void {
+	private async apply(locale: Locale): Promise<void> {
 		this.locale = locale;
 		// Мова документа — не косметика: від неї залежать читалка й перенесення.
 		if (typeof document !== 'undefined') document.documentElement.lang = locale;
+		if (locale === 'uk') return;
+
+		/*
+		 * Мов рівно дві, тож «не українська» означає англійську. Третя мова
+		 * зробить із цього перелік — і зробить це видимо, бо тип `Locale`
+		 * перестане звужуватися сам.
+		 */
+		this.pending ??= loadEnglish().then((dictionary) => {
+			this.other = dictionary;
+		});
+		await this.pending;
 	}
 }
 
@@ -68,7 +117,7 @@ export const i18n = new I18nState();
  * типів уже не пропускає.
  */
 export function t(key: TranslationKey, values?: Record<string, string | number>): string {
-	const template = DICTIONARIES[i18n.locale][key];
+	const template = i18n.dictionary[key];
 	if (!values) return template;
 
 	return template.replace(/\{(\w+)\}/g, (whole, name: string) =>

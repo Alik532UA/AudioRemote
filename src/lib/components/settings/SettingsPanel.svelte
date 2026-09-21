@@ -113,7 +113,7 @@
 							class:btn--primary={i18n.locale === locale}
 							aria-pressed={i18n.locale === locale}
 							data-testid="settings-lang-{locale}"
-							onclick={() => i18n.set(locale)}
+							onclick={() => void i18n.set(locale)}
 						>
 							{LOCALE_NAMES[locale]}
 						</button>

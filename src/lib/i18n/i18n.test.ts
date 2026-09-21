@@ -49,13 +49,20 @@ describe('множина', () => {
 		other: 'player.tracksMany'
 	} as const;
 
-	const inLocale = (locale: 'uk' | 'en', count: number) => {
+	/**
+	 * `await`, бо НЕтиповий словник тепер приїжджає окремим чанком.
+	 *
+	 * Присвоїти `i18n.locale` мало: доти, доки чанк у дорозі, показується
+	 * українська — і саме так це виглядає на екрані. Перевірка, яка не чекала б,
+	 * зеленіла б від українського тексту в описі про англійський.
+	 */
+	const inLocale = async (locale: 'uk' | 'en', count: number) => {
 		const was = i18n.locale;
-		i18n.locale = locale;
+		await i18n.set(locale);
 		try {
 			return plural(tracks, count);
 		} finally {
-			i18n.locale = was;
+			await i18n.set(was);
 		}
 	};
 
@@ -66,24 +73,24 @@ describe('множина', () => {
 		[5, '5 треків'],
 		[8, '8 треків'],
 		[0, '0 треків']
-	])('українською %i — «%s»', (count, expected) => {
-		expect(inLocale('uk', count)).toBe(expected);
+	])('українською %i — «%s»', async (count, expected) => {
+		expect(await inLocale('uk', count)).toBe(expected);
 	});
 
-	it.each([11, 12, 13, 14])('%i — «треків», а не «треки»', (count) => {
+	it.each([11, 12, 13, 14])('%i — «треків», а не «треки»', async (count) => {
 		/*
 		 * ГОЛОВНИЙ ВИПАДОК. Саме на цих числах ламається наївна перевірка за
 		 * останньою цифрою: 11 закінчується на 1, але «11 трек» — не українська.
 		 * Заради них тут і стоїть `Intl.PluralRules`.
 		 */
-		expect(inLocale('uk', count)).toBe(`${count} треків`);
+		expect(await inLocale('uk', count)).toBe(`${count} треків`);
 	});
 
 	it.each([
 		[1, '1 track'],
 		[2, '2 tracks'],
 		[8, '8 tracks']
-	])('англійською %i — «%s»', (count, expected) => {
-		expect(inLocale('en', count)).toBe(expected);
+	])('англійською %i — «%s»', async (count, expected) => {
+		expect(await inLocale('en', count)).toBe(expected);
 	});
 });
