@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { expect, test, type Page } from '@playwright/test';
 import type { AxeResults, TagValue } from 'axe-core';
 import { A11Y_BASELINE, A11Y_KNOWN, type A11yState } from './a11y-baseline';
+import { PAGES, RENDERED, WALK } from './pages';
 
 /**
  * МАШИННО-ВИЯВНІ ПОРУШЕННЯ WCAG НАД ЗІБРАНИМ САЙТОМ
@@ -62,6 +63,9 @@ import { A11Y_BASELINE, A11Y_KNOWN, type A11yState } from './a11y-baseline';
  * заблокував би.
  */
 
+// Межа часу опису — на весь обхід сторінок; чому саме так, сказано в `pages.ts`.
+test.describe.configure({ timeout: WALK });
+
 const require = createRequire(import.meta.url);
 /** Стиснуте ядро: воно вдесятеро менше за розгорнуте, а звіт той самий. */
 const AXE_SOURCE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
@@ -73,23 +77,6 @@ declare global {
 		axe: typeof import('axe-core');
 	}
 }
-
-/** Адреси, які міряються без жодної взаємодії. Ключ — стан із переліку боргу. */
-const PAGES: Readonly<Record<string, string>> = {
-	root: './',
-	menu: './menu',
-	create: './create',
-	connect: './connect',
-	settings: './settings',
-	/*
-	 * Плеєр і пульт БЕЗ ДОШКИ — це теж стан застосунку, і саме той, у якому
-	 * людина опиняється, відкривши збережене посилання наступного дня. Дошкові
-	 * стани цих сторінок лишаються поза набором разом із усім дошковим: межа
-	 * названа в `playwright.config.ts`.
-	 */
-	player: './player',
-	remote: './remote'
-};
 
 /** Покласти ядро axe в кожен документ, який відкриє ця сторінка. */
 async function armAxe(page: Page): Promise<void> {
@@ -168,7 +155,7 @@ test('світла тема: жодна сторінка не має машин�
 	const problems: string[] = [];
 	for (const [state, path] of Object.entries(PAGES)) {
 		await page.goto(path);
-		await expect(page.locator('main')).toBeVisible();
+		await expect(page.locator('main')).toBeVisible(RENDERED);
 		problems.push(...(await audit(page, state as A11yState)));
 	}
 	expect(problems, `axe у світлій темі:\n${problems.join('\n')}`).toEqual([]);
@@ -181,7 +168,7 @@ test('темна тема: жодна сторінка не має машинн�
 	const problems: string[] = [];
 	for (const [state, path] of Object.entries(PAGES)) {
 		await page.goto(path);
-		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark', RENDERED);
 		problems.push(...(await audit(page, state as A11yState)));
 	}
 	expect(problems, `axe у темній темі:\n${problems.join('\n')}`).toEqual([]);
@@ -200,7 +187,7 @@ test('відкрите вікно налаштувань теж міряєтьс
 	await armAxe(page);
 	await page.goto('./menu');
 	await page.getByTestId('go-settings').first().click();
-	await expect(page.getByTestId('settings-modal')).toBeVisible();
+	await expect(page.getByTestId('settings-modal')).toBeVisible(RENDERED);
 
 	const problems = await audit(page, 'settingsModal');
 	expect(problems, `axe у відкритому вікні:\n${problems.join('\n')}`).toEqual([]);

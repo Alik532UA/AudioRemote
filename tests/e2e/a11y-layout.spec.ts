@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { RENDERED, ROUTES, WALK } from './pages';
 
 /**
  * РОЗКЛАДКА, ЯКОЇ axe НЕ БАЧИТЬ У ПРИНЦИПІ
@@ -36,13 +37,14 @@ import { expect, test, type Page } from '@playwright/test';
  * файлів.
  */
 
+// Межа часу опису — на весь обхід сторінок; чому саме так, сказано в `pages.ts`.
+test.describe.configure({ timeout: WALK });
+
 /** Стандарт проєкту: 44×44 CSS px на дотик. */
 const TAP = 44;
 
 /** Допуск на перетин цілей: менше — це антиаліасинг і рамки, а не помилка. */
 const OVERLAP = 4;
-
-const ROUTES = ['./', './menu', './create', './connect', './settings', './player', './remote'];
 
 const INTERACTIVE =
 	'button, a[href], input:not([type=hidden]), select, textarea, summary, [role=button], [role=switch]';
@@ -113,7 +115,7 @@ test('на 320 px сторінка не їде вбік', async ({ page }) => {
 	const wide: string[] = [];
 	for (const path of ROUTES) {
 		await page.goto(path);
-		await expect(page.locator('main')).toBeVisible();
+		await expect(page.locator('main')).toBeVisible(RENDERED);
 
 		const culprits = await page.evaluate(() => {
 			const root = document.documentElement;
@@ -165,7 +167,7 @@ test('кожна ціль не менша за 44×44, а виняток спр�
 
 	for (const path of ROUTES) {
 		await page.goto(path);
-		await expect(page.locator('main')).toBeVisible();
+		await expect(page.locator('main')).toBeVisible(RENDERED);
 
 		counted += await page.evaluate(
 			(selector) => document.querySelectorAll(selector).length,
@@ -213,7 +215,7 @@ test('цілі не перекривають одна одну', async ({ page }
 	const problems: string[] = [];
 	for (const path of ROUTES) {
 		await page.goto(path);
-		await expect(page.locator('main')).toBeVisible();
+		await expect(page.locator('main')).toBeVisible(RENDERED);
 
 		const overlaps = await page.evaluate(
 			({ selector, allowed }) => {
