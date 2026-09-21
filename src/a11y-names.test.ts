@@ -39,6 +39,39 @@ const NAMED_BY_ATTR = /aria-label[=\s]|aria-labelledby=|\btitle=/;
 
 const lineOf = (text: string, at: number): number => text.slice(0, at).split('\n').length;
 
+/**
+ * Де САМЕ закінчується відкривний тег — з урахуванням лапок і фігурних дужок.
+ *
+ * ПЕРШИЙ `>` ПІСЛЯ `<button` — це майже ніколи не кінець тега. У розмітці
+ * Svelte атрибути несуть вирази, і `onclick={() => …}` дає `>` усередині
+ * стрілки. Доти перевірка брала саме його, і наслідків було два, обидва тихі:
+ * атрибути обрізалися на півслові (`aria-label` після обробника ставав
+ * невидимим), а «тілом» кнопки виявлявся хвіст її ж тега — непорожній рядок,
+ * тобто «ім'я є, все гаразд».
+ *
+ * Заміряно на цьому ж проєкті: із 90 кнопок так обривалося 68. Перевірка
+ * дивилася на 22 з них і звітувала успіх.
+ */
+function tagEnd(text: string, from: number): number {
+	let depth = 0;
+	let quote = '';
+	for (let i = from; i < text.length; i++) {
+		const char = text[i];
+		if (quote) {
+			if (char === quote) quote = '';
+		} else if (char === '"' || char === "'") {
+			quote = char;
+		} else if (char === '{') {
+			depth += 1;
+		} else if (char === '}') {
+			depth -= 1;
+		} else if (char === '>' && depth === 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
 /** Текст елемента без тегів і без блоків `{#if}`/`{:else}`/`{/if}`. */
 function visibleText(body: string): string {
 	return body
@@ -60,7 +93,7 @@ for (const file of files) {
 
 	// ─── Кнопки ───────────────────────────────────────────────────────────
 	for (const open of text.matchAll(/<button\b/g)) {
-		const gt = text.indexOf('>', open.index);
+		const gt = tagEnd(text, open.index);
 		const close = text.indexOf('</button>', gt);
 		if (gt === -1 || close === -1) continue;
 
@@ -86,7 +119,7 @@ for (const file of files) {
 	);
 
 	for (const open of text.matchAll(/<(input|textarea|select)\b/g)) {
-		const gt = text.indexOf('>', open.index);
+		const gt = tagEnd(text, open.index);
 		if (gt === -1) continue;
 		const attrs = text.slice(open.index, gt);
 
