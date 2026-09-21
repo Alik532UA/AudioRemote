@@ -229,11 +229,11 @@
 					{t('common.back')}
 				</button>
 			{/if}
-
-			{#if ready && roleLabel}
-				<p class="shell__role" data-testid="shell-role-text">{roleLabel}</p>
-			{/if}
 		</div>
+
+		{#if ready && roleLabel}
+			<p class="shell__role" data-testid="shell-role-text">{roleLabel}</p>
+		{/if}
 
 		{#if ready}
 			<div class="shell__controls">
@@ -428,12 +428,32 @@
 	 * смугу (1.4.10 міряє саме це — `a11y-layout.spec.ts`).
 	 */
 	.shell__role {
+		/*
+		 * ПО ЦЕНТРУ СМУГИ, а не поруч зі знаком.
+		 *
+		 * `flex: 1 1 0` між лівим блоком і органами керування: напис займає все,
+		 * що лишилося, і центрується в ньому. Це не те саме, що центр екрана —
+		 * ліворуч і праворуч стоять різні за шириною блоки, — але саме це око й
+		 * читає як «посередині смуги».
+		 *
+		 * БАЗА НУЛЬ, а не `auto`, і це не дрібниця: з `auto` власна ширина слова
+		 * входить у розрахунок, і на 320 px смуга переносила органи керування в
+		 * ДРУГИЙ рядок — заміряно, висота шапки ставала 113 px замість 60. На
+		 * телефоні це найдорожче місце екрана. З нулем слово стискається й
+		 * ріжеться трикрапкою, а смуга лишається однорядковою.
+		 *
+		 * `min-width: 0` разом із трикрапкою: на 320 px поруч стоять знак,
+		 * «назад» і два органи керування, і слово мусить різатися, а не
+		 * розсувати смугу (1.4.10 міряє саме це — `a11y-layout.spec.ts`).
+		 */
+		flex: 1 1 0;
 		min-width: 0;
 		margin: 0;
 		overflow: hidden;
-		color: var(--text-secondary);
-		font-size: 0.875rem;
-		font-weight: 600;
+		color: var(--text-primary);
+		font-size: 1.05rem;
+		font-weight: 700;
+		text-align: center;
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
