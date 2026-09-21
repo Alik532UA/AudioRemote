@@ -100,7 +100,10 @@ mod remote_scope {
             .as_array()
             .expect("у capability немає remote.urls — форма файлу змінилася");
 
-        assert!(!urls.is_empty(), "remote.urls порожній — перевіряти нема що");
+        assert!(
+            !urls.is_empty(),
+            "remote.urls порожній — перевіряти нема що"
+        );
 
         urls.iter()
             .map(|value| {

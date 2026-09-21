@@ -1,0 +1,77 @@
+name: Оболонка для компʼютера
+
+# ЧОМУ ОКРЕМИЙ WORKFLOW, А НЕ КРОК У `deploy.yml`.
+#
+# Нативну частину доти не збирало ніщо, крім машини автора: `deploy.yml` качає
+# лише веб-версію, а `release.yml` запускається за тегом, тобто кілька разів на
+# рік. Між двома випусками `src-tauri/` міг лежати зламаним місяцями, і
+# дізналися б про це рівно тоді, коли треба випустити — найгірший момент,
+# бо exe вже чекають у школі.
+#
+# Окремо, бо runner тут windows і компіляція Rust довга: вішати це на кожну
+# правку сторінки означало б платити хвилинами за деплой, який нативної
+# частини не торкається. Тому — фільтр за шляхами: workflow прокидається
+# тільки тоді, коли змінилося те, що він перевіряє.
+on:
+  push:
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/shell.yml'
+  pull_request:
+    paths:
+      - 'src-tauri/**'
+      - '.github/workflows/shell.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: shell-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # МЕЖА ДОСТУПУ ДО ДИСКА — перший гейт, а не останній.
+      #
+      # `remote.urls` вирішує, чий код дістане `fs:allow-read-file` на машині,
+      # де стоїть плеєр, і що саме патерн пропускає, доводить лише цей прогін:
+      # він будує його тим самим типом, що судить у застосунку. Текстовий гейт
+      # у `npm test` перевіряє написання, а не межу.
+      - name: Межа capability
+        working-directory: src-tauri
+        run: cargo test --lib
+
+      # Збірка САМОЇ оболонки, без пакування в інсталятор.
+      #
+      # `cargo build`, а не `tauri build`: пакувальник тягне ще й фронтенд, а
+      # він тут не збирається взагалі — `frontendDist` вказує на адресу в
+      # мережі. Перевіряємо саме те, що могло зламатися: код на Rust, дозволи
+      # й генерація контексту з `tauri.conf.json`.
+      - name: Збірка оболонки
+        if: ${{ !cancelled() }}
+        working-directory: src-tauri
+        run: cargo build --locked
+
+      # Ідіоми Rust. Попередження тут — помилка: інакше вони накопичуються, і
+      # наступний читач перестає їх читати.
+      - name: Ідіоми Rust
+        if: ${{ !cancelled() }}
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Формат Rust
+        if: ${{ !cancelled() }}
+        working-directory: src-tauri
+        run: cargo fmt --check
