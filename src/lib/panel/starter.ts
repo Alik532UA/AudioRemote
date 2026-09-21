@@ -31,16 +31,18 @@ export function starterPanel(): Panel {
 
 	return {
 		rev: Date.now(),
+		/*
+		 * ПО СТОВПЦЮ НА ДЖЕРЕЛО. Віджет на три кнопки стоїть стовпчиком і займає
+		 * три ряди, тож два таких — це дві сусідні колонки, а не два сусідні
+		 * рядки. Повзунок у третій колонці бере два ряди, перемикач під ним —
+		 * один. Внизу лишається вільний ряд: панель починають доповнювати, а не
+		 * розбирати.
+		 */
 		cells: {
-			/*
-			 * ПЕРШИЙ СТОВПЕЦЬ, А НЕ ПЕРШИЙ РЯДОК. Комірки 0 і 3 стоять одна під
-			 * одною, і саме так їх і просять: два джерела звуку поруч, у кожного
-			 * свої «гучніше — ок — тихіше». Рядком вони б розійшлися по екрану.
-			 */
 			'0': { kind: 'buttons', caption: t('panel.track'), buttons: three() },
-			'3': { kind: 'buttons', caption: t('panel.mic'), buttons: three() },
-			'6': { kind: 'slider', caption: t('panel.overall'), step: 10 },
-			'9': { kind: 'check', caption: t('panel.ready') }
+			'1': { kind: 'buttons', caption: t('panel.mic'), buttons: three() },
+			'2': { kind: 'slider', caption: t('panel.overall'), step: 10 },
+			'8': { kind: 'check', caption: t('panel.ready') }
 		}
 	};
 }

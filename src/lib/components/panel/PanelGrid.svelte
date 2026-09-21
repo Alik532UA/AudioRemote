@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { t } from '$lib/i18n/i18n.svelte';
-	import { CELL_KEYS } from '$lib/net/panel';
 	import { DEFAULT_LEVEL, type Panel, type PanelCommandType } from '$lib/net/panelTypes';
+	import { layoutPanel, type Placed } from '$lib/panel/layout';
 
 	/**
 	 * СІТКА 3×5 — ОДНА НА ОБИДВА ЕКРАНИ.
@@ -71,18 +71,51 @@
 	const press = (cell: string, type: PanelCommandType, value?: number) => {
 		onpress?.(cell, type, value);
 	};
+
+	/**
+	 * ДЕ ЩО СТОЇТЬ — рахується один раз на панель, а не вгадується розміткою.
+	 *
+	 * Віджет займає стільки клітинок, скільки в ньому органів, тож сітка більше
+	 * не «п'ятнадцять однакових квадратів»: кожен елемент дістає своє місце
+	 * явним `grid-area`. Порожні клітинки теж: без явного місця вони поповзли б
+	 * у діри між віджетами.
+	 */
+	const board = $derived(layoutPanel(panel));
+
+	/** `grid-area` рядком: рядок / стовпець / скільки рядів / скільки стовпців. */
+	const spot = (at: Placed) => `${at.row + 1} / ${at.col + 1} / span ${at.rows} / span ${at.cols}`;
+
+	const hole = (key: string) => {
+		const index = Number(key);
+		return `${Math.floor(index / 3) + 1} / ${(index % 3) + 1} / span 1 / span 1`;
+	};
 </script>
 
 <div class="grid" data-testid="panel-list">
-	{#each CELL_KEYS as key (key)}
-		{@const cell = panel.cells[key]}
+	<!--
+		ПОРОЖНІ МІСЦЯ МАЛЮЮТЬСЯ, і саме вони тримають сітку сталою: без них панель
+		із двох віджетів читалася б як панель на два місця, і рука в темряві не
+		мала б за що чіплятися.
+	-->
+	{#each board.free as key (key)}
 		<div
-			class="cell"
-			class:cell--empty={!cell}
-			class:cell--recent={recent === key}
+			class="cell cell--empty"
+			style="grid-area: {hole(key)}"
 			data-testid="panel-cell-{key}"
-		>
-			{#if cell}
+		></div>
+	{/each}
+
+	{#each board.placed as at (at.cell)}
+		{@const key = at.cell}
+		{@const cell = panel.cells[key]}
+		{#if cell}
+			<div
+				class="cell"
+				class:cell--recent={recent === key}
+				class:cell--wide={!at.vertical}
+				style="grid-area: {spot(at)}"
+				data-testid="panel-cell-{key}"
+			>
 				{#if cell.caption}
 					<span class="cell__caption">{cell.caption}</span>
 				{/if}
@@ -150,8 +183,8 @@
 						</button>
 					</div>
 				{/if}
-			{/if}
-		</div>
+			</div>
+		{/if}
 	{/each}
 </div>
 
@@ -231,6 +264,12 @@
 		flex-direction: column;
 		gap: 2px;
 		min-block-size: 0;
+		min-inline-size: 0;
+	}
+
+	/* Повернутий віджет: органи стають у ряд, а не стовпчиком. */
+	.cell--wide .cell__stack {
+		flex-direction: row;
 	}
 
 	.cell__value {

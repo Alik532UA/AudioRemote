@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { plural, t } from '$lib/i18n/i18n.svelte';
-	import { CELL_KEYS } from '$lib/net/panel';
-	import type { Panel, PanelCell } from '$lib/net/panelTypes';
+	import { PANEL_COLS, type Panel, type PanelCell } from '$lib/net/panelTypes';
+	import { layoutPanel, type Placed } from '$lib/panel/layout';
 
 	/**
 	 * СІТКА В РЕЖИМІ СКЛАДАННЯ — ОКРЕМА, а не та сама з прапорцем.
@@ -10,23 +10,32 @@
 	 * велику — сильна, і вона неправильна двічі. Технічно: кнопка всередині
 	 * кнопки — недійсна розмітка, і браузер розбирає її не так, як написано.
 	 * По суті: у цих двох сіток різні органи. Жива має стільки кнопок, скільки
-	 * їх у комірці; ця — рівно п'ятнадцять, по одній на комірку, бо складають
-	 * саме комірками.
+	 * їх у віджеті; ця — по одній на віджет, бо складають саме віджетами.
 	 *
-	 * Тому тут не показано ні підписів кнопок, ні положення повзунків: у режимі
-	 * складання питання інше — ЩО стоїть у цьому місці, а не що воно зараз
-	 * каже. Як панель виглядає насправді, видно за один дотик до «Готово».
+	 * МІСЦЕ ВІДЖЕТА ПОКАЗУЄТЬСЯ СПРАВЖНЄ. Доти тут було п'ятнадцять однакових
+	 * квадратиків, і з них не було видно, що віджет на три кнопки займе третину
+	 * колонки. Тепер складальник показує ту саму розкладку, що й зал.
 	 */
 	interface Props {
 		panel: Panel;
 		onpick: (cell: string) => void;
+		/** Повернути віджет на місці — колесом миші або кнопкою у вікні. */
+		onrotate: (cell: string) => void;
 	}
 
-	let { panel, onpick }: Props = $props();
+	let { panel, onpick, onrotate }: Props = $props();
 
-	/** Одним рядком: що саме стоїть у комірці. Порожня каже про себе теж. */
-	const summary = (cell: PanelCell | undefined): string => {
-		if (!cell) return t('panel.cellEmpty');
+	const board = $derived(layoutPanel(panel));
+
+	const spot = (at: Placed) => `${at.row + 1} / ${at.col + 1} / span ${at.rows} / span ${at.cols}`;
+
+	const hole = (key: string) => {
+		const index = Number(key);
+		return `${Math.floor(index / PANEL_COLS) + 1} / ${(index % PANEL_COLS) + 1} / span 1 / span 1`;
+	};
+
+	/** Одним рядком: що саме стоїть у віджеті. */
+	const summary = (cell: PanelCell): string => {
 		if (cell.kind === 'slider') return t('panel.summarySlider', { step: cell.step ?? 10 });
 		if (cell.kind === 'check') return t('panel.summaryCheck');
 		return plural(
@@ -37,35 +46,64 @@
 </script>
 
 <div class="grid" data-testid="panel-editor-list">
-	{#each CELL_KEYS as key (key)}
-		{@const cell = panel.cells[key]}
+	{#each board.free as key (key)}
 		<button
-			class="slot"
-			class:slot--empty={!cell}
+			class="slot slot--empty"
 			type="button"
+			style="grid-area: {hole(key)}"
 			onclick={() => onpick(key)}
 			data-testid="panel-slot-{key}-btn"
 		>
-			{#if cell?.caption}
-				<span class="slot__caption">{cell.caption}</span>
-			{/if}
-			<span class="slot__what">{summary(cell)}</span>
+			<span class="slot__what">{t('panel.cellEmpty')}</span>
 		</button>
+	{/each}
+
+	{#each board.placed as at (at.cell)}
+		{@const cell = panel.cells[at.cell]}
+		{#if cell}
+			<!--
+				КОЛЕСО ПОВЕРТАЄ ВІДЖЕТ — але це СКОРОЧЕННЯ, а не єдиний шлях.
+
+				На телефоні колеса немає, з клавіатури його не буває взагалі, а
+				поворот — дія, без якої панель не скласти. Тому те саме є кнопкою у
+				вікні віджета; тут воно живе лише тому, що мишею це один рух.
+
+				`preventDefault` обовʼязковий: інакше сторінка під складальником
+				поїде разом із поворотом.
+			-->
+			<button
+				class="slot"
+				type="button"
+				style="grid-area: {spot(at)}"
+				onclick={() => onpick(at.cell)}
+				onwheel={(event) => {
+					event.preventDefault();
+					onrotate(at.cell);
+				}}
+				data-testid="panel-slot-{at.cell}-btn"
+			>
+				{#if cell.caption}
+					<span class="slot__caption">{cell.caption}</span>
+				{/if}
+				<span class="slot__what">{summary(cell)}</span>
+			</button>
+		{/if}
 	{/each}
 </div>
 
 <style>
 	/*
-	 * Ті самі три на п'ять, але висота тут від вмісту: у режимі складання
-	 * прокручуватися можна й треба — на телефоні п'ятнадцять комірок із двома
-	 * рядками тексту в екран не влазять, а тиснуть у них не наосліп.
+	 * Ті самі три на п'ять, і тієї самої форми, що й жива сітка: складальник
+	 * мусить показувати те, що побачить зал, а не власну схему.
 	 */
 	.grid {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
+		grid-template-rows: repeat(5, minmax(0, 1fr));
 		gap: var(--gap-xs);
+		block-size: min(60dvh, 30rem);
 		inline-size: 100%;
-		max-inline-size: 30rem;
+		max-inline-size: 26rem;
 		margin-inline: auto;
 	}
 
@@ -75,7 +113,8 @@
 		align-items: center;
 		justify-content: center;
 		gap: 2px;
-		min-block-size: calc(var(--tap) * 1.5);
+		min-inline-size: 0;
+		min-block-size: 0;
 		padding: var(--gap-xs);
 		overflow: hidden;
 		border: 1px solid var(--border-strong);

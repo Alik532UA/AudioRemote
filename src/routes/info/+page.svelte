@@ -19,6 +19,7 @@
 	import type { Panel, PanelCell, PanelCommand, PanelCommandType } from '$lib/net/panelTypes';
 	import { applyPanelCommand, refused, type PanelNotice } from '$lib/panel/apply';
 	import { starterPanel } from '$lib/panel/starter';
+	import { fits, isVertical, spanOf } from '$lib/panel/layout';
 	import { mark } from '$lib/services/breadcrumbs';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
@@ -222,6 +223,22 @@
 		void publishPanelState(board.key, result.next);
 	}
 
+	/**
+	 * ПОВЕРНУТИ ВІДЖЕТ НА МІСЦІ — колесом миші просто над ним.
+	 *
+	 * Мовчки, якщо в новому повороті місця немає: поворот тиснуть мимохідь, і
+	 * повідомлення на кожен рух колеса заважало б більше, ніж допомагало. Хто
+	 * хоче знати, чому не вийшло, відкриває віджет — там сказано.
+	 */
+	async function rotate(at: string) {
+		const cell = panel.cells[at];
+		if (!cell) return;
+
+		const wanted = !isVertical(cell);
+		if (!fits(panel, at, spanOf(cell), wanted, at)) return;
+		await putCell(at, { ...cell, vertical: wanted });
+	}
+
 	/** Скласти типову панель — рівно ті комірки, з яких починають у залі. */
 	async function fill() {
 		const board = boardSession.current;
@@ -328,7 +345,11 @@
 		{:else if editing}
 			<section class="card stack" data-testid="info-editor-section">
 				<p class="muted">{t('panel.editHint')}</p>
-				<PanelEditorGrid {panel} onpick={(cell) => (picked = cell)} />
+				<PanelEditorGrid
+					{panel}
+					onpick={(cell) => (picked = cell)}
+					onrotate={(cell) => void rotate(cell)}
+				/>
 
 				{#if empty}
 					<button
@@ -406,6 +427,7 @@
 		{#if picked !== null}
 			<CellDialog
 				index={picked}
+				{panel}
 				cell={panel.cells[picked] ?? null}
 				onsave={(cell) => void putCell(picked as string, cell)}
 				onclose={() => (picked = null)}

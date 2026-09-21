@@ -395,6 +395,12 @@ export const en: Record<TranslationKey, string> = {
 	'panel.addButton': 'Add a button',
 	'panel.step': 'Step',
 	'panel.stepHint': 'How much one press moves it.',
+	'panel.turn': 'Turn',
+	'panel.turnDown': 'Down a column',
+	'panel.turnAcross': 'Across a row',
+	'panel.spanHint': 'Takes {count} cells. The mouse wheel over the widget turns it too.',
+	'panel.noRoom':
+		'A widget this size does not fit here: there is no room, or a neighbour is in the way. Turn it, drop a button, or choose another place.',
 	'panel.save': 'Save',
 	'panel.clearCell': 'Empty the cell',
 	'panel.cellEmpty': 'empty',

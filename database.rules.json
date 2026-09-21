@@ -178,11 +178,14 @@
 							"step": {
 								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50"
 							},
+							// Стовпчиком чи рядком. Скільки клітинок займе віджет, рахує
+							// клієнт (`panel/layout.ts`): сітка — не дані, а розкладка.
+							"vertical": { ".validate": "newData.isBoolean()" },
 							"buttons": {
-								// Не більше чотирьох: п'ята в комірку 118 px не влазить
-								// разом із підписом, а межу краще тримати базі.
+								// Не більше п'яти: стільки рядів у сітці, тобто віджет
+								// стовпчиком може бути заввишки з колонку й не довше.
 								"$index": {
-									".validate": "$index.matches(/^[0-3]$/) && newData.hasChildren(['label'])",
+									".validate": "$index.matches(/^[0-4]$/) && newData.hasChildren(['label'])",
 									"label": { ".validate": "newData.isString() && newData.val().length <= 24" },
 									"$other": { ".validate": false }
 								}

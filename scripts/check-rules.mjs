@@ -741,8 +741,14 @@ await mustNot('невідомий вид комірки', () =>
 	patch(`boards/${KEY}/panel/cells`, { 1: { kind: 'knob' } }, owner.token)
 );
 
-await mustNot('п’ята кнопка в комірці', () =>
-	patch(`boards/${KEY}/panel/cells/0/buttons`, { 4: { label: 'зайва' } }, owner.token)
+// П'ять — це стільки, скільки рядів у сітці: віджет стовпчиком може бути
+// заввишки з колонку й не довше. Шоста кнопка нікуди не стала б.
+await mustNot('шоста кнопка у віджеті', () =>
+	patch(`boards/${KEY}/panel/cells/0/buttons`, { 5: { label: 'зайва' } }, owner.token)
+);
+
+await mustNot('поворот не булевий', () =>
+	patch(`boards/${KEY}/panel/cells`, { 1: { kind: 'check', vertical: 'так' } }, owner.token)
 );
 
 await mustNot('рівень повзунка поза межами', () =>

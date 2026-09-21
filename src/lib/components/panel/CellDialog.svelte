@@ -10,8 +10,10 @@
 		MAX_STEP,
 		MIN_STEP,
 		type CellKind,
+		type Panel,
 		type PanelCell
 	} from '$lib/net/panelTypes';
+	import { fits, spanOf } from '$lib/panel/layout';
 
 	/**
 	 * ЩО ПОСТАВИТИ В КОМІРКУ — одне вікно на всі три роди.
@@ -37,12 +39,14 @@
 		/** Номер комірки, `'0'`…`'14'`. Показується людині як `номер + 1`. */
 		index: string;
 		cell: PanelCell | null;
+		/** Уся панель — щоб знати, чи стане віджет такого розміру на це місце. */
+		panel: Panel;
 		/** `null` — прибрати комірку зовсім. */
 		onsave: (cell: PanelCell | null) => void;
 		onclose: () => void;
 	}
 
-	let { index, cell, onsave, onclose }: Props = $props();
+	let { index, cell, panel, onsave, onclose }: Props = $props();
 
 	type Choice = CellKind | 'none';
 	const KINDS: readonly Choice[] = ['none', 'buttons', 'slider', 'check'];
@@ -60,6 +64,7 @@
 	let kind = $state<Choice>(untrack(() => cell?.kind ?? 'none'));
 	let caption = $state(untrack(() => cell?.caption ?? ''));
 	let step = $state(untrack(() => cell?.step ?? 10));
+	let vertical = $state(untrack(() => cell?.vertical !== false));
 	/*
 	 * Підписи кнопок живуть окремим масивом рядків, а не масивом об'єктів:
 	 * `bind:value` на полі всередині `{#each}` по об'єктах вимагав би ключа,
@@ -84,6 +89,26 @@
 	 */
 	const ready = $derived(kind !== 'buttons' || labels.some((label) => label.trim().length > 0));
 
+	/**
+	 * ЧИ СТАНЕ ВІДЖЕТ НА ЦЕ МІСЦЕ — рахується на льоту, поки його складають.
+	 *
+	 * Кожна дописана кнопка робить віджет на клітинку довшим, і в якийсь момент
+	 * він упирається в край сітки або в сусіда. Сказати про це треба ТУТ, доки
+	 * видно обидва органи — кількість кнопок і поворот, — а не після збереження
+	 * порожнім місцем у залі.
+	 */
+	const draft = $derived<PanelCell>({
+		kind: kind === 'none' ? 'check' : kind,
+		caption,
+		...(kind === 'buttons'
+			? { buttons: labels.filter((label) => label.trim().length > 0).map((label) => ({ label })) }
+			: {}),
+		...(kind === 'slider' ? { step } : {}),
+		vertical
+	});
+	const span = $derived(kind === 'none' ? 1 : spanOf(draft));
+	const roomy = $derived(kind === 'none' || fits(panel, index, span, vertical, index));
+
 	function save() {
 		if (kind === 'none') {
 			onsave(null);
@@ -91,7 +116,7 @@
 			return;
 		}
 
-		const next: PanelCell = { kind, caption: caption.trim().slice(0, MAX_CAPTION) };
+		const next: PanelCell = { kind, caption: caption.trim().slice(0, MAX_CAPTION), vertical };
 		if (kind === 'buttons') {
 			// Порожні рядки — це не кнопки: людина лишила запасне поле незаповненим.
 			next.buttons = labels
@@ -162,6 +187,43 @@
 			</div>
 		{/if}
 
+		{#if kind !== 'none'}
+			<!--
+				ПОВОРОТ — ТУТ, А НЕ ЛИШЕ КОЛЕСОМ МИШІ. Колесом швидше, але його немає
+				ні на телефоні, ні з клавіатури, а без повороту панель не скласти.
+			-->
+			<div class="field">
+				<span class="field__label" id="cell-turn-label">{t('panel.turn')}</span>
+				<div class="picker" role="radiogroup" aria-labelledby="cell-turn-label">
+					<button
+						class="picker__item"
+						type="button"
+						role="radio"
+						aria-checked={vertical}
+						onclick={() => (vertical = true)}
+						data-testid="cell-turn-down-radio"
+					>
+						{t('panel.turnDown')}
+					</button>
+					<button
+						class="picker__item"
+						type="button"
+						role="radio"
+						aria-checked={!vertical}
+						onclick={() => (vertical = false)}
+						data-testid="cell-turn-across-radio"
+					>
+						{t('panel.turnAcross')}
+					</button>
+				</div>
+				<p class="muted">{t('panel.spanHint', { count: span })}</p>
+			</div>
+		{/if}
+
+		{#if !roomy}
+			<p class="error" role="alert" data-testid="cell-no-room-text">{t('panel.noRoom')}</p>
+		{/if}
+
 		{#if kind === 'buttons'}
 			<div class="field">
 				<span class="field__label">{t('panel.buttonsTitle')}</span>
@@ -211,7 +273,7 @@
 			<button
 				class="btn btn--primary"
 				type="button"
-				disabled={!ready}
+				disabled={!ready || !roomy}
 				onclick={save}
 				data-testid="cell-save-btn"
 			>
