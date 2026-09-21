@@ -122,17 +122,12 @@ export const en: Record<TranslationKey, string> = {
 	'create.idLabel': 'Board ID',
 	'create.passwordLabel': 'Password',
 	'create.regenerate': 'Another password',
-	'create.hint': 'Read these two lines out to whoever will be in control.',
 	'create.fromSettings':
 		'This pair comes from settings, so it is THE SAME board as last time. Remove the fixed pair in settings to get a new one.',
 	'create.weak':
 		'Your password is shorter than {min} characters. A board lives for months — short passwords get guessed.',
-	'create.warnChange':
-		'The password is part of the board address. It cannot be changed later — you would have to create the board again.',
 	'create.keepCalm':
-		'You do not have to copy these two lines down: the pair stays on this device, and the connect button on the board itself shows it again at any time.',
-	'create.keepCalmHint':
-		'You will need it only to move: on another device the board is opened with this same pair.',
+		'You do not have to write the identifier and password down: the connect button on the board itself shows them again at any time.',
 	'create.submit': 'Create and open the player',
 
 	'connect.title': 'Connect to a board',
@@ -160,7 +155,7 @@ export const en: Record<TranslationKey, string> = {
 	'player.changeFolder': 'Another folder',
 	'player.rescan': 'Re-read the folder',
 	'player.pickAgain':
-		'The folder has to be chosen after every page reload: the browser crashes if the app tries to remember it.',
+		'The folder has to be chosen every time this page opens: in a browser the app cannot hold on to it between visits.',
 	'player.scanning': 'Reading the folder…',
 	'player.tracksOne': '{count} track',
 	'player.tracksFew': '{count} tracks',
@@ -188,7 +183,7 @@ export const en: Record<TranslationKey, string> = {
 	'player.moveDown': 'Move down',
 	'player.configReadonly':
 		'The folder was granted read-only, so order, colours and keys will not be saved. Choose the folder again and allow writing.',
-	'player.autoNext': 'Next track by itself',
+	'player.autoNext': 'Start the next track',
 	'player.repeatTitle': 'Repeat',
 	'repeat.none': 'No repeat',
 	'repeat.all': 'List',
