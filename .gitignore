@@ -21,6 +21,13 @@ vite.config.ts.timestamp-*
 firebase-debug.log
 database-debug.log
 
+# Передсмертні файли JVM. Емулятор бази — java-процес, і коли машині бракує
+# памʼяті, він лишає в КОРЕНІ репозиторію `hs_err_pid*.log` на кілька сотень
+# кілобайтів плюс `replay_pid*.log`. Під `*-debug.log` вони не підпадають, тож
+# наступний `git add -A` затягнув би їх у коміт разом із роботою.
+hs_err_pid*.log
+replay_pid*.log
+
 # Тимчасові скрипти агента. Лежать ТУТ, а не в корені: файл `*.mjs` у корені
 # потрапляє під eslint і червонить базову лінію (PIT-TEMP-SCRIPTS).
 /.private
