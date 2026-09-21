@@ -59,7 +59,7 @@ describe('плагін оновлення підʼєднаний', () => {
 		expect(
 			libRs,
 			'tauri_plugin_updater не зареєстрований — команди оновлення не існує, ' +
-				"і виклик із вебвʼю падає з «unknown command»"
+				'і виклик із вебвʼю падає з «unknown command»'
 		).toContain('tauri_plugin_updater::Builder::new()');
 	});
 
@@ -125,9 +125,10 @@ describe('релізна збірка знає, звідки брати онов
 		 * крок `release.yml`, і саме його наявність перевіряє тест нижче.
 		 */
 		const pubkey: string = releaseConf.plugins?.updater?.pubkey ?? '';
-		expect(pubkey.length, 'поля pubkey немає — плагін не знає, чий підпис приймати').toBeGreaterThan(
-			0
-		);
+		expect(
+			pubkey.length,
+			'поля pubkey немає — плагін не знає, чий підпис приймати'
+		).toBeGreaterThan(0);
 	});
 });
 

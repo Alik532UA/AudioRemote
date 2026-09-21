@@ -241,10 +241,9 @@ describe('поверхня застосунку для компʼютера (SEC
 			libRs,
 			'зник модуль remote_scope — межу capability більше ніщо не перевіряє прогоном'
 		).toContain('mod remote_scope');
-		expect(
-			libRs,
-			'перевірка більше не будує патерн тим самим типом, що й застосунок'
-		).toContain('RemoteUrlPattern');
+		expect(libRs, 'перевірка більше не будує патерн тим самим типом, що й застосунок').toContain(
+			'RemoteUrlPattern'
+		);
 		expect(
 			read('src-tauri/Cargo.toml'),
 			'tauri-utils зник із dev-залежностей — перевірка межі не збереться'

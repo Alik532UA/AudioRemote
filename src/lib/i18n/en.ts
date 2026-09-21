@@ -87,6 +87,11 @@ export const en: Record<TranslationKey, string> = {
 	'settings.trailHint':
 		'Written to browser storage, so it survives a crash. Copy and send it if something went wrong.',
 	'settings.trailEmpty': 'Empty.',
+	'reset.action': 'Reset the app',
+	'reset.hint':
+		'A last resort if the app will not open or keeps showing an old build. It clears AudioRemote data in this browser only — neighbouring sites and the boards themselves stay put.',
+	'reset.confirm':
+		'Reset AudioRemote in this browser? Settings, the board list and SAVED PASSWORDS will be gone, with nowhere to recover them from. The boards in the database and the sound files stay.',
 	'settings.fixedTitle': 'Fixed board',
 	'settings.folderTitle': 'Music folder',
 	'settings.folderLead':

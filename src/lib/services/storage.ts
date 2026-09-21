@@ -53,6 +53,32 @@ export function removeItem(key: string): void {
 }
 
 /**
+ * Прибрати ВСЕ, що записав цей застосунок. Повертає, скільки ключів було.
+ *
+ * `localStorage.clear()` тут заборонений категорично: origin спільний із
+ * рештою проєктів автора, тож `clear()` витирає їхні дані теж. Саме тому
+ * префікс і існує — і саме тому перелік ключів збирається ЗАЗДАЛЕГІДЬ: під час
+ * `removeItem` індекси в `localStorage` зсуваються, і цикл по `key(i)` з
+ * видаленням усередині пропускає половину.
+ */
+export function clearOwn(): number {
+	const storage = store();
+	if (!storage) return 0;
+
+	try {
+		const mine: string[] = [];
+		for (let index = 0; index < storage.length; index++) {
+			const key = storage.key(index);
+			if (key?.startsWith(PREFIX)) mine.push(key);
+		}
+		for (const key of mine) storage.removeItem(key);
+		return mine.length;
+	} catch {
+		return 0;
+	}
+}
+
+/**
  * Прочитати JSON. Пошкоджене значення трактується як відсутнє й ПРИБИРАЄТЬСЯ.
  *
  * Прибирається навмисно: інакше один зіпсований запис ламав би той самий екран

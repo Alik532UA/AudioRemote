@@ -218,7 +218,11 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	'src/routes/player/+page.svelte': 886,
 	'src/routes/remote/+page.svelte': 862,
 	'src/lib/player/controller.svelte.ts': 541,
-	'src/lib/components/settings/SettingsPanel.svelte': 521,
+	// 521 → 459: із панелі винесені дві самодостатні відповідальності —
+	// журнал діагностики (`DiagnosticsTrail.svelte`) і аварійне скидання
+	// (`HardResetButton.svelte`). Стеля опускається РАЗОМ із файлом, інакше
+	// звільнене місце мовчки заповнить наступна правка, і ратчет не спрацює.
+	'src/lib/components/settings/SettingsPanel.svelte': 459,
 	'src/lib/components/player/TriggerEditor.svelte': 415,
 	'src/lib/components/player/TrackDialog.svelte': 326,
 	// 329 → 331: по рядку `intent += 1` у `pause()` і `resume()`. Обидві команди
