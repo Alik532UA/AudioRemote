@@ -1,0 +1,2 @@
+import{w as a,r as u}from"./NM-O1XC2.js";const n="boards",c=12;function o(){return u(n,[]).filter(t=>typeof t?.key=="string"&&t.key.length>0).sort((t,e)=>e.at-t.at)}function k(t){const e=o().filter(r=>r.key!==t.key),i=[{...t,at:Date.now()},...e],f=r=>!!r.password;let s=c;const l=i.filter(r=>f(r)?!0:(s-=1,s>=0));a(n,l)}function y(t){a(n,o().filter(e=>e.key!==t))}function p(t){return o().find(e=>e.key===t)??null}export{y as a,p as f,o as l,k as r};
+//# sourceMappingURL=_dsaNPp3.js.map
