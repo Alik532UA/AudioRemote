@@ -150,6 +150,65 @@
 					"$other": { ".validate": false }
 				},
 
+				// ─── ІНФОДОШКА ────────────────────────────────────────────────
+				//
+				// Другий вид дошки: замість файлів — сітка підписаних органів, а
+				// замість відтворення — рядок на екрані того, хто за пультом.
+				// Механіка підключення спільна цілком, тож нових гілок лише дві.
+				//
+				// `panel` — ЩО намальовано. Пише господар; адміністратор просить
+				// зміни командою у своєму каналі, як і в аудіодошці.
+				//
+				// `panelState` — ЯК СТОЯТЬ органи зараз. Пише ТЕЖ господар, і це
+				// головне рішення цієї гілки. Повідомлення мусить казати «було 40
+				// стало 60», тобто обидві сторони зобов'язані бачити одне й те саме
+				// «було». Якби стан писав кожен, хто торкнувся повзунка, вузол мав
+				// би багатьох письменників — і правило довелося б послабити до
+				// «будь-хто на дошці», тобто до того, чого в цій схемі немає ніде.
+				"panel": {
+					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
+					".validate": "newData.hasChildren(['rev'])",
+					"rev": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+					"cells": {
+						// Ключ — номер комірки сітки 3×5, тобто 0…14 і нічого іншого.
+						"$cell": {
+							".validate": "$cell.matches(/^([0-9]|1[0-4])$/) && newData.hasChildren(['kind'])",
+							"kind": { ".validate": "newData.val().matches(/^(buttons|slider|check)$/)" },
+							"caption": { ".validate": "newData.isString() && newData.val().length <= 24" },
+							"step": {
+								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50"
+							},
+							"buttons": {
+								// Не більше чотирьох: п'ята в комірку 118 px не влазить
+								// разом із підписом, а межу краще тримати базі.
+								"$index": {
+									".validate": "$index.matches(/^[0-3]$/) && newData.hasChildren(['label'])",
+									"label": { ".validate": "newData.isString() && newData.val().length <= 24" },
+									"$other": { ".validate": false }
+								}
+							},
+							"$other": { ".validate": false }
+						}
+					},
+					"$other": { ".validate": false }
+				},
+
+				"panelState": {
+					".write": "auth != null && root.child('boards/' + $key + '/info/ownerUid').val() === auth.uid",
+					".validate": "newData.hasChildren(['atServer'])",
+					"atServer": { ".validate": "newData.isNumber() && newData.val() <= now + 5000" },
+					"levels": {
+						"$cell": {
+							".validate": "$cell.matches(/^([0-9]|1[0-4])$/) && newData.isNumber() && newData.val() >= 0 && newData.val() <= 100"
+						}
+					},
+					"flags": {
+						"$cell": {
+							".validate": "$cell.matches(/^([0-9]|1[0-4])$/) && newData.isBoolean()"
+						}
+					},
+					"$other": { ".validate": false }
+				},
 				"cmd": {
 					"$id": {
 						// «ЛИШЕ СТВОРИТИ» — і одразу дві властивості одним рядком: команду
@@ -165,19 +224,32 @@
 						".validate": "newData.hasChildren(['by', 'type', 'at'])",
 						"by": { ".validate": "newData.isString() && newData.val().length <= 128" },
 						"type": {
-							".validate": "newData.isString() && newData.val().matches(/^(play|pause|resume|stop|prev|next|volume|seek)$/)"
+							// Два набори в одному регексі, бо канал і журнал спільні для обох
+							// видів дошки: перші вісім — звук, останні три — інфодошка.
+							".validate": "newData.isString() && newData.val().matches(/^(play|pause|resume|stop|prev|next|volume|seek|press|bump|toggle)$/)"
 						},
 						// Рядок або число, і межа числа ЗАЛЕЖИТЬ ВІД ТИПУ: `volume` несе
-						// відсотки, `seek` — позицію в мілісекундах. Одна спільна межа
-						// означала б або гучність 86 мільйонів, або перемотку на сто
-						// мілісекунд; правило бачить сусіднє поле, тож розділити їх можна.
+						// відсотки, `seek` — позицію в мілісекундах, `press` — номер кнопки,
+						// `bump` — крок повзунка, ЗНАКОВИЙ. Одна спільна межа означала б або
+						// гучність 86 мільйонів, або перемотку на сто мілісекунд.
+						//
+						// ПЕРЕЛІК, А НЕ ЛАНЦЮЖОК ТЕРНАРНИХ. Спершу тут стояв ланцюжок із
+						// запасною гілкою «решта чисел до 86400000», і на ньому `bump` зі
+						// значенням -5 відхилявся, хоч гілка для нього була написана. Плаский
+						// перелік читається очима й заразом суворіший: тип, якого тут немає,
+						// числа не несе взагалі.
 						"value": {
-							".validate": "(newData.isString() && newData.val().length <= 64) || (newData.isNumber() && newData.val() >= 0 && (newData.parent().child('type').val() === 'volume' ? newData.val() <= 100 : newData.val() <= 86400000))"
+							".validate": "(newData.isString() && newData.val().length <= 64) || (newData.isNumber() && ((newData.parent().child('type').val() === 'volume' && newData.val() >= 0 && newData.val() <= 100) || (newData.parent().child('type').val() === 'seek' && newData.val() >= 0 && newData.val() <= 86400000) || (newData.parent().child('type').val() === 'press' && newData.val() >= 0 && newData.val() <= 3) || (newData.parent().child('type').val() === 'bump' && newData.val() >= -50 && newData.val() <= 50)))"
 						},
 						// Час серверний. Без вікна навколо now пульт міг би написати команду
 						// «з майбутнього», і межа життя команди не спрацювала б ніколи.
 						"at": {
 							".validate": "newData.isNumber() && newData.val() <= now + 5000 && newData.val() > now - 60000"
+						},
+						// Номер комірки інфодошки. У звукових командах його просто немає:
+						// поле необов'язкове, а форма — та сама, що в ключах панелі.
+						"cell": {
+							".validate": "newData.isString() && newData.val().matches(/^([0-9]|1[0-4])$/)"
 						},
 						"$other": { ".validate": false }
 					}
@@ -287,7 +359,9 @@
 						".write": "auth != null && ((!data.exists() && newData.child('by').val() === auth.uid && root.child('admin/' + $akey + '/info/ownerUid').exists()) || (!newData.exists() && root.child('admin/' + $akey + '/info/ownerUid').val() === auth.uid))",
 						".validate": "newData.hasChildren(['by', 'type', 'at'])",
 						"by": { ".validate": "newData.isString() && newData.val().length <= 128" },
-						"type": { ".validate": "newData.isString() && newData.val().matches(/^(tracks|rescan)$/)" },
+						"type": {
+							".validate": "newData.isString() && newData.val().matches(/^(tracks|rescan)$/)"
+						},
 						"value": { ".validate": "newData.isString() && newData.val().length <= 300000" },
 						"at": {
 							".validate": "newData.isNumber() && newData.val() <= now + 5000 && newData.val() > now - 60000"

@@ -663,6 +663,116 @@ await mustNot('чужий канал під своїм іменем', () =>
 	patch(`admin/${ADMIN_KEY}/info`, { ownerUid: stranger.uid }, stranger.token)
 );
 
+// ─── Інфодошка: панель, її стан і команди ───────────────────────────────────
+//
+// Дошка тут та сама (та сама адреса, той самий `info`), нові лише дві гілки.
+// Половина випадків стережуть форму, друга — те, що стан пише ГОСПОДАР: на
+// цьому тримається «було 40 стало 60» в повідомленні, і послаблення тут
+// означало б вузол із багатьма письменниками.
+//
+// ІДЕНТИФІКАТОРИ КОМАНД ТУТ `n*`, І ЦЕ НЕ ПРО СТИЛЬ. Команду можна лише
+// СТВОРИТИ, тож випадок, що взяв уже зайнятий ідентифікатор, відхиляється —
+// але відхиляється він кодом 401, тобто виглядає як зламане правило доступу.
+// Саме на цьому тут уже згаяно пів години: новий випадок узяв `p1`, зайнятий
+// аудіочастиною вище. `c*` і `p*` зайняті, `a*` — адмінський канал.
+
+await must('господар малює панель', () =>
+	write(
+		`boards/${KEY}/panel`,
+		{
+			rev: 1,
+			cells: {
+				0: { kind: 'buttons', caption: 'фонограма', buttons: { 0: { label: 'гучніше' } } },
+				4: { kind: 'slider', caption: 'мікрофон', step: 5 },
+				14: { kind: 'check', caption: 'запис' }
+			}
+		},
+		owner.token
+	)
+);
+
+await must('будь-хто на дошці читає панель', () => read(`boards/${KEY}/panel`, stranger.token));
+
+await must('господар кладе стан органів', () =>
+	write(
+		`boards/${KEY}/panelState`,
+		{ atServer: SERVER_TIME, levels: { 4: 60 }, flags: { 14: true } },
+		owner.token
+	)
+);
+
+await must('помічник просить посунути повзунок', () =>
+	write(
+		`boards/${KEY}/cmd/n1`,
+		{ by: stranger.uid, type: 'bump', value: -5, cell: '4', at: SERVER_TIME },
+		stranger.token
+	)
+);
+
+await must('помічник натискає кнопку в групі', () =>
+	write(
+		`boards/${KEY}/cmd/n2`,
+		{ by: stranger.uid, type: 'press', value: 0, cell: '0', at: SERVER_TIME },
+		stranger.token
+	)
+);
+
+await must('помічник перемикає чекбокс', () =>
+	write(
+		`boards/${KEY}/cmd/n3`,
+		{ by: stranger.uid, type: 'toggle', cell: '14', at: SERVER_TIME },
+		stranger.token
+	)
+);
+
+await mustNot('сторонній пише стан органів', () =>
+	write(`boards/${KEY}/panelState`, { atServer: SERVER_TIME, levels: { 4: 0 } }, stranger.token)
+);
+
+await mustNot('сторонній малює панель', () =>
+	write(`boards/${KEY}/panel`, { rev: 2, cells: {} }, stranger.token)
+);
+
+await mustNot('комірка поза сіткою 3×5', () =>
+	patch(`boards/${KEY}/panel/cells`, { 15: { kind: 'check' } }, owner.token)
+);
+
+await mustNot('невідомий вид комірки', () =>
+	patch(`boards/${KEY}/panel/cells`, { 1: { kind: 'knob' } }, owner.token)
+);
+
+await mustNot('п’ята кнопка в комірці', () =>
+	patch(`boards/${KEY}/panel/cells/0/buttons`, { 4: { label: 'зайва' } }, owner.token)
+);
+
+await mustNot('рівень повзунка поза межами', () =>
+	patch(`boards/${KEY}/panelState/levels`, { 4: 140 }, owner.token)
+);
+
+await mustNot('крок повзунка поза межами', () =>
+	patch(`boards/${KEY}/panel/cells/4`, { step: 500 }, owner.token)
+);
+
+await mustNot('комірка із зайвим полем', () =>
+	patch(`boards/${KEY}/panel/cells/4`, { secret: 'x' }, owner.token)
+);
+
+await mustNot('команда з коміркою поза сіткою', () =>
+	write(
+		`boards/${KEY}/cmd/n4`,
+		{ by: stranger.uid, type: 'toggle', cell: '99', at: SERVER_TIME },
+		stranger.token
+	)
+);
+
+await mustNot('крок повзунка більший за дозволений', () =>
+	write(
+		`boards/${KEY}/cmd/n5`,
+		{ by: stranger.uid, type: 'bump', value: 500, cell: '4', at: SERVER_TIME },
+		stranger.token
+	)
+);
+
 // ─── Підсумок ───────────────────────────────────────────────────────────────
 
 const positives = results.filter((entry) => entry.kind === 'must');
