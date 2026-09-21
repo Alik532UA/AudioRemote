@@ -41,7 +41,7 @@ if (!existsSync(BUILD)) {
 }
 
 // --- 1. Значки й оболонка -------------------------------------------------
-for (const asset of ['index.html', '404.html', 'favicon.svg', 'icon-192.png', 'icon-512.png']) {
+for (const asset of ['index.html', '404.html', 'favicon.png', 'icon-192.png', 'icon-512.png']) {
 	expect(`є ${asset}`, existsSync(join(BUILD, asset)));
 }
 

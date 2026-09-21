@@ -26,7 +26,20 @@
 		-->
 		<meta name="robots" content="noindex, nofollow" />
 
-		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
+		<!--
+			ЗНАЧОК ВКЛАДКИ — PNG, А НЕ SVG, І ЦЕ НЕ КРОК НАЗАД.
+
+			Доти тут лежав намальований руками вектор: трикутник «грати» й дві
+			хвилі. Він був заглушкою рівно доти, доки в проєкту не було справжнього
+			значка (див. `scripts/make-icons.mjs`). Справжній — растровий: плавний
+			градієнт і напівпрозорі краї, тобто те, що вектором відтворюється лише
+			наближено. Наближення тут гірше за PNG: значок застосунку мусить бути
+			тим самим на вкладці, на робочому столі й на телефоні.
+
+			48 пікселів: браузер сам зменшує до 16 чи 32, і зменшення з 48 дає
+			чіткіше, ніж із 192.
+		-->
+		<link rel="icon" href="%sveltekit.assets%/favicon.png" type="image/png" sizes="48x48" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/icon-180.png" sizes="180x180" />
 		<meta name="mobile-web-app-capable" content="yes" />
