@@ -332,4 +332,23 @@ describe('чеклист бета-тесту (BETA-CHECKLIST-v9 § 5)', () => {
 			.filter((file) => read(file).includes('beta-test-checklists'));
 		expect(linked, 'на службову сторінку веде посилання').toEqual([]);
 	});
+
+	/**
+	 * § 6.1 і § 6.2.1.
+	 *
+	 * У звіті мусять бути версія, час, `userAgent`, мова І ТЕМА: тем тут дві, і
+	 * половина пунктів чеклиста про кольори, тож «напис не видно» без назви теми
+	 * доводиться розбирати зустрічним питанням.
+	 *
+	 * Локатор відмови буфера — окремий від локатора успіху, інакше сценарій
+	 * § 5.7 зеленіє однаково в обох випадках і запасний шлях лишається
+	 * неперевіреним.
+	 */
+	it('звіт несе тему, а відмова буфера має власний локатор (§ 6.1, § 6.2.1)', () => {
+		const page = read('src/routes/beta-test-checklists/+page.svelte');
+
+		expect(page, 'у звіті немає теми').toContain('themeState');
+		expect(page).toContain('data-testid="beta-report-hint"');
+		expect(page).toContain('data-testid="beta-report-failed-hint"');
+	});
 });

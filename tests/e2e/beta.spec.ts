@@ -96,10 +96,18 @@ test('відмова буфера обміну не зʼїдає звіт', asyn
 	await vote.click();
 	await page.getByTestId('beta-report-btn').click();
 
+	// Підказка ВІДМОВИ має власний локатор (§ 6.2.1, `BETA-REPORT-HINT-SPLIT`):
+	// доти абзац був без імені, тож довести, що спрацював саме запасний шлях, а
+	// не буфер, було нічим.
+	await expect(page.getByTestId('beta-report-failed-hint')).toBeVisible();
+
 	const report = page.getByTestId('beta-report-input');
 	await expect(report, 'звіт зник разом із відмовою буфера').toBeVisible();
 	await expect(report).toHaveValue(new RegExp(firstCheck.id));
 	await expect(report, 'у звіті немає версії збірки').toHaveValue(/\d+\.\d+\.\d+/);
+	await expect(report, 'у звіті немає теми — а половина пунктів про кольори').toHaveValue(
+		/theme: (light|dark|system)/
+	);
 });
 
 test('стирання позначок — у два кроки', async ({ page }) => {

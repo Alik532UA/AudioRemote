@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { IconCheck, IconClose, IconCopy } from '$lib/config/icons';
 	import { i18n } from '$lib/i18n/i18n.svelte';
+	import { themeState } from '$lib/services/theme.svelte';
 	import { BETA_TABS, LEVELS, tidOf, type BetaTab, type Coverage } from '$lib/beta/checks';
 	import { betaMarks, byLevel, reportText, VERSION, type Vote } from '$lib/beta/marks.svelte';
 
@@ -87,7 +88,18 @@
 		})[vote];
 
 	async function copyReport() {
-		const text = reportText(betaMarks.marks, lang, [navigator.userAgent, lang]);
+		/*
+		 * У звіті: версія, час, `userAgent`, мова — і ТЕМА (§ 6.1).
+		 *
+		 * Теми тут дві, і половина пунктів чеклиста про кольори: без цього рядка
+		 * «напис не видно» у звіті не має найважливішого слова, і розбирати його
+		 * доводиться зустрічним питанням.
+		 */
+		const text = reportText(betaMarks.marks, lang, [
+			navigator.userAgent,
+			lang,
+			`theme: ${themeState.effective ?? 'system'}`
+		]);
 		try {
 			await navigator.clipboard.writeText(text);
 			copied = true;
@@ -256,7 +268,14 @@
 			<p class="beta__ok" data-testid="beta-report-hint">{say('Скопійовано', 'Copied')}</p>
 		{/if}
 		{#if fallback}
-			<p class="muted">
+			<!--
+				ВЛАСНИЙ ЛОКАТОР У ВІДМОВИ (§ 6.2.1, `BETA-REPORT-HINT-SPLIT`).
+
+				Абзац був, локатора не було: e2e міг довести, що копіювання
+				спрацювало (`beta-report-hint` вище), і ніяк не міг довести, що
+				працює ЗАПАСНИЙ шлях, заради якого весь цей блок і написаний.
+			-->
+			<p class="muted" role="alert" data-testid="beta-report-failed-hint">
 				{say(
 					'Буфер обміну відмовив — звіт нижче, скопіюйте його вручну.',
 					'The clipboard refused: the report is below, copy it by hand.'
