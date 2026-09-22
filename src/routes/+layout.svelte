@@ -6,6 +6,7 @@
 	import '$lib/css/base/tokens.css';
 	import '$lib/css/base/base.css';
 	import { screenView } from '$lib/services/screenView.svelte';
+	import { settings } from '$lib/settings/settings.svelte';
 	import { themeState } from '$lib/services/theme.svelte';
 	import { attentionState } from '$lib/services/attention.svelte';
 	import { i18n, t } from '$lib/i18n/i18n.svelte';
@@ -185,6 +186,17 @@
 		purgeLegacyHandles();
 
 		// Обидва читають сховище й `window`, тож лише після монтування.
+		/*
+		 * НАЛАШТУВАННЯ ПІДНІМАЮТЬСЯ ОДИН РАЗ НА ЗАСТОСУНОК, а не на кожній
+		 * сторінці, якій вони спали на думку.
+		 *
+		 * Доти `settings.load()` кликали пʼять сторінок із дев'яти, і пульт
+		 * аудіодошки був не серед них. Наслідок був тихий і не про налаштування:
+		 * пульт підписується в присутності й у конверті команди тим самим імʼям,
+		 * і з непіднятих налаштувань воно приходило порожнім — тобто підпис не
+		 * доїжджав НІКОЛИ, а виглядало це як «анонімний пульт».
+		 */
+		settings.load();
 		themeState.init();
 		screenView.init();
 		i18n.init();

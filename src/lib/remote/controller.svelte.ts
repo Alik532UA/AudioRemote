@@ -139,7 +139,13 @@ export class RemoteController {
 	}
 
 	async start(): Promise<() => void> {
-		this.track(await trackPresence(this.board.key, 'remote'));
+		/*
+		 * ПУЛЬТ НАЗИВАЄТЬСЯ. Доти він зʼявлявся в присутності безіменним, тож
+		 * картка дошки могла сказати лише «підключено 2» — а хто це, не знав
+		 * ніхто. Підпис той самий, що й у конверті команди: одне імʼя з одного
+		 * місця.
+		 */
+		this.track(await trackPresence(this.board.key, 'remote', signature()));
 		this.track(await watchInfo(this.board.key, (info) => (this.info = info)));
 		this.track(
 			await watchLibrary(this.board.key, (library) => {

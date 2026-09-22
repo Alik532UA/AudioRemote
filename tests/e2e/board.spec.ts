@@ -251,3 +251,40 @@ test('шапка-картка стоїть в один лівий край', asy
 
 	await ctx.close();
 });
+
+test('підпис пульта доїжджає і в картку дошки, і в журнал', async ({ browser }) => {
+	/*
+	 * ДВА МІСЦЯ, ОДНЕ ІМʼЯ. Підпис їде двома різними шляхами — присутністю (щоб
+	 * було видно, хто на звʼязку) і конвертом команди (щоб було видно, хто
+	 * натиснув), — і кожен із них уже одного разу мовчав: поле в конверті не
+	 * надсилалося взагалі, а присутність не називалася, бо сторінка пульта не
+	 * піднімала налаштувань. Обидва дефекти були тихі: на екрані просто стояло
+	 * «підключено 1» і «пульт» без імені.
+	 */
+	const board = await browser.newContext();
+	const guest = await browser.newContext();
+	const player = await board.newPage();
+	const remote = await guest.newPage();
+
+	await remote.goto('./settings');
+	await remote.getByTestId('settings-name-input').fill('Оля');
+	await remote.getByTestId('settings-save').click();
+
+	const id = await createBoard(player);
+	await joinAsRemote(remote, id);
+	await expectInside(remote);
+
+	await expect(
+		player.getByTestId('board-seats-text'),
+		'картка дошки не назвала підключеного'
+	).toHaveText('Оля', ACROSS);
+
+	await remote.getByTestId('cmd-volume').fill('40');
+	await expect(
+		player.getByTestId('deck-log-list'),
+		'журнал не назвав автора команди'
+	).toContainText('Оля', ACROSS);
+
+	await board.close();
+	await guest.close();
+});
