@@ -1,8 +1,7 @@
 // @vitest-environment node
 // Перевірка лише читає файли — DOM їй не потрібен.
 import { describe, expect, it } from 'vitest';
-import { walk } from './gates/fs';
-import { readFileSync } from 'node:fs';
+import { at, cssSources, withoutComments } from './gates/css';
 
 /**
  * РОЗМІР ВІД ЕКРАНА, А НЕ ВІД ВМІСТУ (FLUID-SIZING-v9 § 1.1, § 2, § 7A).
@@ -43,47 +42,12 @@ import { readFileSync } from 'node:fs';
  * Зворотний експеримент — в описі коміту, що приніс файл.
  */
 
-/**
- * Коментарі замінюються ПРОБІЛАМИ, а не вирізаються.
- *
- * Коментар, що пояснює анти-патерн, мусить його процитувати — і перший же
- * прогін падає на власній документації (FLUID-SIZING-v9 § 9). А заміна саме
- * пробілами, а не порожнім рядком, тримає номери рядків: інакше звіт показував
- * би не те місце, і його перевіряли б руками щоразу.
+/*
+ * Читання стилів — спільне з рештою гейтів, що дивляться на CSS
+ * (`gates/css.ts`): і вибір `<style>` із `.svelte`, і заміна коментарів
+ * пробілами замість вирізання, і чому саме пробілами, описані там.
  */
-const blank = (text: string): string => text.replace(/[^\n]/g, ' ');
-
-const withoutComments = (text: string): string =>
-	text.replace(/\/\*[\s\S]*?\*\//g, blank).replace(/<!--[\s\S]*?-->/g, blank);
-
-interface Source {
-	file: string;
-	/** Лише CSS: для `.svelte` це вміст `<style>`, для `.css` — весь файл. */
-	css: string;
-}
-
-const files = walk('src').filter((file) => /\.(svelte|css)$/.test(file));
-
-const sources: Source[] = files.map((file) => {
-	const text = withoutComments(readFileSync(file, 'utf8'));
-	if (!file.endsWith('.svelte')) return { file, css: text };
-
-	/*
-	 * З `.svelte` береться ТІЛЬКИ `<style>`, і рядки поза ним зашиваються
-	 * пробілами. Інакше `repeat(3, 1fr)` у рядку розмітки чи в тексті словника
-	 * рахувався б за стиль, а номер рядка в звіті з'їхав би.
-	 */
-	let css = blank(text);
-	for (const match of text.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
-		const at = match.index + match[0].indexOf(match[1]);
-		css = css.slice(0, at) + match[1] + css.slice(at + match[1].length);
-	}
-	return { file, css };
-});
-
-/** Місце знахідки в тому вигляді, у якому його клацають у терміналі. */
-const at = (file: string, css: string, index: number): string =>
-	`${file}:${css.slice(0, index).split('\n').length}`;
+const sources = cssSources();
 
 const hits = (pattern: RegExp): string[] =>
 	sources.flatMap(({ file, css }) =>

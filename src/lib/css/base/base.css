@@ -820,6 +820,20 @@ svg {
 		background-color var(--transition-fast);
 }
 
+/*
+ * Рамка фокуса зʼявляється миттєво, а не наростає.
+ *
+ * Блоків зменшеного руху в цьому файлі два — для `.btn` і для кнопки
+ * закриття, — і саме тому поле лишалося непокритим так довго: файл виглядав
+ * «уже врахованим». Тепер це стереже `reduced-motion.test.ts`, який питає
+ * СЕЛЕКТОР, а не файл.
+ */
+@media (prefers-reduced-motion: reduce) {
+	.input {
+		transition: none;
+	}
+}
+
 .input:focus {
 	border-color: var(--accent);
 	background: var(--bg-input-focus);
