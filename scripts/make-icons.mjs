@@ -44,7 +44,7 @@
  * Запуск: node scripts/make-icons.mjs
  */
 import { deflateSync, inflateSync } from 'node:zlib';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const SOURCE = 'src-tauri/icons/source.png';
 
@@ -283,6 +283,11 @@ console.log(`джерело ${SOURCE} — ${source.size}×${source.size}`);
 for (const [path, size] of TARGETS) {
 	writeFileSync(path, encode(size, resize(source, size)));
 	console.log(`${path} — ${size}×${size}`);
+}
+
+if (existsSync('src-tauri/icons/icon.ico')) {
+	copyFileSync('src-tauri/icons/icon.ico', 'static/favicon.ico');
+	console.log('static/favicon.ico — скопійовано з src-tauri/icons/icon.ico');
 }
 
 console.log('\nЗначки застосунку для компʼютера — окремо, офіційним інструментом:');

@@ -108,7 +108,27 @@ export default defineConfig({
 				suppressWarnings: true,
 				type: 'module'
 			}
-		})
+		}),
+		/*
+		 * У dev-режимі `devOptions.enabled: false`, тому `VitePWA` не віддає
+		 * `manifest.webmanifest`, а браузер щоразу запитує його з `app.html` і
+		 * сипле 404 у лог. Цей плагін відповідає на запит лише під час `serve`.
+		 */
+		{
+			name: 'dev-pwa-manifest',
+			apply: 'serve',
+			configureServer(server) {
+				server.middlewares.use((req, res, next) => {
+					const url = req.url?.split('?')[0];
+					if (url === '/manifest.webmanifest' || url?.endsWith('/manifest.webmanifest')) {
+						res.setHeader('Content-Type', 'application/manifest+json');
+						res.end(JSON.stringify(manifest, null, 2));
+						return;
+					}
+					next();
+				});
+			}
+		}
 	],
 	build: {
 		sourcemap: true
