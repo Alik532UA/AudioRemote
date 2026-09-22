@@ -104,16 +104,15 @@
 		/>
 
 		<!--
-			Палітра лише тоді, коли є що фарбувати. У тихому режимі колір спалаху —
-			питання про те, чого не буває.
+			Палітра кольору привертання уваги для всіх режимів:
+			у «min» фарбує кнопку, у «head» — шапку, у «page» — тло.
+			«Без кольору» скидає у дефолт (для кнопки — системний акцент, для шапки й тла — протилежна тема).
 		-->
-		{#if attentionState.mode !== 'min'}
-			<span class="field__label">{t('panel.attentionColor')}</span>
-			<ColorPalette
-				value={attentionState.color}
-				testid="info-attention-swatch"
-				onpick={(slug) => slug && attentionState.paint(slug)}
-			/>
-		{/if}
+		<span class="field__label">{t('panel.attentionColor')}</span>
+		<ColorPalette
+			value={attentionState.color}
+			testid="info-attention-swatch"
+			onpick={(slug) => attentionState.paint(slug)}
+		/>
 	</div>
 </section>

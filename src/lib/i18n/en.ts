@@ -435,7 +435,7 @@ export const en: Record<TranslationKey, string> = {
 	'panel.buttonColor': 'Colour of button {n}',
 	'panel.important': 'Important action',
 	'panel.importantHint':
-		'A press flips the screen to the opposite theme for a moment. You catch it out of the corner of your eye, even while looking at the desk.',
+		'A press flashes the screen in the button or widget colour (or opposite theme if none). You catch it out of the corner of your eye, even while looking at the desk.',
 	'panel.merge': 'One shared desk',
 	'panel.away': 'away',
 	'panel.someone': 'unnamed',

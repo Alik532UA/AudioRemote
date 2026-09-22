@@ -220,7 +220,14 @@
 		 * сюди», і від чужої руки в залі він означав би «подивіться на те, що
 		 * вже зробили без вас».
 		 */
-		if (own && panel.cells[cell]?.important) attentionState.shout();
+		if (own && panel.cells[cell]?.important) {
+			const target = panel.cells[cell];
+			const buttonColor =
+				target?.kind === 'buttons' && type === 'press' && typeof value === 'number'
+					? target.buttons?.[value]?.color
+					: undefined;
+			attentionState.shout(buttonColor ?? target?.color ?? null);
+		}
 
 		const mine = (watch += 1);
 		if (fade !== null) window.clearTimeout(fade);

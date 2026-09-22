@@ -73,6 +73,23 @@ body {
 	background-color: var(--bg-page-flip);
 }
 
+/*
+ * Шапка при дефолтному привертанні уваги: тло протилежної теми на 1 сек,
+ * а текст та органи інвертуються у контрастний колір тла поточної теми.
+ */
+:root[data-attention='head-flip'] .shell__top {
+	background: var(--bg-page-flip) !important;
+	backdrop-filter: none !important;
+	color: var(--bg-page) !important;
+}
+
+:root[data-attention='head-flip'] .shell__role,
+:root[data-attention='head-flip'] .shell__mark,
+:root[data-attention='head-flip'] .shell__back,
+:root[data-attention='head-flip'] .shell__settings {
+	color: var(--bg-page) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	html,
 	body {

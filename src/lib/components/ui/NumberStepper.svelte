@@ -101,27 +101,34 @@
 		gap: var(--gap-xs);
 	}
 
-	.stepper--square {
-		width: fit-content;
-	}
-
-	/*
-	 * Поле посередині й вужче за кнопки: число тут щонайбільше чотиризначне, а
-	 * місце в рядку віддане тому, у що цілять пальцем.
-	 */
 	.stepper__input {
 		flex: 1 1 auto;
 		min-width: 3.5rem;
 		text-align: center;
-		/* Рідні стрілки прибрані — замість них кнопки обабіч. */
 		appearance: textfield;
 	}
 
-	.stepper--square .stepper__input {
-		flex: 0 0 var(--tap);
+	.stepper--square {
+		align-items: center;
+		width: fit-content;
+	}
+
+	.stepper--square .stepper__btn {
 		width: var(--tap);
+		height: var(--tap);
+		padding: 0;
+		display: grid;
+		place-items: center;
+		aspect-ratio: 1;
+	}
+
+	.stepper--square .stepper__input {
+		flex: 0 0 calc(var(--tap) * 1.2);
+		width: calc(var(--tap) * 1.2);
+		height: calc(var(--tap) * 1.2);
 		min-width: 0;
 		padding-inline: 0;
+		font-size: 1.15rem;
 		aspect-ratio: 1;
 	}
 

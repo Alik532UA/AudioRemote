@@ -44,7 +44,7 @@ import type { Panel, PanelButton } from '$lib/net/panelTypes';
 const scale = (): PanelButton[] => [
 	{ label: t('panel.louder') },
 	{ label: t('panel.louderBit') },
-	{ label: t('panel.fine') },
+	{ label: t('panel.fine'), color: 'emerald' },
 	{ label: t('panel.quieterBit') },
 	{ label: t('panel.quieter') }
 ];

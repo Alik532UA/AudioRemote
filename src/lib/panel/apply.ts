@@ -50,6 +50,8 @@ export interface PanelNotice {
 	/** Було → стало. Лише повзунок: у кнопки стану немає, у чекбокса він у `move`. */
 	from: number | null;
 	to: number | null;
+	/** Заготовка кольору: колір кнопки або колір віджета. */
+	color?: string;
 }
 
 export interface PanelOutcome {
@@ -93,6 +95,7 @@ export function applyPanelCommand(
 		const buttons = cell.buttons ?? [];
 		const index = whole(command.value, 0, buttons.length - 1);
 		if (index === null) return 'panel.badValue';
+		const color = buttons[index].color ?? cell.color;
 		return {
 			notice: {
 				cell: command.cell,
@@ -100,7 +103,8 @@ export function applyPanelCommand(
 				label: buttons[index].label,
 				move: null,
 				from: null,
-				to: null
+				to: null,
+				...(color ? { color } : {})
 			},
 			next: state
 		};
@@ -120,7 +124,8 @@ export function applyPanelCommand(
 				label: null,
 				move: step > 0 ? 'up' : 'down',
 				from,
-				to
+				to,
+				...(cell.color ? { color: cell.color } : {})
 			},
 			next: { levels: { ...levels, [command.cell]: to }, flags }
 		};
@@ -140,7 +145,8 @@ export function applyPanelCommand(
 			label: null,
 			move: was ? 'off' : 'on',
 			from: null,
-			to: null
+			to: null,
+			...(cell.color ? { color: cell.color } : {})
 		},
 		next: { levels, flags: { ...flags, [command.cell]: !was } }
 	};

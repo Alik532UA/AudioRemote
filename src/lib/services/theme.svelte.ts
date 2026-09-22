@@ -102,7 +102,27 @@ class ThemeState {
 	/** Прочитати збережений вибір. Атрибут уже виставив скрипт у `app.html`. */
 	init(): void {
 		const saved = readItem(STORAGE_KEY);
-		if (isTheme(saved)) this.chosen = saved;
+		if (isTheme(saved)) {
+			this.chosen = saved;
+			return;
+		}
+		if (this.shouldDefaultDark()) {
+			this.chosen = 'dark';
+			this.applyTheme('dark', { animate: false });
+		}
+	}
+
+	/** Чи виставляти темну тему за замовчуванням: для емулятора та в тестах. */
+	private shouldDefaultDark(): boolean {
+		if (import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') return true;
+		if (import.meta.env.MODE === 'test') return true;
+		if (typeof window !== 'undefined') {
+			const isLocal =
+				window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+			const isPreview = window.location.port === '4173';
+			if (isLocal && !isPreview) return true;
+		}
+		return false;
 	}
 
 	/**

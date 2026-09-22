@@ -243,7 +243,13 @@
 
 		// Прохання ІЗ ЗАЛИ — і тільки воно гукає: власне натискання людина й так
 		// бачить, а екран, що блимає на кожен власний рух, вимикають.
-		attentionState.ask();
+		const cell = panel.cells[command.cell];
+		const buttonColor =
+			cell?.kind === 'buttons' && typeof command.value === 'number'
+				? cell.buttons?.[command.value]?.color
+				: undefined;
+		const sourceColor = buttonColor ?? cell?.color ?? null;
+		attentionState.ask(sourceColor);
 		remember(
 			result,
 			command,
@@ -280,7 +286,14 @@
 		spotlight.press(at.cell, controlOf(at.cell, at.type, at.value), seats);
 
 		// Важливу дію видно навіть тому, хто дивиться не на екран (`panelTypes.ts`).
-		if (panel.cells[at.cell]?.important) attentionState.shout();
+		if (panel.cells[at.cell]?.important) {
+			const cell = panel.cells[at.cell];
+			const buttonColor =
+				cell?.kind === 'buttons' && at.type === 'press' && typeof at.value === 'number'
+					? cell.buttons?.[at.value]?.color
+					: undefined;
+			attentionState.shout(buttonColor ?? cell?.color ?? null);
+		}
 
 		panelLog.asked(result.notice, id, own, who);
 	}

@@ -35,14 +35,11 @@ import { readItem, writeItem } from './storage';
 export type AttentionMode = 'min' | 'head' | 'page';
 export const ATTENTION_MODES: readonly AttentionMode[] = ['min', 'head', 'page'];
 
-/** Що саме світиться зараз. `flip` — тло протилежної теми, решта — свій колір. */
-export type AttentionLit = 'head' | 'page' | 'flip';
+/** Що саме світиться зараз. `flip`/`head-flip` — протилежна тема, решта — свій колір. */
+export type AttentionLit = 'head' | 'page' | 'flip' | 'head-flip';
 
 const MODE_KEY = 'attention.mode';
 const COLOR_KEY = 'attention.color';
-
-/** Помаранчевий — типовий колір тривоги, і він єдиний такий у заготовках. */
-const DEFAULT_COLOR = 'coral';
 
 /** Скільки триває спалах. Секунда — щоб упіймати боковим зором і не дратувати. */
 const FLASH_MS = 1000;
@@ -52,16 +49,18 @@ const isMode = (value: unknown): value is AttentionMode =>
 
 class AttentionState {
 	mode = $state<AttentionMode>('min');
-	/** Слуг заготовки. Кольори ті самі, що в треків і віджетів. */
-	color = $state<string>(DEFAULT_COLOR);
+	/** Слуг заготовки або `null` — «без кольору» (протилежна тема). */
+	color = $state<string | null>(null);
 	/** Що світиться просто зараз. `null` — нічого. */
 	lit = $state<AttentionLit | null>(null);
+	/** Hex-код кольору активного спалаху, якщо спалах має власний колір. */
+	activeHex = $state<string | null>(null);
 
 	private timer: number | null = null;
 
 	/** Колір спалаху в шістнадцятковому вигляді — для розмітки. */
-	get hex(): string {
-		return colorOf(this.color) ?? (colorOf(DEFAULT_COLOR) as string);
+	get hex(): string | null {
+		return this.activeHex ?? (this.color ? colorOf(this.color) : null);
 	}
 
 	/**
@@ -74,7 +73,11 @@ class AttentionState {
 		if (isMode(mode)) this.mode = mode;
 
 		const color = readItem(COLOR_KEY);
-		if (color && colorOf(color)) this.color = color;
+		if (color === 'none') {
+			this.color = null;
+		} else if (color && colorOf(color)) {
+			this.color = color;
+		}
 	}
 
 	choose(mode: AttentionMode): void {
@@ -82,21 +85,48 @@ class AttentionState {
 		writeItem(MODE_KEY, mode);
 	}
 
-	paint(color: string): void {
-		if (!colorOf(color)) return;
+	paint(color: string | null): void {
+		if (color !== null && !colorOf(color)) return;
 		this.color = color;
-		writeItem(COLOR_KEY, color);
+		writeItem(COLOR_KEY, color ?? 'none');
 	}
 
-	/** Прохання із зали. Тихий режим не робить нічого — і це не помилка. */
-	ask(): void {
+	/**
+	 * Прохання із зали.
+	 *
+	 * Пріоритет кольору спалаху:
+	 * 1. Колір кнопки або віджета, якщо задано (`sourceColor`)
+	 * 2. Колір із налаштувань екрана (`this.color`)
+	 * 3. Дефолт: протилежна тема (`flip` або `head-flip`)
+	 *
+	 * Тихий режим `min` шапку й тло не чіпає взагалі: світиться сама кнопка.
+	 */
+	ask(sourceColor?: string | null): void {
 		if (this.mode === 'min') return;
-		this.flash(this.mode);
+
+		const choice = sourceColor && colorOf(sourceColor) ? sourceColor : this.color;
+		const hex = choice ? colorOf(choice) : null;
+
+		if (this.mode === 'head') {
+			if (hex) this.flash('head', hex);
+			else this.flash('head-flip', null);
+		} else if (this.mode === 'page') {
+			if (hex) this.flash('page', hex);
+			else this.flash('flip', null);
+		}
 	}
 
-	/** Важливий віджет. Режиму не питає: він для того й позначений. */
-	shout(): void {
-		this.flash('flip');
+	/**
+	 * Важливий віджет. Режиму не питає: він для того й позначений.
+	 *
+	 * Пріоритет:
+	 * 1. Колір кнопки або віджета (`sourceColor`)
+	 * 2. Дефолт: протилежна тема (`flip`)
+	 */
+	shout(sourceColor?: string | null): void {
+		const hex = sourceColor && colorOf(sourceColor) ? colorOf(sourceColor) : null;
+		if (hex) this.flash('page', hex);
+		else this.flash('flip', null);
 	}
 
 	/**
@@ -104,16 +134,18 @@ class AttentionState {
 	 * другий такт: два прохання поспіль мусять дати одне рівне світло, а не
 	 * мигання, від якого в залі відводять очі.
 	 */
-	private flash(lit: AttentionLit): void {
+	private flash(lit: AttentionLit, hex: string | null): void {
 		if (typeof window === 'undefined') return;
 		if (this.timer !== null) window.clearTimeout(this.timer);
 
 		this.lit = lit;
+		this.activeHex = hex;
 		this.repaint(lit);
 
 		this.timer = window.setTimeout(() => {
 			this.timer = null;
 			this.lit = null;
+			this.activeHex = null;
 			this.repaint(null);
 		}, FLASH_MS);
 	}
@@ -158,8 +190,11 @@ class AttentionState {
 		root.setAttribute('data-attention', lit);
 		// `flip` фарбує таблиця стилів: там лежить і сам токен протилежного тла.
 		// Свій колір туди не покласти — він приходить із заготовок, а не з токенів.
-		if (lit === 'page') page.style.backgroundColor = this.hex;
-		else page.style.removeProperty('background-color');
+		if (lit === 'page' && this.activeHex) {
+			page.style.backgroundColor = this.activeHex;
+		} else {
+			page.style.removeProperty('background-color');
+		}
 	}
 }
 

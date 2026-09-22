@@ -132,4 +132,46 @@ describe('прохання з інфодошки', () => {
 		// Вхідний стан не переписується на місці: сторінка тримає його в `$state`.
 		expect(state.levels).toEqual({ '4': 30 });
 	});
+
+	it('колір сповіщення: пріоритет колір кнопки > колір віджета', () => {
+		const tintedPanel: Panel = {
+			rev: 1,
+			cells: {
+				'0': {
+					kind: 'buttons',
+					caption: 'музика',
+					color: 'coral',
+					buttons: [{ label: 'плей', color: 'emerald' }, { label: 'стоп' }]
+				},
+				'1': { kind: 'slider', caption: 'гучність', color: 'sky' }
+			}
+		};
+
+		// 1. Кнопка має власний колір
+		const res1 = applyPanelCommand(
+			tintedPanel,
+			EMPTY,
+			command({ cell: '0', type: 'press', value: 0 })
+		);
+		if (refused(res1)) throw new Error(res1);
+		expect(res1.notice.color).toBe('emerald');
+
+		// 2. Кнопка не має власного кольору — береться колір віджета
+		const res2 = applyPanelCommand(
+			tintedPanel,
+			EMPTY,
+			command({ cell: '0', type: 'press', value: 1 })
+		);
+		if (refused(res2)) throw new Error(res2);
+		expect(res2.notice.color).toBe('coral');
+
+		// 3. Повзунок бере колір віджета
+		const res3 = applyPanelCommand(
+			tintedPanel,
+			EMPTY,
+			command({ cell: '1', type: 'bump', value: 5 })
+		);
+		if (refused(res3)) throw new Error(res3);
+		expect(res3.notice.color).toBe('sky');
+	});
 });

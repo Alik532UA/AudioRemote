@@ -4,6 +4,7 @@
 	import { controlOf, layoutPanel, type Placed } from '$lib/panel/layout';
 	import { fitKeys } from '$lib/panel/fitKeys';
 	import { colorOf } from '$lib/config/trackColors';
+	import { attentionState } from '$lib/services/attention.svelte';
 
 	/**
 	 * СІТКА 3×5 — ОДНА НА ОБИДВА ЕКРАНИ.
@@ -93,14 +94,16 @@
 	/** `grid-area` рядком: рядок / стовпець / скільки рядів / скільки стовпців. */
 	const spot = (at: Placed) => `${at.row + 1} / ${at.col + 1} / span ${at.rows} / span ${at.cols}`;
 
-	const hole = (key: string) => {
-		const index = Number(key);
-		const across = board.grid.cols;
-		return `${Math.floor(index / across) + 1} / ${(index % across) + 1} / span 1 / span 1`;
-	};
+	const hole = (key: string) =>
+		`${Math.floor(Number(key) / board.grid.cols) + 1} / ${(Number(key) % board.grid.cols) + 1} / span 1 / span 1`;
 
 	/** Колір змінною, а не класом: назв кольорів десять, а правило одне. */
 	const paint = (hex: string | null) => (hex ? `; --widget-color: ${hex}` : '');
+
+	/** Стиль для кнопки: власний колір та колір світіння за каскадом. */
+	const keyStyle = (own: string | null, glow: string | null) =>
+		[own && `--widget-color: ${own}`, glow && `--key-glow: ${glow}`].filter(Boolean).join('; ') ||
+		undefined;
 
 	/**
 	 * Чи цей орган щойно натиснули — і яким саме натисканням.
@@ -167,6 +170,7 @@
 		{@const cell = panel.cells[key]}
 		{#if cell}
 			{@const hex = colorOf(cell.color)}
+			{@const attentionHex = attentionState.color ? colorOf(attentionState.color) : null}
 			<!--
 				Підписи, за якими `fitKeys` знає, що пора перерахувати розмір. Дія
 				висить на `.cell__stack`, а не на самій комірці: `style` комірки
@@ -199,6 +203,7 @@
 					<div class="cell__stack cell__stack--grid" use:fitKeys={words}>
 						{#each cell.buttons ?? [] as button, index (index)}
 							{@const own = colorOf(button.color)}
+							{@const glowHex = own ?? hex ?? attentionHex}
 							{@const mark = fire(controlOf(key, 'press', index))}
 							<button
 								class="key"
@@ -206,18 +211,17 @@
 								class:key--hot={mark !== ''}
 								type="button"
 								disabled={busy}
-								style={own ? `--widget-color: ${own}` : undefined}
+								style={keyStyle(own, glowHex)}
 								use:glow={mark}
 								onclick={() => press(key, 'press', index)}
-								data-testid="panel-press-{key}-{index}-btn"
+								data-testid="panel-press-{key}-{index}-btn">{button.label}</button
 							>
-								{button.label}
-							</button>
 						{/each}
 					</div>
 				{:else if cell.kind === 'slider'}
 					{@const level = levels[key] ?? DEFAULT_LEVEL}
 					{@const step = cell.step ?? 10}
+					{@const glowHex = hex ?? attentionHex}
 					{@const up = fire(controlOf(key, 'bump', step))}
 					{@const down = fire(controlOf(key, 'bump', -step))}
 					<!--
@@ -233,30 +237,27 @@
 							type="button"
 							disabled={busy}
 							aria-label="{cell.caption}: {t('panel.up')}"
+							style={keyStyle(null, glowHex)}
 							use:glow={up}
 							onclick={() => press(key, 'bump', step)}
-							data-testid="panel-up-{key}-btn"
+							data-testid="panel-up-{key}-btn">{t('panel.up')}</button
 						>
-							{t('panel.up')}
-						</button>
-						<output class="cell__value mono" data-testid="panel-level-{key}-value">
-							{level}
-						</output>
+						<output class="cell__value mono" data-testid="panel-level-{key}-value">{level}</output>
 						<button
 							class="key"
 							class:key--hot={down !== ''}
 							type="button"
 							disabled={busy}
 							aria-label="{cell.caption}: {t('panel.down')}"
+							style={keyStyle(null, glowHex)}
 							use:glow={down}
 							onclick={() => press(key, 'bump', -step)}
-							data-testid="panel-down-{key}-btn"
+							data-testid="panel-down-{key}-btn">{t('panel.down')}</button
 						>
-							{t('panel.down')}
-						</button>
 					</div>
 				{:else}
 					{@const on = flags[key] === true}
+					{@const glowHex = hex ?? attentionHex}
 					{@const mark = fire(controlOf(key, 'toggle'))}
 					<div class="cell__stack" use:fitKeys={words}>
 						<button
@@ -266,12 +267,11 @@
 							type="button"
 							disabled={busy}
 							aria-pressed={on}
+							style={keyStyle(null, glowHex)}
 							use:glow={mark}
 							onclick={() => press(key, 'toggle')}
-							data-testid="panel-toggle-{key}-btn"
+							data-testid="panel-toggle-{key}-btn">{on ? t('panel.on') : t('panel.off')}</button
 						>
-							{on ? t('panel.on') : t('panel.off')}
-						</button>
 					</div>
 				{/if}
 			</div>
@@ -520,8 +520,8 @@
 	@keyframes press-glow {
 		from {
 			box-shadow:
-				inset 0 0 0 999px var(--accent-soft),
-				0 0 0 3px var(--accent);
+				inset 0 0 0 999px color-mix(in oklab, var(--key-glow, var(--accent)) 35%, transparent),
+				0 0 0 3px var(--key-glow, var(--accent));
 		}
 		to {
 			box-shadow:

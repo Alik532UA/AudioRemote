@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { t } from '$lib/i18n/i18n.svelte';
-	import { IconBan, IconCheck, IconLater } from '$lib/config/icons';
+	import { IconBan, IconCheck, IconEye, IconLater } from '$lib/config/icons';
+	import { colorOf } from '$lib/config/trackColors';
 	import LogWho from '$lib/components/ui/LogWho.svelte';
 	import type { VerdictKind } from '$lib/net/panelTypes';
 	import type { LogEntry } from '$lib/services/panelLog.svelte';
@@ -60,12 +62,12 @@
 	 * Але «останнє» і «те, чим я ще займаюся» — різні речі. Звукорежисер, який
 	 * прохання вже виконав, лишається з яскравим рядком, що каже «дивись сюди»,
 	 * і єдиний спосіб його прибрати — дочекатися наступного прохання. Тому
-	 * галочка: вона позначає рядок як опрацьований і НІЧОГО не видаляє — рядок
+	 * око: воно позначає рядок як опрацьований і НІЧОГО не видаляє — рядок
 	 * лишається на місці, тьмяніючи нарівні з рештою.
 	 *
 	 * Стан тут ЛОКАЛЬНИЙ навмисно: він про те, що прочитала людина біля цього
 	 * екрана, а не про дошку. У базі йому не було б чого робити, а сторінці не
-	 * довелося б нести ще одне поле заради чужої галочки.
+	 * довелося б нести ще одне поле заради чужої позначки.
 	 */
 	const VERDICTS = [
 		{ kind: 'done', icon: IconCheck },
@@ -73,16 +75,23 @@
 		{ kind: 'wait', icon: IconLater }
 	] as const satisfies readonly { kind: VerdictKind; icon: unknown }[];
 
+	/** Кулдаун після відповіді — захист від подвійного кліку. */
+	const COOLDOWN_MS = 1000;
+
 	let hushed = $state<string | null>(null);
+	let cooling = $state(false);
+	let coolTimer: ReturnType<typeof setTimeout> | null = null;
+
+	onDestroy(() => {
+		if (coolTimer) clearTimeout(coolTimer);
+	});
 
 	/*
 	 * Підсвічується лише ПРОХАННЯ: рядок «помічник підключено» не питає ні про
 	 * що, і відповідати на нього нема чим.
 	 */
-	const answering = $derived(
-		notices.length > 0 && notices[0].notice && notices[0].id !== hushed ? notices[0] : null
-	);
-	const head = $derived(answering?.id ?? null);
+	const answering = $derived(notices.length > 0 && notices[0].notice ? notices[0] : null);
+	const head = $derived(answering && answering.id !== hushed ? answering.id : null);
 
 	const clock = (at: number) =>
 		new Date(at).toLocaleTimeString(undefined, {
@@ -114,8 +123,8 @@
 	{#if onverdict}
 		<!--
 			ВІДПОВІДЬ ЗАРАЗОМ ГАСИТЬ ВЕРХНІЙ РЯДОК: сказавши «зроблено», людина вже
-			відповіла на питання «чим я ще займаюся», і вимагати від неї другого
-			натискання по галочці було б бюрократією.
+			відповіла на питання «чим я ще займаюся». Кулдаун дає змогу змінити
+			відповідь згодом (наприклад, спершу «зараз не можу», а потім «зроблено»).
 
 			Значками, а не словами: три підписані кнопки поруч із заголовком забрали
 			б увесь рядок, а сказати мусять те саме. Підпис нікуди не дівся — він у
@@ -126,13 +135,18 @@
 				<button
 					class="verdict verdict--{answer.kind}"
 					type="button"
-					disabled={answering === null}
+					disabled={answering === null || cooling}
 					title={t(`verdict.${answer.kind}`)}
 					aria-label={t(`verdict.${answer.kind}`)}
 					onclick={() => {
-						if (!answering?.notice) return;
+						if (!answering?.notice || cooling) return;
 						onverdict?.(answer.kind, answering.notice.cell, answering.notice.caption);
 						hushed = answering.id;
+						cooling = true;
+						if (coolTimer) clearTimeout(coolTimer);
+						coolTimer = setTimeout(() => {
+							cooling = false;
+						}, COOLDOWN_MS);
 					}}
 					data-testid="panel-verdict-{answer.kind}-btn"
 				>
@@ -148,9 +162,11 @@
 {:else}
 	<ul class="log" data-testid="panel-log-list">
 		{#each notices as notice, index (notice.id)}
+			{@const rowHex = colorOf(notice.notice?.color)}
 			<li
 				class="log__row"
 				class:log__row--head={head === notice.id}
+				style={rowHex ? `--row-color: ${rowHex}` : undefined}
 				data-testid="panel-notice-{index}-row"
 			>
 				<span class="log__time mono">{clock(notice.at)}</span>
@@ -192,7 +208,7 @@
 						onclick={() => (hushed = notice.id)}
 						data-testid="panel-hush-btn"
 					>
-						<IconCheck size={16} aria-hidden="true" />
+						<IconEye size={16} aria-hidden="true" />
 					</button>
 				{/if}
 			</li>
@@ -231,7 +247,7 @@
 		align-items: baseline;
 		gap: var(--gap-sm);
 		padding: var(--gap-xs) var(--gap-sm);
-		border: 1px solid var(--border);
+		border: 1px solid var(--row-color, var(--border));
 		border-radius: var(--radius-sm);
 		background: var(--bg-surface-raised);
 		animation: settle 100s linear 5s forwards;
@@ -254,8 +270,8 @@
 	 * ширину пульта, іноді не підходячи до екрана.
 	 */
 	.log__row--head {
-		border-color: var(--accent);
-		border-inline-start: 4px solid var(--accent);
+		border-color: var(--row-color, var(--accent));
+		border-inline-start: 4px solid var(--row-color, var(--accent));
 		font-size: 1.15rem;
 	}
 
@@ -334,6 +350,8 @@
 		display: grid;
 		flex: none;
 		place-items: center;
+		margin-inline-start: auto;
+		align-self: center;
 		inline-size: 28px;
 		block-size: 28px;
 		border: 1px solid var(--border-strong);
