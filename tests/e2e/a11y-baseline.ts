@@ -35,6 +35,7 @@ export const A11Y_STATES = [
 	'remote',
 	'info',
 	'infoRemote',
+	'beta',
 	'settingsModal'
 ] as const;
 
@@ -51,6 +52,7 @@ export const A11Y_BASELINE: Readonly<Record<A11yState, number>> = {
 	remote: 0,
 	info: 0,
 	infoRemote: 0,
+	beta: 0,
 	settingsModal: 0
 };
 
@@ -70,5 +72,6 @@ export const A11Y_KNOWN: Readonly<Record<A11yState, readonly string[]>> = {
 	remote: [],
 	info: [],
 	infoRemote: [],
+	beta: [],
 	settingsModal: []
 };

@@ -37,7 +37,7 @@ const sources = all.filter((f) => /\.(ts|svelte)$/.test(f) && !isTest(f) && !f.e
  * постійний борг, який нічого не означає (PERFORMANCE-v9 § 1.1 про те саме
  * розділення коду й даних).
  */
-const DATA_FILE = /^src\/lib\/(i18n\/(uk|en)\.ts|board\/words\.ts)$/;
+const DATA_FILE = /^src\/lib\/(i18n\/(uk|en)\.ts|board\/words\.ts|beta\/checks\.ts)$/;
 
 /**
  * Помічники самих перевірок.
