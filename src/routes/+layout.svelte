@@ -5,6 +5,7 @@
 	import { base, resolve } from '$app/paths';
 	import '$lib/css/base/tokens.css';
 	import '$lib/css/base/base.css';
+	import { screenView } from '$lib/services/screenView.svelte';
 	import { themeState } from '$lib/services/theme.svelte';
 	import { attentionState } from '$lib/services/attention.svelte';
 	import { i18n, t } from '$lib/i18n/i18n.svelte';
@@ -185,6 +186,7 @@
 
 		// Обидва читають сховище й `window`, тож лише після монтування.
 		themeState.init();
+		screenView.init();
 		i18n.init();
 		const unwatch = narrow.init();
 		ready = true;

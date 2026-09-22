@@ -43,7 +43,8 @@
 	import PanelBuilder from '$lib/components/panel/PanelBuilder.svelte';
 	import PanelWall from '$lib/components/panel/PanelWall.svelte';
 	import PanelLog from '$lib/components/panel/PanelLog.svelte';
-	import ScreenControls, { type View } from '$lib/components/panel/ScreenControls.svelte';
+	import ScreenControls from '$lib/components/panel/ScreenControls.svelte';
+	import { screenView } from '$lib/services/screenView.svelte';
 	import CellDialog from '$lib/components/panel/CellDialog.svelte';
 	import type { TranslationKey } from '$lib/i18n/i18n.svelte';
 
@@ -77,7 +78,6 @@
 	let helpers = $state(0);
 	/** Хто на звʼязку. Потрібен цілим: стіна підписує ним кожен пульт. */
 	let fatal = $state<TranslationKey | null>(null);
-	let view = $state<View>('both');
 
 	let panel = $state<Panel>(emptyPanel());
 	let levels = $state<Record<string, number>>({});
@@ -446,7 +446,7 @@
 			жодної причини ділити рядок із рештою: дошка вузька, панель своєї
 			форми, журнал — те, що росте й заповнює.
 		-->
-		<div class="desk" class:desk--one={view !== 'both'}>
+		<div class="desk" class:desk--one={screenView.of('info') !== 'both'}>
 			<div class="desk__side">
 				<header class="head card desk__who" data-testid="board-head">
 					<div class="head__who">
@@ -486,10 +486,8 @@
 				</header>
 
 				<ScreenControls
-					{view}
 					{editing}
 					{empty}
-					onview={(next) => (view = next)}
 					onedit={() => {
 						editing = !editing;
 						picked = null;
@@ -537,11 +535,11 @@
 						</button>
 					</section>
 				{:else}
-					{#if view !== 'log'}
+					{#if screenView.of('info') !== 'log'}
 						<PanelWall {panel} {levels} {flags} {seats} {spot} press={own} />
 					{/if}
 
-					{#if view !== 'panel'}
+					{#if screenView.of('info') !== 'main'}
 						<section class="card stack log" data-testid="info-log-section">
 							<PanelLog notices={panelLog.entries} onverdict={answer} />
 						</section>
@@ -693,5 +691,4 @@
 		max-block-size: min(80dvh, 46rem);
 		overflow: auto;
 	}
-
 </style>

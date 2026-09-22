@@ -1,15 +1,3 @@
-<script module lang="ts">
-	/**
-	 * ЩО ВИДНО НА ТАБЛІ — перелік живе тут, поруч із органом, який його показує.
-	 *
-	 * Сторінці він теж потрібен (вона вирішує, що малювати), але ДРУГИЙ такий
-	 * самий перелік у ній розійшовся б із цим мовчки: додали б четвертий вид —
-	 * і вибір показував би три кнопки, а сторінка знала б чотири.
-	 */
-	export type View = 'both' | 'panel' | 'log';
-	export const VIEWS: readonly View[] = ['both', 'panel', 'log'];
-</script>
-
 <script lang="ts">
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { IconSliders } from '$lib/config/icons';
@@ -20,6 +8,7 @@
 	} from '$lib/services/attention.svelte';
 	import ColorPalette from '$lib/components/ui/ColorPalette.svelte';
 	import Picker from '$lib/components/ui/Picker.svelte';
+	import ViewPicker from '$lib/components/ui/ViewPicker.svelte';
 
 	/**
 	 * КЕРУВАННЯ ЕКРАНОМ — ОКРЕМОЮ КАРТКОЮ, а не хвостом картки дошки.
@@ -36,15 +25,13 @@
 	 * нічого з цього.
 	 */
 	interface Props {
-		view: View;
 		editing: boolean;
 		/** Порожня панель: складати нема чого, і кнопка живе в іншому місці. */
 		empty: boolean;
-		onview: (next: View) => void;
 		onedit: () => void;
 	}
 
-	let { view, editing, empty, onview, onedit }: Props = $props();
+	let { editing, empty, onedit }: Props = $props();
 </script>
 
 <section class="card stack" data-testid="info-screen-section">
@@ -75,17 +62,12 @@
 		а не власна копія його стилів: копія розтягувалася на всю ширину картки й
 		лишала по собі порожній четвертий сегмент.
 	-->
-	<div class="field">
-		<span class="field__label" id="info-view-label">{t('panel.viewTitle')}</span>
-		<Picker
-			row
-			labelledby="info-view-label"
-			value={view}
-			prefix="info-view"
-			options={VIEWS.map((which) => ({ value: which, label: t(`panelView.${which}`) }))}
-			onpick={(next) => onview(next as View)}
-		/>
-	</div>
+	<ViewPicker
+		board="info"
+		prefix="info-view"
+		title={t('panel.viewTitle')}
+		label={(which) => t(`panelView.${which}`)}
+	/>
 
 	<!--
 		ЯК ГУЧНО ТАБЛО ГУКАЄ — і чому тут немає підпису під вибором.
