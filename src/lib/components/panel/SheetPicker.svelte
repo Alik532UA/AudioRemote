@@ -37,10 +37,10 @@
 
 {#if sheets.length > 0}
 	<div class="field">
-		<span class="field__label" id="sheet-label">{t('panel.sheetPick')}</span>
+		<span class="field__label" id="info-sheet-label">{t('panel.sheetPick')}</span>
 		<Picker
 			row
-			labelledby="sheet-label"
+			labelledby="info-sheet-label"
 			value={value ?? ALL}
 			prefix="info-sheet"
 			options={[

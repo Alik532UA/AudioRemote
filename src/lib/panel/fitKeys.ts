@@ -38,6 +38,12 @@ import { largestFit } from './fit';
 const MIN_PX = 11;
 const MAX_PX = 26;
 
+/**
+ * Коефіцієнт зменшення розміру підписів від граничного (~18% запасу повітря,
+ * щоб слова не впиралися в рамки кнопок).
+ */
+const SCALE = 0.82;
+
 /** Чи вміщається вміст у кнопку. Пів точки допуску — субпіксельне округлення. */
 const fitsIn = (key: HTMLElement) =>
 	key.scrollWidth <= key.clientWidth + 0.5 && key.scrollHeight <= key.clientHeight + 0.5;
@@ -66,7 +72,8 @@ export function fitKeys(node: HTMLElement, labels: string) {
 			MIN_PX,
 			MAX_PX
 		);
-		node.style.setProperty('--key-size', `${size}px`);
+		const fitted = Math.max(MIN_PX, Math.round(size * SCALE * 2) / 2);
+		node.style.setProperty('--key-size', `${fitted}px`);
 	};
 
 	const schedule = () => {

@@ -159,7 +159,7 @@
 			<h2 class="subtitle">{t('settings.launchTitle')}</h2>
 
 			<div class="field">
-				<span class="field__label" id="start-label">{t('settings.startTitle')}</span>
+				<span class="field__label" id="settings-start-label">{t('settings.startTitle')}</span>
 				<!--
 					Кнопки в спільній рамці, а не випадний список. Список ховає варіанти
 					за одним рядком: щоб побачити, з чого взагалі можна обирати, треба
@@ -167,7 +167,7 @@
 					теж — без жодного натискання.
 				-->
 				<Picker
-					labelledby="start-label"
+					labelledby="settings-start-label"
 					value={settings.startPage}
 					prefix="settings-start"
 					options={START_PAGES.map((page) => ({ value: page, label: t(`start.${page}`) }))}
@@ -185,9 +185,10 @@
 
 			{#if boardChoiceShown}
 				<div class="field">
-					<span class="field__label" id="start-board-label">{t('settings.startBoardTitle')}</span>
+					<span class="field__label" id="settings-board-label">{t('settings.startBoardTitle')}</span
+					>
 					<Picker
-						labelledby="start-board-label"
+						labelledby="settings-board-label"
 						value={settings.startBoard}
 						prefix="settings-board"
 						options={START_BOARDS.map((which) => ({

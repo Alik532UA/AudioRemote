@@ -167,8 +167,8 @@
 		font-weight: 600;
 	}
 
-	/* У ряду смуга йде зверху: збоку вона накладалася б на межу сусіда. */
+	/* У ряду смуга йде знизу: збоку вона накладалася б на межу сусіда. */
 	.picker--row .picker__item[aria-checked='true'] {
-		box-shadow: inset 0 3px 0 var(--accent);
+		box-shadow: inset 0 -3px 0 var(--accent);
 	}
 </style>
