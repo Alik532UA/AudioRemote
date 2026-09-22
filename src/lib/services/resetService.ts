@@ -1,5 +1,5 @@
 import { base } from '$app/paths';
-import { clearOwn } from './storage';
+import { clearOwn, clearOwnSession } from './storage';
 import { deleteOwnCaches, unregisterOwnServiceWorkers } from './ownScope';
 
 /**
@@ -16,6 +16,16 @@ import { deleteOwnCaches, unregisterOwnServiceWorkers } from './ownScope';
  * Єдиним виходом лишалося «очистити дані сайту» в налаштуваннях браузера. Для
  * людини за плеєром у школі це не вихід узагалі: меню закопане, називається
  * незрозуміло, а на спільному origin воно ще й витирає сусідні проєкти автора.
+ *
+ * ## Два сховища, а не одне
+ *
+ * `localStorage` тут очевидний, `sessionStorage` — ні, і саме він довго
+ * лишався поза скиданням. У ньому лежить ВІДКРИТА ЗАРАЗ дошка, а скидання
+ * перезавантажує ТУ САМУ вкладку — сховище вкладки її переживає. Виходило, що
+ * єдиний вихід зі зламаного стану повертав рівно в той стан, з якого його
+ * натиснули: дошка піднімалася назад із сеансу, і екран був той самий.
+ * Найчастіший привід натиснути скидання — саме дошка, яку не вдається
+ * відкрити.
  *
  * ## Порядок кроків має значення
  *
@@ -38,21 +48,30 @@ import { deleteOwnCaches, unregisterOwnServiceWorkers } from './ownScope';
 /** Скільки чого прибрано. Потрібне викликачу для журналу й для тексту. */
 export interface ResetReport {
 	keys: number;
+	/** Ключі сховища ВКЛАДКИ — це відкрита дошка, і рахується вона окремо. */
+	session: number;
 	caches: number;
 	workers: number;
 }
 
 /**
- * Прибрати локальний стан цього застосунку й перезавантажитися.
+ * Прибрати все своє — БЕЗ перезавантаження.
+ *
+ * Окремо від `hardReset` навмисно: щойно в функції зʼявляється
+ * `location.replace`, перевірити її неможливо — jsdom на навігації кидає, а
+ * справжній браузер просто йде зі сторінки. Перелік того, що прибирається, —
+ * саме та частина, якої бракувало (`sessionStorage`), і саме її видно в
+ * `resetService.test.ts` по кожному сховищу окремо.
  *
  * Помилку на будь-якому кроці НЕ ковтаємо мовчки: половина прибраного це теж
  * результат, і перезавантажитися однаково треба — інакше людина лишається на
  * тому самому зламаному екрані, тепер ще й із порожніми налаштуваннями.
  */
-export async function hardReset(): Promise<ResetReport> {
-	const report: ResetReport = { keys: 0, caches: 0, workers: 0 };
+export async function wipeOwnState(): Promise<ResetReport> {
+	const report: ResetReport = { keys: 0, session: 0, caches: 0, workers: 0 };
 
 	report.keys = clearOwn();
+	report.session = clearOwnSession();
 
 	try {
 		report.workers = await unregisterOwnServiceWorkers();
@@ -65,6 +84,13 @@ export async function hardReset(): Promise<ResetReport> {
 	} catch {
 		/* те саме */
 	}
+
+	return report;
+}
+
+/** Прибрати локальний стан цього застосунку й перезавантажитися. */
+export async function hardReset(): Promise<ResetReport> {
+	const report = await wipeOwnState();
 
 	const url = new URL(window.location.href);
 	url.searchParams.set('reset', String(Date.now()));

@@ -86,14 +86,23 @@ describe('межа «своє / чуже» (STORAGE-NAMESPACE)', () => {
 		);
 	});
 
-	it('localStorage.clear() не вживається ніде', () => {
-		// Origin спільний: `clear()` витирає дані сусідніх проєктів. Своє
-		// прибирає `clearOwn()` за префіксом.
+	it('clear() не вживається в жодному зі сховищ', () => {
+		/*
+		 * Origin спільний: `clear()` витирає дані сусідніх проєктів. Своє
+		 * прибирають `clearOwn()` і `clearOwnSession()` за префіксом.
+		 *
+		 * `sessionStorage` тут не за компанію. Спокуса вважати його «своїм за
+		 * побудовою» сильна — він же сеансовий, — і вона хибна: сеансовий він за
+		 * ЧАСОМ життя, а простір імен у нього той самий, спільний на весь origin.
+		 * Тобто `sessionStorage.clear()` у цій вкладці витер би відкриту дошку
+		 * сусіднього проєкту так само, як `localStorage.clear()` витер би його
+		 * налаштування.
+		 */
 		const strays = files
-			.filter((file) => /localStorage\s*\.\s*clear\s*\(/.test(file.code))
+			.filter((file) => /(?:local|session)Storage\s*\.\s*clear\s*\(/.test(file.code))
 			.map((file) => file.path);
 
-		expect(strays, `localStorage.clear() витирає чуже: ${strays.join(', ')}`).toEqual([]);
+		expect(strays, `clear() витирає чуже: ${strays.join(', ')}`).toEqual([]);
 	});
 });
 

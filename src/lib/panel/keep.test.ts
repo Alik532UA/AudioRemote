@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { keepPanel, panelFromText, panelToText, recallPanel } from './keep';
+import { memoryStorage } from '../../gates/storage';
 import {
 	MAX_BUTTONS,
 	MAX_CAPTION,
@@ -37,33 +38,10 @@ const cell = (extra: Record<string, unknown> = {}) => ({
 const fileWith = (cells: Record<string, unknown>, extra: Record<string, unknown> = {}) =>
 	JSON.stringify({ kind: 'audioremote.panel', rev: 7, ...extra, cells });
 
-/**
- * СХОВИЩЕ ДОВОДИТЬСЯ ПІДСТАВЛЯТИ, І НЕ ЧЕРЕЗ ІЗОЛЯЦІЮ.
- *
- * `storage.ts` ходить у `window.localStorage`. Під jsdom його там НЕМАЄ у
- * робочому вигляді: node 22+ кладе на глобальний обʼєкт власний
- * `localStorage`, а без `--localstorage-file` це заглушка, у якої немає навіть
- * `removeItem` (той самий рядок «`--localstorage-file` was provided without a
- * valid path», що друкується на кожному прогоні). Звернення падає з
- * `is not a function`, тобто зовсім не так, як у браузері.
- *
- * Тому тут своє сховище на `Map` — і це заразом те, чого канон і просить
- * (CODE-QUALITY-v9 § 3.2): перевірка не залежить від того, що лишив по собі
- * сусідній опис.
+/*
+ * Сховище доводиться підставляти, і не через ізоляцію: під jsdom робочого
+ * `localStorage` немає. Чому саме так — у `gates/storage.ts`.
  */
-function memoryStorage(): Storage {
-	const box = new Map<string, string>();
-	return {
-		get length() {
-			return box.size;
-		},
-		key: (index: number) => [...box.keys()][index] ?? null,
-		getItem: (key: string) => box.get(key) ?? null,
-		setItem: (key: string, value: string) => void box.set(key, String(value)),
-		removeItem: (key: string) => void box.delete(key),
-		clear: () => box.clear()
-	};
-}
 
 /** Префікс той самий, що в `storage.ts`. */
 const mirror = (boardKey: string) => `audioremote_panel.${boardKey}`;
