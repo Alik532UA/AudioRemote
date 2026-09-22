@@ -447,7 +447,7 @@
 			жодної причини ділити рядок із рештою: дошка вузька, панель своєї
 			форми, журнал — те, що росте й заповнює.
 		-->
-		<div class="desk" class:desk--one={screenView.of('info') !== 'both'}>
+		<div class="desk">
 			<div class="desk__side">
 				<header class="head card desk__who" data-testid="board-head">
 					<div class="head__who">
@@ -500,57 +500,57 @@
 				/>
 			</div>
 
-			<div class="desk__main">
-				{#if !ready}
-					<p class="card muted" data-testid="info-wait-text">{t('common.loading')}</p>
-				{:else if editing}
-					<PanelBuilder
-						{panel}
-						{empty}
-						{filling}
-						name={board.name || board.id}
-						onpick={(cell) => (picked = cell)}
-						onrotate={(cell) => void rotate(cell)}
-						onmove={(at, to) => void shift(at, to)}
-						onfill={fill}
-						onload={(next) => void putPanel(next)}
-						onresize={(grid) => void putPanel({ ...panel, ...grid })}
-					/>
-				{:else if empty}
-					<!--
+			{#if !ready}
+				<p class="card muted" data-testid="info-wait-text">{t('common.loading')}</p>
+			{:else if editing}
+				<PanelBuilder
+					{panel}
+					{empty}
+					{filling}
+					name={board.name || board.id}
+					onpick={(cell) => (picked = cell)}
+					onrotate={(cell) => void rotate(cell)}
+					onmove={(at, to) => void shift(at, to)}
+					onfill={fill}
+					onload={(next) => void putPanel(next)}
+					onresize={(grid) => void putPanel({ ...panel, ...grid })}
+				/>
+			{:else if empty}
+				<!--
 				ПАНЕЛІ ЩЕ НЕМАЄ, і сказано про це прямо разом із виходом. Порожня
 				сітка без пояснення читається як поломка, а порожній екран — як
 				незавантажена сторінка.
 			-->
-					<section class="card stack" data-testid="info-empty-section">
-						<p>{t('info.noPanel')}</p>
-						<!--
+				<section class="card stack" data-testid="info-empty-section">
+					<p>{t('info.noPanel')}</p>
+					<!--
 					ОДИН ВИХІД, А НЕ ДВА. «Скласти типову панель» живе в самому
 					складальнику, поруч із сіткою, яку вона заповнить: дві кнопки тут
 					питали б у людини, яка ще не бачила жодної комірки, чим типова
 					панель відрізняється від власної.
 				-->
-						<button
-							class="btn btn--primary"
-							type="button"
-							onclick={() => (editing = true)}
-							data-testid="info-start-edit-btn"
-						>
-							{t('panel.edit')}
-						</button>
-					</section>
-				{:else}
-					{#if screenView.of('info') !== 'log'}
+					<button
+						class="btn btn--primary"
+						type="button"
+						onclick={() => (editing = true)}
+						data-testid="info-start-edit-btn"
+					>
+						{t('panel.edit')}
+					</button>
+				</section>
+			{:else}
+				{#if screenView.of('info') !== 'log'}
+					<div class="desk__wall">
 						<PanelWall {panel} {levels} {flags} {seats} {spot} press={own} />
-					{/if}
-
-					{#if screenView.of('info') !== 'main'}
-						<section class="card stack log" data-testid="info-log-section">
-							<PanelLog notices={panelLog.entries} onverdict={answer} />
-						</section>
-					{/if}
+					</div>
 				{/if}
-			</div>
+
+				{#if screenView.of('info') !== 'main'}
+					<section class="card stack log" data-testid="info-log-section">
+						<PanelLog notices={panelLog.entries} onverdict={answer} />
+					</section>
+				{/if}
+			{/if}
 		</div>
 
 		{#if inviteOpen && board.password}
@@ -639,60 +639,73 @@
 		max-width: none;
 	}
 
-	.desk {
-		display: grid;
-		grid-template-columns: minmax(220px, 20rem) 1fr;
-		gap: var(--gap);
-		align-items: start;
-	}
-
 	/*
-	 * УСЕРЕДИНІ — СТІНА ПАНЕЛЕЙ І ЖУРНАЛ ПОРУЧ, і вільне місце дістається СТІНІ.
+	 * ТРИ КОЛОНКИ, І ВОНИ ПОСЕРЕДИНІ: дошка, панелі, журнал.
 	 *
-	 * Доти було навпаки: панель ≤24rem, журнал забирає решту. Для однієї панелі
-	 * це правильно — вона й так не ширша за 26rem, а журнал росте текстом. Для
-	 * стіни — ні: панелей стало кілька, вони стоять у ряд, і кожна зайва точка
-	 * ширини означає ще один видимий пульт замість ще одного за прокруткою.
-	 * Журнал натомість дістав межу: рядок ширший за 26rem читається гірше, бо
-	 * око губить початок наступного.
+	 * Доти стіна й журнал жили всередині другої колонки сіткою «решта + 26rem».
+	 * З однією панеллю це давало діру: панель не ширша за 26rem, решта колонки
+	 * лишалася порожньою, і три блоки на широкому екрані тулилися до лівого
+	 * краю, а праворуч зяяла третина вікна.
+	 *
+	 * Тому тут ряд, а не сітка: колонки беруть свою ширину, а вільне місце
+	 * ділиться ПОРІВНУ обабіч (`justify-content: center`). На вузькому екрані
+	 * той самий ряд переносить їх одна під одну без жодного окремого правила —
+	 * три колонки поруч перетворилися б на три смужки, у кожній з яких не
+	 * вміщається навіть підпис віджета.
 	 */
-	.desk__main {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) minmax(260px, 26rem);
-		gap: var(--gap);
+	.desk {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
 		align-items: start;
+		gap: var(--gap);
 	}
 
-	.desk--one .desk__main {
-		grid-template-columns: 1fr;
+	.desk__side {
+		flex: 0 1 20rem;
+		min-inline-size: min(100%, 220px);
 	}
 
 	/*
-	 * На вузькому екрані колонка одна: три поруч перетворилися б на три смужки,
-	 * у кожній з яких не вміщається навіть підпис віджета.
+	 * Стіна бере рівно стільки, скільки в ній панелей, і не більше: розтягнута
+	 * на вільне місце, вона знову лишала б панель у лівому кутку власної
+	 * колонки.
 	 */
-	@media (max-width: 1099px) {
-		.desk,
-		.desk__main {
-			grid-template-columns: 1fr;
-		}
+	.desk__wall {
+		flex: 0 1 auto;
+		min-inline-size: 0;
+	}
+
+	/*
+	 * КАРТКИ СТОЛУ БЕЗ ВЛАСНИХ ВІДСТУПІВ — і це про обидві осі.
+	 *
+	 * `.stack` несе `margin: auto` по обох осях: це для короткої картки входу,
+	 * яка сама по собі стоїть посеред порожнього екрана. У ряду поруч із
+	 * панеллю кожна з половин цього `auto` шкодить по-своєму.
+	 *
+	 * ЗВЕРХУ: журнал з'їжджав на півекрана вниз — заголовок «Останні дії»
+	 * опинявся нижче за середину панелі, і два сусідні блоки починалися на
+	 * різній висоті.
+	 *
+	 * З БОКІВ: автоматичний відступ у гнучкому ряду з'їдає ВСЕ вільне місце
+	 * ДО того, як його ділить `justify-content`. Тобто центрування ряду не
+	 * працювало зовсім, і винен був не ряд. Заміряно на 1440: три колонки
+	 * (320 + 416 + 416) лишали 224 вільних, журнал забирав їх собі як
+	 * `margin-inline: 112px` з кожного боку — і вся трійця тулилася до лівого
+	 * краю, а праворуч зяяло 112. Зворотний дослід: повертаємо сюди
+	 * `margin-block` замість `margin` — журнал знову від'їжджає праворуч.
+	 */
+	.desk > .card,
+	.desk__side > .card,
+	.desk__side :global(.card) {
+		margin: 0;
 	}
 
 	/* Журнал росте вниз, а не розтягує сусідів: у нього своя прокрутка. */
-	/*
-	 * КАРТКИ СТОЛУ ПОЧИНАЮТЬСЯ ЗВЕРХУ, а не повисають посеред колонки.
-	 *
-	 * `.stack` несе `margin-block: auto` — воно для короткої картки входу, яка
-	 * на порожньому екрані має стояти посередині. У ряду з панеллю журнал від
-	 * цього з'їжджав на півекрана вниз: заголовок «Останні дії» опинявся нижче
-	 * за середину панелі, і два сусідні блоки починалися на різній висоті.
-	 */
-	.desk__main > .card,
-	.desk__side > .card {
-		margin-block: 0;
-	}
 
 	.log {
+		flex: 0 1 26rem;
+		min-inline-size: min(100%, 260px);
 		max-block-size: min(80dvh, 46rem);
 		overflow: auto;
 	}

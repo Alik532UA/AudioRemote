@@ -72,6 +72,27 @@ test('другий помічник — друга панель, і натиск
 	await expect(panels, 'другий помічник не дав другої панелі').toHaveCount(2, ACROSS);
 
 	/*
+	 * ДРУГА ПАНЕЛЬ ПОВНОЦІННА Й НА ЕКРАНІ, а не за горизонтальною прокруткою.
+	 *
+	 * Доти ряд панелей крутився вбік своєю власною смужкою: щоб побачити
+	 * другого помічника, треба було знайти мишею саме її. Тепер зайва панель
+	 * переходить рядком нижче, а сторінка росте вниз.
+	 */
+	const spread = await board.evaluate(() => {
+		const row = document.querySelector('[data-testid="info-wall-list"]');
+		if (!row) return null;
+
+		const boxes = [...row.children].map((kid) => kid.getBoundingClientRect());
+		return {
+			widths: boxes.map((box) => Math.round(box.width)),
+			spill: document.documentElement.scrollWidth - document.documentElement.clientWidth
+		};
+	});
+
+	expect(spread?.spill, 'панелі поїхали вбік замість переносу').toBeLessThanOrEqual(0);
+	expect(new Set(spread?.widths).size, `панелі різної ширини: ${spread?.widths}`).toBe(1);
+
+	/*
 	 * ГОЛОВНЕ МІСЦЕ ОПИСУ. Тисне ОДИН, а панелей дві — підсвітка мусить бути
 	 * рівно в одній. Спільна підсвітка (як було доти) засвітила б обидві, і
 	 * друга панель не була б варта місця на екрані.
@@ -179,4 +200,55 @@ test('на найгучнішому режимі прохання із зали 
 
 	await desk.close();
 	await hall.close();
+});
+
+test('три колонки стола стоять посередині, а не туляться до лівого краю', async ({ browser }) => {
+	/*
+	 * ВІЛЬНЕ МІСЦЕ ОБАБІЧ — ЦЕ І Є ПИТАННЯ, і відповісти на нього може лише
+	 * браузер: розкладка тут складається з чужих правил, яких сторінка не
+	 * бачить.
+	 *
+	 * Ряд мав `justify-content: center` і все одно стояв ліворуч. Винен був не
+	 * ряд, а `.stack` на журналі: він несе `margin-inline: auto`, а автоматичний
+	 * відступ у гнучкому ряду з'їдає ВСЕ вільне місце ще до того, як його
+	 * ділить `justify-content`. Заміряно на 1440: ліворуч лишалося 0, праворуч
+	 * 112. Жоден гейт цього не бачив — усі вони дивляться на джерела, а не на
+	 * піксель.
+	 */
+	const desk = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+	const board = await desk.newPage();
+
+	await createInfoBoard(board);
+	await board.getByTestId('info-start-edit-btn').click();
+	await board.getByTestId('info-fill-btn').click();
+	await board.getByTestId('info-edit-btn').click();
+	await expect(board.getByTestId('info-wall-list')).toBeVisible(ACROSS);
+
+	const room = await board.evaluate(() => {
+		const desk = document.querySelector('.desk');
+		if (!desk) return null;
+
+		const kids = [...desk.children].map((kid) => kid.getBoundingClientRect());
+		const box = desk.getBoundingClientRect();
+		const top = kids.filter((kid) => Math.abs(kid.y - kids[0].y) < 1);
+
+		return {
+			columns: top.length,
+			left: Math.round(Math.min(...top.map((kid) => kid.x)) - box.x),
+			right: Math.round(box.right - Math.max(...top.map((kid) => kid.right))),
+			spill: document.documentElement.scrollWidth - document.documentElement.clientWidth
+		};
+	});
+
+	// Усі три в одному рядку — інакше питання про «ліворуч і праворуч» не про що.
+	expect(room?.columns, 'колонки не стали в один ряд').toBe(3);
+	expect(
+		Math.abs((room?.left ?? 0) - (room?.right ?? 0)),
+		`ряд зсунуто: ліворуч ${room?.left}, праворуч ${room?.right}`
+	).toBeLessThanOrEqual(2);
+
+	// І заразом: стіл не виїжджає вбік. Горизонтальна прокрутка тут — поломка.
+	expect(room?.spill, 'сторінка поїхала вбік').toBeLessThanOrEqual(0);
+
+	await desk.close();
 });
