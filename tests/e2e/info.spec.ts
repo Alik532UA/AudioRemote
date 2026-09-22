@@ -140,3 +140,43 @@ test('відповідь дається із заголовка журналу �
 	await desk.close();
 	await hall.close();
 });
+
+test('на найгучнішому режимі прохання із зали фарбує тло табла', async ({ browser }) => {
+	/*
+	 * СПАЛАХ ПЕРЕВІРЯЄТЬСЯ ПІКСЕЛЕМ, А НЕ АТРИБУТОМ — і це головне тут.
+	 *
+	 * Він уже ламався двічі, і обидва рази однаково: атрибут стояв, інлайновий
+	 * стиль стояв, перевірка над станом була б зелена — а колір вікна не
+	 * мінявся, бо фарба лягала на елемент, якого на екрані не видно. Тому тут
+	 * питається саме обчислене тло сторінки.
+	 */
+	const desk = await browser.newContext();
+	const hall = await browser.newContext();
+	const board = await desk.newPage();
+	const helper = await hall.newPage();
+
+	const id = await createInfoBoard(board);
+	await board.getByTestId('info-start-edit-btn').click();
+	await board.getByTestId('info-fill-btn').click();
+	await board.getByTestId('info-edit-btn').click();
+
+	// Найгучніший режим: тло на весь екран. Типовий — найтихіший, і він мовчить.
+	await board.getByTestId('info-attention-page-radio').click();
+
+	await joinAsHelper(helper, id, 'Оля');
+	await expect(board.getByTestId('info-wall-list')).toBeVisible(ACROSS);
+
+	const paint = () => board.evaluate(() => getComputedStyle(document.body).backgroundColor);
+	const quiet = await paint();
+
+	await helper.locator('[data-testid^="panel-press-"]').first().click();
+	await expect
+		.poll(paint, { message: 'тло табла не змінилося на прохання із зали', timeout: 10_000 })
+		.not.toBe(quiet);
+
+	// Спалах ГАСНЕ сам: смуга, яка лишилася б горіти, читається як поломка.
+	await expect.poll(paint, { message: 'спалах не згас', timeout: 10_000 }).toBe(quiet);
+
+	await desk.close();
+	await hall.close();
+});

@@ -64,7 +64,12 @@ body {
 	transition: background-color 150ms ease;
 }
 
-:root[data-attention='flip'] {
+/*
+ * Фарбується `body`, а ознака стоїть на корені: сам спалах ставить колір
+ * інлайном саме на `body`, бо фарба на `<html>` на екран не виходить
+ * (заміряно — `services/attention.svelte.ts`).
+ */
+:root[data-attention='flip'] body {
 	background-color: var(--bg-page-flip);
 }
 
