@@ -1,0 +1,2 @@
+import"./Dof2PsIB.js";import{s,r as p}from"./VNLU01lu.js";import{I as c}from"./BvN0VSC2.js";var a=new Set(["$$slots","$$events","$$legacy"]);function $(e,r){let t=p(r,a);const o={name:"copy",size:24,node:[["rect",{width:"14",height:"14",x:"8",y:"8",rx:"2",ry:"2"}],["path",{d:"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"}]]};c(e,s(()=>t,{get icon(){return o}}))}export{$ as C};
+//# sourceMappingURL=B3A4uwFU.js.map

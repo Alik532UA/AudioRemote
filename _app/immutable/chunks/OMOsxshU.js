@@ -1,2 +1,0 @@
-import"./Dof2PsIB.js";import{t as i,q as r,y as p}from"./CHUH5Okb.js";import{b as l}from"./Dasve6kQ.js";import{p as d}from"./CZ4b3iWM.js";var o=p('<span class="eq svelte-13dd6gv" aria-hidden="true" data-testid="equalizer"><i class="svelte-13dd6gv"></i><i class="svelte-13dd6gv"></i><i class="svelte-13dd6gv"></i></span>');function c(s,a){let t=d(a,"size",3,16);var e=o();i(()=>l(e,`--eq-size: ${t()??""}px`)),r(s,e)}export{c as E};
-//# sourceMappingURL=OMOsxshU.js.map
