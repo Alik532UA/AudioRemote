@@ -350,3 +350,65 @@ test('текст в органах керування стоїть посере�
 	expect(counted, 'жодного однорядкового органа не знайдено — перевірка мертва').toBeGreaterThan(20);
 	expect(crooked, `текст не посередині:\n${crooked.join('\n')}`).toEqual([]);
 });
+
+test('блоки сторінки стоять в одних берегах, а не кожен у своїх', async ({ page }) => {
+	/*
+	 * ОДНА ШИРИНА НА СТОРІНКУ — правило, яке ламали мовчки й помічали оком.
+	 *
+	 * На сторінці чеклиста власна межа сторінки (62rem) зустрілася з межею
+	 * карток усередині (`.stack`, 760), і вийшло дві ширини на одному екрані:
+	 * заміряно на 1024 — картки 760 від краю 124, а ряд вкладок і рядок «де це
+	 * дивитися» 977 від краю 16. Тобто вони вилазили на 108 точок у кожен бік.
+	 *
+	 * Око ловить саме це: не «широко» чи «вузько», а те, що сусідні блоки
+	 * починаються в різних місцях. Тому правило питає БЕРЕГИ, а не ширину.
+	 *
+	 * Допуск 2 точки — округлення субпіксельної розкладки. Позиційовані шари
+	 * (спливні смуги, завіси) не беруться: вони навмисно поверх сторінки й
+	 * ніяких берегів не поділяють.
+	 */
+	await page.setViewportSize({ width: 1024, height: 900 });
+
+	const ragged: string[] = [];
+	let counted = 0;
+
+	for (const path of ROUTES) {
+		await page.goto(path);
+		await settled(page);
+
+		const edges = await page.evaluate(() => {
+			/*
+			 * Тримач — перший вузол від `main`, у якого дітей більше одного:
+			 * саме його діти й стоять у ряд згори вниз. Спускатися нижче не
+			 * можна — там уже вміст блоку, а не блоки.
+			 */
+			let holder: HTMLElement | null = document.querySelector('main');
+			while (holder && holder.children.length === 1) holder = holder.firstElementChild as HTMLElement;
+			if (!holder) return null;
+
+			const blocks = [...holder.children]
+				.filter((kid): kid is HTMLElement => kid instanceof HTMLElement)
+				.filter((kid) => !['absolute', 'fixed'].includes(getComputedStyle(kid).position))
+				.map((kid) => ({ kid, box: kid.getBoundingClientRect() }))
+				.filter(({ box }) => box.width > 0 && box.height > 0);
+
+			if (blocks.length < 2) return null;
+
+			const left = Math.min(...blocks.map(({ box }) => box.x));
+			const right = Math.max(...blocks.map(({ box }) => box.right));
+			return {
+				seen: blocks.length,
+				off: blocks
+					.filter(({ box }) => Math.abs(box.x - left) > 2 || Math.abs(box.right - right) > 2)
+					.map(({ kid, box }) => `${kid.dataset.testid ?? (kid.className.split(' ')[0] || kid.tagName)}: ${Math.round(box.x)}…${Math.round(box.right)} при ${Math.round(left)}…${Math.round(right)}`)
+			};
+		});
+
+		if (!edges) continue;
+		counted += edges.seen;
+		ragged.push(...edges.off.map((one) => `${path} ${one}`));
+	}
+
+	expect(counted, 'жодної сторінки з кількома блоками — перевірка мертва').toBeGreaterThan(5);
+	expect(ragged, `блоки в різних берегах:\n${ragged.join('\n')}`).toEqual([]);
+});
