@@ -385,7 +385,15 @@ svg {
  * сам. `:has(svg)` теж не прикраса — той самий локатор носить і ТЕКСТОВА
  * кнопка закриття («Готово»), а обертати напис на 90° безглуздо.
  */
-[data-testid$='-close-btn'] {
+/*
+ * `:not(.btn)` — ЩОБ ПРАВИЛО НЕ ЛОВИЛО ТЕКСТОВОЇ КНОПКИ ЗАКРИТТЯ.
+ *
+ * Тут квадрат 44×44 під значок, і поки закриття скрізь було хрестиком, цього
+ * було досить. Щойно закриття стало рядом із «Зберегти» звичайною кнопкою з
+ * підписом, той самий локатор придавив її до 44 точок при потрібних 63 — і
+ * підпис обрізало. Ознака «це звичайна кнопка» вже є: клас `.btn`.
+ */
+[data-testid$='-close-btn']:not(.btn) {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -418,7 +426,7 @@ svg {
 }
 
 @media (prefers-reduced-motion: reduce) {
-	[data-testid$='-close-btn'],
+	[data-testid$='-close-btn']:not(.btn),
 	[data-testid$='-close-btn']:has(svg):hover,
 	[data-testid$='-close-btn']:has(svg):active {
 		transition: none;

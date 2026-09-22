@@ -55,40 +55,60 @@
 		gap: var(--gap-xs);
 	}
 
+	/*
+	 * ЦІЛЬ ПІД ПАЛЕЦЬ, А КРУЖЕЧОК — ПІД ОКО.
+	 *
+	 * Кружечки були 32×32, тобто менші за межу дотику: у темному залі на
+	 * телефоні це промах через раз. Ростити сам кружечок не можна — палітра з
+	 * одинадцяти кружків по 44 читається як панель, а не як рядок кольорів.
+	 * Тому ціллю стала кнопка навколо нього: тиснуть у 44, бачать 32.
+	 */
 	.palette__cell {
-		width: 32px;
-		height: 32px;
+		display: grid;
+		place-items: center;
+		inline-size: var(--tap);
+		block-size: var(--tap);
+		padding: 0;
+		border: 0;
+		background: none;
+		cursor: pointer;
+	}
+
+	.palette__cell::before {
+		content: '';
+		display: block;
+		inline-size: 32px;
+		block-size: 32px;
 		border: 2px solid transparent;
 		border-radius: 50%;
 		background: var(--swatch);
-		cursor: pointer;
 		transition: transform var(--transition-fast);
 	}
 
-	.palette__cell--none {
+	.palette__cell--none::before {
 		border-color: var(--border-strong);
 		background: var(--bg-sunken);
 	}
 
-	.palette__cell:hover,
-	.palette__cell:focus-visible {
+	.palette__cell:hover::before,
+	.palette__cell:focus-visible::before {
 		border-color: var(--accent);
 		transform: scale(1.1);
 	}
 
-	.palette__cell[aria-pressed='true'] {
+	.palette__cell[aria-pressed='true']::before {
 		border-color: var(--text-primary);
 		/* Обраний колір видно й тоді, коли він майже збігається з тлом вікна. */
 		box-shadow: 0 0 0 2px var(--bg-surface-raised) inset;
 	}
 
 	@media (prefers-reduced-motion: reduce) {
-		.palette__cell {
+		.palette__cell::before {
 			transition: none;
 		}
 
-		.palette__cell:hover,
-		.palette__cell:focus-visible {
+		.palette__cell:hover::before,
+		.palette__cell:focus-visible::before {
 			transform: none;
 		}
 	}

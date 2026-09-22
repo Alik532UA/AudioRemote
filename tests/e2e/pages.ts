@@ -114,6 +114,21 @@ export async function settled(page: Page) {
 			const styles = [...document.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]')];
 			if (styles.some((link) => link.sheet === null)) return false;
 
+			/*
+			 * КОЛІР ЩЕ В РУСІ — ЦЕ ТЕЖ «НЕ НАМАЛЮВАЛОСЯ».
+			 *
+			 * Контролер теми вішає `theme-changing` на 180 мс, і в цьому вікні
+			 * `:root.theme-changing *` переводить усі кольори через перехід. Хто
+			 * заміряє там, бачить проміжне значення — колір, якого на екрані не
+			 * буває ні до, ні після. Геометрія при цьому стоїть, тож три сталі
+			 * кадри нижче нічого не ловлять.
+			 *
+			 * Саме на це й падав axe: приблизно один повний прогін із трьох
+			 * червонів на `settings` двома кнопками мови (найбарвистіший орган на
+			 * сторінці), а та сама перевірка окремо була зелена щоразу.
+			 */
+			if (document.documentElement.classList.contains('theme-changing')) return false;
+
 			const main = document.querySelector('main');
 			const controls = main ? [...main.querySelectorAll<HTMLElement>(selector)] : [];
 			/*

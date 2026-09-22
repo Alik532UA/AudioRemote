@@ -106,21 +106,38 @@
 		min-inline-size: 0;
 	}
 
+	/*
+	 * ЦІЛЬ ПІД ПАЛЕЦЬ, А КВАДРАТИК — ПІД ОКО: те саме рішення, що й у палітри
+	 * кольорів. Сам квадратик 32 (більший читався б як ще одна кнопка в рядку),
+	 * а тиснуть у 44 навколо нього.
+	 */
 	.tint {
+		display: grid;
 		flex: none;
+		place-items: center;
+		inline-size: var(--tap);
+		block-size: var(--tap);
+		padding: 0;
+		border: 0;
+		background: none;
+		cursor: pointer;
+	}
+
+	.tint::before {
+		content: '';
+		display: block;
 		inline-size: 32px;
 		block-size: 32px;
 		border: 1px solid var(--border-strong);
 		border-radius: var(--radius-sm);
 		background: var(--swatch);
-		cursor: pointer;
 	}
 
 	/*
 	 * «Без кольору» — перекреслений квадрат, а не порожній: порожній не
 	 * відрізнити від білої заготовки, і саме на цьому люди зупиняються.
 	 */
-	.tint--none {
+	.tint--none::before {
 		background: linear-gradient(
 				to top right,
 				transparent calc(50% - 1px),
@@ -131,8 +148,8 @@
 			var(--bg-surface);
 	}
 
-	.tint:hover,
-	.tint:focus-visible {
+	.tint:hover::before,
+	.tint:focus-visible::before {
 		border-color: var(--accent);
 	}
 </style>
