@@ -34,8 +34,6 @@
 	import BoardNotices from '$lib/components/player/BoardNotices.svelte';
 	import BoardHead from '$lib/components/player/BoardHead.svelte';
 	import DeckLog from '$lib/components/player/DeckLog.svelte';
-	import ViewPicker from '$lib/components/ui/ViewPicker.svelte';
-	import { screenView } from '$lib/services/screenView.svelte';
 	import FolderBar from '$lib/components/player/FolderBar.svelte';
 	import PlaybackPolicy from '$lib/components/player/PlaybackPolicy.svelte';
 	import ArmDialog from '$lib/components/player/ArmDialog.svelte';
@@ -277,17 +275,18 @@
 				{/if}
 
 				<!--
-					ЩО ВИДНО НА ЦІЙ СТОРІНЦІ — той самий орган, що й на таблі інфодошки.
-					Журнал доти висів завжди, і прибрати його не було чим; при цьому на
-					сусідній дошці той самий вибір є з першого дня.
+					ЖУРНАЛ — У ПЕРШІЙ КОЛОНЦІ, під карткою дошки.
+					
+					Він відповідає на питання про ДОШКУ («що тут щойно сталося»), а не
+					про звук, тож і стоїть поруч із тим, що дошка про себе каже. У
+					колонці керування він лежав під декою й списком повторів — тобто
+					найдалі від ока в найдовшій колонці.
+
+					Згортається сам, кнопкою в заголовку: тривибірник «і те, і те /
+					керування / журнал» відповідав на те саме питання трьома варіантами,
+					з яких два означали «сховати щось одне».
 				-->
-				<ViewPicker
-					card
-					board="audio"
-					prefix="deck-view"
-					title={t('deck.viewTitle')}
-					label={(which) => t(`deckView.${which}`)}
-				/>
+				<DeckLog tracks={controller.entries} />
 			</div>
 
 			<!-- ─── Керування ─────────────────────────────────────────────── -->
@@ -300,44 +299,40 @@
 			{#if !narrow.matches || controller.folderName !== null}
 				{@const full = !narrow.matches || (deckOpen ?? engine.trackId !== null)}
 				<div class="board__col board__col--deck">
-					<!-- Керування ховається, журнал лишається — і навпаки. -->
-					{#if screenView.of('audio') !== 'log'}
-						<section class="deck card" class:deck--short={!full} data-testid="deck">
-							{#if !narrow.matches}
-								<HotkeyTips keepOpen={engine.armed} id="deck-tips" />
-							{:else if full}
-								<!--
+					<section class="deck card" class:deck--short={!full} data-testid="deck">
+						{#if !narrow.matches}
+							<HotkeyTips keepOpen={engine.armed} id="deck-tips" />
+						{:else if full}
+							<!--
 								На місці значка підказки — «згорнути». Підказка там про гарячі
 								клавіші, а в телефона клавіатури немає; місце ж у правому
 								верхньому куті потрібне саме тут.
 							-->
-								<button
-									class="deck__fold"
-									type="button"
-									title={t('player.deckCollapse')}
-									aria-label={t('player.deckCollapse')}
-									aria-expanded={true}
-									onclick={() => (deckOpen = false)}
-									data-testid="deck-collapse"
-								>
-									<IconDown size={20} aria-hidden="true" />
-								</button>
-							{/if}
+							<button
+								class="deck__fold"
+								type="button"
+								title={t('player.deckCollapse')}
+								aria-label={t('player.deckCollapse')}
+								aria-expanded={true}
+								onclick={() => (deckOpen = false)}
+								data-testid="deck-collapse"
+							>
+								<IconDown size={20} aria-hidden="true" />
+							</button>
+						{/if}
 
-							{#if full}
-								<p class="deck__now" data-testid="now-playing">
-									{current?.title ?? t('remote.nothing')}
-								</p>
+						{#if full}
+							<p class="deck__now" data-testid="now-playing">
+								{current?.title ?? t('remote.nothing')}
+							</p>
 
-								<!--
+							<!--
 								Смуга перемотки. Поки палець на ній, позиція з плеєра її не смикає:
 								інакше кожне оновлення відкидало б повзунок назад під пальцем.
 							-->
-								<div class="bar">
-									<span class="bar__time mono"
-										>{clock(seeking ? seekValue : engine.positionMs)}</span
-									>
-									<!--
+							<div class="bar">
+								<span class="bar__time mono">{clock(seeking ? seekValue : engine.positionMs)}</span>
+								<!--
 									Перемотка комітиться на `pointerup`, і значення береться з САМОГО
 									поля, а не з `seekValue`.
 
@@ -349,184 +344,179 @@
 
 									Клавіатура йде окремою парою: у неї `pointerup` не буває.
 								-->
-									<input
-										class="bar__range"
-										type="range"
-										aria-label={t('player.seek')}
-										min="0"
-										max={Math.max(1000, engine.durationMs)}
-										step="250"
-										disabled={!engine.trackId}
-										value={seeking ? seekValue : engine.positionMs}
-										data-testid="player-seek"
-										onpointerdown={(event) => {
-											seeking = true;
-											seekValue = Number(event.currentTarget.value);
-										}}
-										oninput={(event) => (seekValue = Number(event.currentTarget.value))}
-										onpointerup={(event) => {
-											seeking = false;
-											void controller?.seekLocal(Number(event.currentTarget.value));
-										}}
-										onpointercancel={() => (seeking = false)}
-										onkeydown={() => (seeking = true)}
-										onkeyup={(event) => {
-											seeking = false;
-											void controller?.seekLocal(Number(event.currentTarget.value));
-										}}
-									/>
-									<span class="bar__time mono">{clock(engine.durationMs)}</span>
-								</div>
+								<input
+									class="bar__range"
+									type="range"
+									aria-label={t('player.seek')}
+									min="0"
+									max={Math.max(1000, engine.durationMs)}
+									step="250"
+									disabled={!engine.trackId}
+									value={seeking ? seekValue : engine.positionMs}
+									data-testid="player-seek"
+									onpointerdown={(event) => {
+										seeking = true;
+										seekValue = Number(event.currentTarget.value);
+									}}
+									oninput={(event) => (seekValue = Number(event.currentTarget.value))}
+									onpointerup={(event) => {
+										seeking = false;
+										void controller?.seekLocal(Number(event.currentTarget.value));
+									}}
+									onpointercancel={() => (seeking = false)}
+									onkeydown={() => (seeking = true)}
+									onkeyup={(event) => {
+										seeking = false;
+										void controller?.seekLocal(Number(event.currentTarget.value));
+									}}
+								/>
+								<span class="bar__time mono">{clock(engine.durationMs)}</span>
+							</div>
 
-								<!--
+							<!--
 								САМІ ЗНАЧКИ, БЕЗ ПІДПИСІВ. Чотири кнопки з підписами в колонку не
 								вміщалися й переносилися, а самі підписи нічого не додавали: значки
 								плеєра людина читає швидше за слово й однаково в будь-якій мові.
 								Назва лишається в `title` та `aria-label` — для миші, що зависла, і
 								для читача екрана.
 							-->
-								<div class="deck__buttons">
-									<button
-										class="btn deck__btn"
-										type="button"
-										disabled={controller.visible.length === 0}
-										title={t('remote.prev')}
-										aria-label={t('remote.prev')}
-										onclick={() => {
-											const prev = engine.prevTrackId();
-											if (prev) void controller?.playLocal(prev);
-										}}
-										data-testid="player-prev"
-									>
-										<IconPrev size={22} aria-hidden="true" />
-									</button>
-
-									{#if engine.playing}
-										<button
-											class="btn btn--primary deck__btn"
-											type="button"
-											title={t('remote.pause')}
-											aria-label={t('remote.pause')}
-											onclick={() => engine.pause()}
-											data-testid="player-pause"
-										>
-											<IconPause size={22} aria-hidden="true" />
-										</button>
-									{:else}
-										<button
-											class="btn btn--primary deck__btn"
-											type="button"
-											disabled={!engine.trackId}
-											title={t('remote.resume')}
-											aria-label={t('remote.resume')}
-											onclick={() => engine.resume()}
-											data-testid="player-resume"
-										>
-											<IconPlay size={22} aria-hidden="true" />
-										</button>
-									{/if}
-
-									<button
-										class="btn deck__btn"
-										type="button"
-										disabled={!engine.trackId}
-										title={t('remote.stop')}
-										aria-label={t('remote.stop')}
-										onclick={() => engine.stop()}
-										data-testid="player-stop"
-									>
-										<IconStop size={22} aria-hidden="true" />
-									</button>
-
-									<button
-										class="btn deck__btn"
-										type="button"
-										disabled={controller.visible.length === 0}
-										title={t('remote.next')}
-										aria-label={t('remote.next')}
-										onclick={() => {
-											const next = engine.nextTrackId();
-											if (next) void controller?.playLocal(next);
-										}}
-										data-testid="player-next"
-									>
-										<IconNext size={22} aria-hidden="true" />
-									</button>
-								</div>
-							{/if}
-
-							<div class="bar">
+							<div class="deck__buttons">
 								<button
-									class="mute"
-									class:mute--on={engine.muted}
+									class="btn deck__btn"
 									type="button"
-									aria-pressed={engine.muted}
-									title={engine.muted ? t('sound.unmute') : t('sound.mute')}
-									aria-label={engine.muted ? t('sound.unmute') : t('sound.mute')}
-									onclick={() => engine.toggleMute()}
-									data-testid="player-mute"
+									disabled={controller.visible.length === 0}
+									title={t('remote.prev')}
+									aria-label={t('remote.prev')}
+									onclick={() => {
+										const prev = engine.prevTrackId();
+										if (prev) void controller?.playLocal(prev);
+									}}
+									data-testid="player-prev"
 								>
-									{#if engine.muted}
-										<IconMute size={20} aria-hidden="true" />
-									{:else}
-										<IconVolume size={20} aria-hidden="true" />
-									{/if}
+									<IconPrev size={22} aria-hidden="true" />
 								</button>
 
-								<label class="bar__wrap">
-									<span class="visually-hidden">{t('player.volume')}</span>
-									<input
-										class="bar__range"
-										type="range"
-										min="0"
-										max="100"
-										step="1"
-										value={Math.round(engine.volume * 100)}
-										data-testid="player-volume"
-										oninput={(event) => engine.setVolume(Number(event.currentTarget.value) / 100)}
-									/>
-								</label>
+								{#if engine.playing}
+									<button
+										class="btn btn--primary deck__btn"
+										type="button"
+										title={t('remote.pause')}
+										aria-label={t('remote.pause')}
+										onclick={() => engine.pause()}
+										data-testid="player-pause"
+									>
+										<IconPause size={22} aria-hidden="true" />
+									</button>
+								{:else}
+									<button
+										class="btn btn--primary deck__btn"
+										type="button"
+										disabled={!engine.trackId}
+										title={t('remote.resume')}
+										aria-label={t('remote.resume')}
+										onclick={() => engine.resume()}
+										data-testid="player-resume"
+									>
+										<IconPlay size={22} aria-hidden="true" />
+									</button>
+								{/if}
 
-								<output class="bar__time mono">{Math.round(engine.volume * 100)}</output>
+								<button
+									class="btn deck__btn"
+									type="button"
+									disabled={!engine.trackId}
+									title={t('remote.stop')}
+									aria-label={t('remote.stop')}
+									onclick={() => engine.stop()}
+									data-testid="player-stop"
+								>
+									<IconStop size={22} aria-hidden="true" />
+								</button>
 
-								{#if !full}
-									<!--
+								<button
+									class="btn deck__btn"
+									type="button"
+									disabled={controller.visible.length === 0}
+									title={t('remote.next')}
+									aria-label={t('remote.next')}
+									onclick={() => {
+										const next = engine.nextTrackId();
+										if (next) void controller?.playLocal(next);
+									}}
+									data-testid="player-next"
+								>
+									<IconNext size={22} aria-hidden="true" />
+								</button>
+							</div>
+						{/if}
+
+						<div class="bar">
+							<button
+								class="mute"
+								class:mute--on={engine.muted}
+								type="button"
+								aria-pressed={engine.muted}
+								title={engine.muted ? t('sound.unmute') : t('sound.mute')}
+								aria-label={engine.muted ? t('sound.unmute') : t('sound.mute')}
+								onclick={() => engine.toggleMute()}
+								data-testid="player-mute"
+							>
+								{#if engine.muted}
+									<IconMute size={20} aria-hidden="true" />
+								{:else}
+									<IconVolume size={20} aria-hidden="true" />
+								{/if}
+							</button>
+
+							<label class="bar__wrap">
+								<span class="visually-hidden">{t('player.volume')}</span>
+								<input
+									class="bar__range"
+									type="range"
+									min="0"
+									max="100"
+									step="1"
+									value={Math.round(engine.volume * 100)}
+									data-testid="player-volume"
+									oninput={(event) => engine.setVolume(Number(event.currentTarget.value) / 100)}
+								/>
+							</label>
+
+							<output class="bar__time mono">{Math.round(engine.volume * 100)}</output>
+
+							{#if !full}
+								<!--
 									У згорнутому вигляді стрілка стоїть у самому рядку гучності:
 									верхнього кута тут просто немає — картка заввишки в один рядок.
 								-->
-									<button
-										class="mute"
-										type="button"
-										title={t('player.deckExpand')}
-										aria-label={t('player.deckExpand')}
-										aria-expanded={false}
-										onclick={() => (deckOpen = true)}
-										data-testid="deck-expand"
-									>
-										<IconUp size={20} aria-hidden="true" />
-									</button>
-								{/if}
-							</div>
+								<button
+									class="mute"
+									type="button"
+									title={t('player.deckExpand')}
+									aria-label={t('player.deckExpand')}
+									aria-expanded={false}
+									onclick={() => (deckOpen = true)}
+									data-testid="deck-expand"
+								>
+									<IconUp size={20} aria-hidden="true" />
+								</button>
+							{/if}
+						</div>
 
-							{#if full}
-								<!--
+						{#if full}
+							<!--
 								Питання «а що заграє далі» виникає саме там, де дивляться, що
 								грає зараз. У згорнутій деці його немає з тієї ж причини, що й
 								решти: там показують один рядок гучності.
 							-->
-								<PlaybackPolicy {controller} />
-							{/if}
-						</section>
-
-						{#if controller.trouble}
-							<p class="error" role="alert" data-testid="player-trouble">
-								{t(controller.trouble.key as 'error.playback', { name: controller.trouble.name })}
-							</p>
+							<PlaybackPolicy {controller} />
 						{/if}
-					{/if}
+					</section>
 
-					{#if screenView.of('audio') !== 'main'}
-						<DeckLog tracks={controller.entries} />
+					{#if controller.trouble}
+						<p class="error" role="alert" data-testid="player-trouble">
+							{t(controller.trouble.key as 'error.playback', { name: controller.trouble.name })}
+						</p>
 					{/if}
 				</div>
 			{/if}

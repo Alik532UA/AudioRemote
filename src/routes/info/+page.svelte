@@ -539,13 +539,13 @@
 					</button>
 				</section>
 			{:else}
-				{#if screenView.of('info') !== 'log'}
+				{#if screenView.view !== 'log'}
 					<div class="desk__wall">
 						<PanelWall {panel} {levels} {flags} {seats} {spot} press={own} />
 					</div>
 				{/if}
 
-				{#if screenView.of('info') !== 'main'}
+				{#if screenView.view !== 'main'}
 					<section class="card stack log" data-testid="info-log-section">
 						<PanelLog notices={panelLog.entries} onverdict={answer} />
 					</section>

@@ -3,6 +3,8 @@
 	import type { BoardTrack } from '$lib/board/editor';
 	import { deckLog, type DeckNote } from '$lib/services/deckLog.svelte';
 	import LogWho from '$lib/components/ui/LogWho.svelte';
+	import { IconDown, IconUp } from '$lib/config/icons';
+	import { readItem, writeItem } from '$lib/services/storage';
 
 	/**
 	 * ОСТАННІ ДІЇ АУДІОДОШКИ — те саме, що давно є в інфодошки.
@@ -33,6 +35,22 @@
 	}
 
 	let { tracks }: Props = $props();
+
+	const OPEN_KEY = 'deck.logOpen';
+
+	/**
+	 * ЗГОРНУТО ЧИ НІ — вибір про ЦЕЙ екран, і він переживає перезавантаження.
+	 *
+	 * Доти журнал висів завжди й прибрати його не було чим; короткий тривибірник
+	 * «і те, і те / керування / журнал» відповідав на те саме питання трьома
+	 * варіантами, з яких два означали «сховати щось одне». Кнопка в заголовку
+	 * каже рівно те, що робить, і не забирає рядка на екрані.
+	 *
+	 * Читається прямо в оголошенні: `readItem` на сервері мовчки віддає порожнє,
+	 * а ефект тут означав би друге джерело правди — сховище й поле, які
+	 * розходяться на такт після кожного перемикання.
+	 */
+	let open = $state(readItem(OPEN_KEY) !== 'no');
 
 	const notes = $derived(deckLog.notes);
 
@@ -71,19 +89,45 @@
 	<div class="head">
 		<h2 class="subtitle">{t('deck.logTitle')}</h2>
 
-		{#if notes.length > 0}
+		<div class="head__side">
+			{#if open && notes.length > 0}
+				<button
+					class="btn btn--sm"
+					type="button"
+					onclick={() => deckLog.clear()}
+					data-testid="deck-log-clear-btn"
+				>
+					{t('deck.logClear')}
+				</button>
+			{/if}
+
 			<button
-				class="btn btn--sm"
+				class="fold"
 				type="button"
-				onclick={() => deckLog.clear()}
-				data-testid="deck-log-clear-btn"
+				aria-expanded={open}
+				title={open ? t('deck.logHide') : t('deck.logShow')}
+				aria-label={open ? t('deck.logHide') : t('deck.logShow')}
+				onclick={() => {
+					open = !open;
+					writeItem(OPEN_KEY, open ? 'yes' : 'no');
+				}}
+				data-testid="deck-log-fold-btn"
 			>
-				{t('deck.logClear')}
+				{#if open}
+					<IconUp size={18} aria-hidden="true" />
+				{:else}
+					<IconDown size={18} aria-hidden="true" />
+				{/if}
 			</button>
-		{/if}
+		</div>
 	</div>
 
-	{#if notes.length === 0}
+	{#if !open}
+		<!-- Згорнутий журнал не мовчить зовсім: число каже, чи є на що дивитися. -->
+		<p class="muted" data-testid="deck-log-folded-text">
+			{t('deck.logFolded', { count: `${notes.length}` })}
+		</p>
+	{:else if notes.length === 0}
 		<p class="muted" data-testid="deck-log-empty-text">{t('deck.logEmpty')}</p>
 	{:else}
 		<ul class="log" data-testid="deck-log-list">
@@ -112,6 +156,31 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--gap-sm);
+	}
+
+	.head__side {
+		display: flex;
+		align-items: center;
+		gap: var(--gap-xs);
+	}
+
+	/* Стрілка тиха: вона про показ, а не про вміст. */
+	.fold {
+		display: grid;
+		place-items: center;
+		inline-size: var(--tap);
+		block-size: var(--tap);
+		border: 0;
+		border-radius: var(--radius-sm);
+		background: none;
+		color: var(--text-secondary);
+		cursor: pointer;
+	}
+
+	.fold:hover,
+	.fold:focus-visible {
+		background: var(--bg-sunken);
+		color: var(--text-primary);
 	}
 
 	.subtitle {

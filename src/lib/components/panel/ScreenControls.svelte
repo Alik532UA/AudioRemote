@@ -63,7 +63,6 @@
 		лишала по собі порожній четвертий сегмент.
 	-->
 	<ViewPicker
-		board="info"
 		prefix="info-view"
 		title={t('panel.viewTitle')}
 		label={(which) => t(`panelView.${which}`)}

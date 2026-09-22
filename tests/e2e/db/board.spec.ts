@@ -288,3 +288,42 @@ test('підпис пульта доїжджає і в картку дошки, 
 	await board.close();
 	await guest.close();
 });
+
+test('журнал аудіодошки згортається, і вибір переживає перезавантаження', async ({ browser }) => {
+	/*
+	 * ЗГОРНУТО — ЦЕ ВИБІР ПРО ЦЕЙ ЕКРАН, а не про цей візит.
+	 *
+	 * Монітор за пультом не міняється між перезавантаженнями, а сторінку
+	 * перезавантажують щовечора. Вибір, який щоразу скидається, доводиться
+	 * робити щоразу — і саме цей клас дефектів тут уже ловився двічі
+	 * (`view.info`, підпис пульта): усе на екрані виглядає правильно, стан
+	 * записаний, а після `F5` його немає.
+	 *
+	 * Тому опис питає не кнопку, а НАСЛІДОК ПІСЛЯ ПЕРЕЗАВАНТАЖЕННЯ.
+	 */
+	const ctx = await browser.newContext();
+	const player = await ctx.newPage();
+
+	await createBoard(player);
+	await expect(player.getByTestId('deck-log-fold-btn')).toHaveAttribute('aria-expanded', 'true');
+
+	await player.getByTestId('deck-log-fold-btn').click();
+	await expect(player.getByTestId('deck-log-folded-text'), 'журнал не згорнувся').toBeVisible();
+
+	await player.reload();
+	await expect(
+		player.getByTestId('deck-log-fold-btn'),
+		'згорнутий журнал розгорнувся сам після перезавантаження'
+	).toHaveAttribute('aria-expanded', 'false', ACROSS);
+
+	// І назад: кнопка не одностороння.
+	await player.getByTestId('deck-log-fold-btn').click();
+	await player.reload();
+	await expect(player.getByTestId('deck-log-fold-btn')).toHaveAttribute(
+		'aria-expanded',
+		'true',
+		ACROSS
+	);
+
+	await ctx.close();
+});
