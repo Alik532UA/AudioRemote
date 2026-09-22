@@ -68,13 +68,17 @@ export async function publishPanelState(
 	if (state.flags && Object.keys(state.flags).length > 0) payload.flags = state.flags;
 	/*
 	 * Останнє натискання — щоб його побачили ВСІ, а не лише той, хто натиснув.
-	 * `undefined` у полях RTDB не приймає взагалі, тож необов'язкове значення
-	 * дописується окремо, а не лягає в об'єкт із дірою.
+	 *
+	 * Кладеться ЦІЛКОМ, а не переліком полів. Доти тут стояв перелік
+	 * (`{ cell, type, value }`), і він мовчки з'їдав усе решту: підпис і
+	 * сторону, через що в залі кожне натискання — і своє, і за пультом —
+	 * виглядало однаково безіменним. Той самий клас вади, що й у `toActive`:
+	 * рукописний перелік не має де зламатися голосно.
+	 *
+	 * Форму гарантує `panel/press.ts`: він не кладе полів зі значенням
+	 * `undefined`, якого RTDB не приймає взагалі.
 	 */
-	if (state.press) {
-		const { cell, type, value } = state.press;
-		payload.press = { cell, type, ...(value === undefined ? {} : { value }) };
-	}
+	if (state.press) payload.press = state.press;
 	await set(ref(db, stateNode(key)), payload);
 }
 
