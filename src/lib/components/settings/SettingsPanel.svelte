@@ -13,6 +13,7 @@
 -->
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { confirmed } from '$lib/services/confirmed.svelte';
 	import DiagnosticsTrail from './DiagnosticsTrail.svelte';
 	import HardResetButton from './HardResetButton.svelte';
 	import MusicFolderCard from './MusicFolderCard.svelte';
@@ -56,8 +57,8 @@
 	/** Пара «певної дошки» для запуску. Зберігається окремою кнопкою. */
 	let pinnedId = $state('');
 	let pinnedPassword = $state('');
-	let saved = $state(false);
-	let pinnedSaved = $state(false);
+	const saved = confirmed();
+	const pinnedSaved = confirmed();
 
 	onMount(() => {
 		settings.load();
@@ -75,8 +76,7 @@
 
 	function save() {
 		settings.save({ fixedBoardId: boardId.trim(), fixedPassword: password.trim() });
-		saved = true;
-		setTimeout(() => (saved = false), 2000);
+		saved.show();
 	}
 
 	/**
@@ -95,8 +95,7 @@
 			startBoardId: pinnedId.trim(),
 			startBoardPassword: pinnedPassword.trim()
 		});
-		pinnedSaved = true;
-		setTimeout(() => (pinnedSaved = false), 2000);
+		pinnedSaved.show();
 	}
 
 	function clear() {
@@ -230,7 +229,7 @@
 						onclick={savePinned}
 						data-testid="pinned-save"
 					>
-						{#if pinnedSaved}
+						{#if pinnedSaved.on}
 							<IconCheck size={18} aria-hidden="true" />
 							{t('settings.saved')}
 						{:else}
@@ -379,7 +378,7 @@
 					disabled={halfPair}
 					data-testid="settings-save"
 				>
-					{#if saved}
+					{#if saved.on}
 						<IconCheck size={18} aria-hidden="true" />
 						{t('settings.saved')}
 					{:else}

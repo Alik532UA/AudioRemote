@@ -10,10 +10,11 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { IconCheck } from '$lib/config/icons';
+	import { confirmed } from '$lib/services/confirmed.svelte';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { currentTrail, previousTrail, trailAsText } from '$lib/services/breadcrumbs';
 
-	let copied = $state(false);
+	const copied = confirmed();
 	let trail = $state<{ at: number; step: string }[]>([]);
 	let isPrevious = $state(false);
 
@@ -25,8 +26,7 @@
 	async function copy() {
 		try {
 			await navigator.clipboard.writeText(trailAsText());
-			copied = true;
-			setTimeout(() => (copied = false), 2000);
+			copied.show();
 		} catch {
 			/* буфер заборонений — журнал видно на екрані */
 		}
@@ -56,7 +56,7 @@
 		{:else}
 			<pre class="trail__text mono">{text}</pre>
 			<button class="btn" type="button" onclick={copy} data-testid="copy-trail">
-				{#if copied}
+				{#if copied.on}
 					<IconCheck size={18} aria-hidden="true" />
 					{t('common.copied')}
 				{:else}

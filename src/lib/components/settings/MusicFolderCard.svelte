@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { IconCheck, IconFolder } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
+	import { confirmed } from '$lib/services/confirmed.svelte';
 	import { rememberedFolder, rememberFolder, runningInTauri } from '$lib/audio/tauriSource';
 
 	/**
@@ -22,7 +23,7 @@
 	 */
 	const onDesktop = runningInTauri();
 	let folderPath = $state('');
-	let folderSaved = $state(false);
+	const folderSaved = confirmed();
 	let folderError = $state(false);
 
 	onMount(() => {
@@ -35,8 +36,7 @@
 			folderError = true;
 			return;
 		}
-		folderSaved = true;
-		setTimeout(() => (folderSaved = false), 2000);
+		folderSaved.show();
 	}
 
 	async function pickFolder() {
@@ -81,7 +81,7 @@
 			</button>
 
 			<button class="btn btn--primary" type="button" onclick={saveFolder} data-testid="folder-save">
-				{#if folderSaved}
+				{#if folderSaved.on}
 					<IconCheck size={18} aria-hidden="true" />
 					{t('settings.saved')}
 				{:else}

@@ -167,7 +167,7 @@ export default defineConfig({
 		 *
 		 * ## Звідки числа
 		 *
-		 * Заміряно на 569 перевірках: 49.37 / 46.99 / 48.46 / 50.71. Пороги —
+		 * Заміряно на 573 перевірках: 49.68 / 47.11 / 48.87 / 51.06. Пороги —
 		 * на пункт нижче: локальний прогін іде на node 25, CI на node 22, а
 		 * дрібний розкид у підрахунку гілок між версіями V8 дорожчий за пункт
 		 * суворості (та сама причина, що й допуск у `check:bundle`,
@@ -191,7 +191,7 @@ export default defineConfig({
 			include: ['src/lib/**/*.ts'],
 			exclude: ['**/*.test.ts', '**/*.d.ts'],
 			reporter: ['text-summary'],
-			thresholds: { statements: 48, branches: 45, functions: 47, lines: 49 }
+			thresholds: { statements: 48, branches: 46, functions: 47, lines: 50 }
 		}
 	}
 });

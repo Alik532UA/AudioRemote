@@ -2,6 +2,7 @@
 	import { untrack } from 'svelte';
 	import { IconCheck, IconTrash, IconWarning } from '$lib/config/icons';
 	import { plural, t } from '$lib/i18n/i18n.svelte';
+	import { confirmed } from '$lib/services/confirmed.svelte';
 	import {
 		defaultSchedule,
 		emptyTrigger,
@@ -43,7 +44,7 @@
 	let draft = $state<TrackTrigger>(
 		untrack(() => ({ ...emptyTrigger(), ...controller.triggerFor(trackId) }))
 	);
-	let saved = $state(false);
+	const saved = confirmed();
 
 	/**
 	 * Заголовки редагуються текстом, а не таблицею полів.
@@ -115,8 +116,7 @@
 			everySec: Math.max(MIN_INTERVAL_SEC, Math.round(draft.everySec) || MIN_INTERVAL_SEC),
 			headers: parseHeaders(headersText)
 		});
-		saved = true;
-		setTimeout(() => (saved = false), 2000);
+		saved.show();
 	}
 </script>
 
@@ -362,7 +362,7 @@
 
 		<div class="row">
 			<button class="btn btn--primary" type="button" onclick={save} data-testid="trigger-save">
-				{#if saved}
+				{#if saved.on}
 					<IconCheck size={18} aria-hidden="true" />
 					{t('settings.saved')}
 				{:else}

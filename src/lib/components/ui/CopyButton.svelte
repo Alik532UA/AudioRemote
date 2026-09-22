@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { IconCheck, IconCopy } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
+	import { confirmed } from '$lib/services/confirmed.svelte';
 
 	interface Props {
 		value: string;
@@ -23,13 +24,12 @@
 	 * Тому кнопка маленька й стоїть біля самого значення: вона копіює те, поруч
 	 * із чим намальована, і нічого більше.
 	 */
-	let copied = $state(false);
+	const copied = confirmed();
 
 	async function copy() {
 		try {
 			await navigator.clipboard.writeText(value);
-			copied = true;
-			setTimeout(() => (copied = false), 2000);
+			copied.show();
 		} catch {
 			// Буфер заборонений політикою браузера — значення й так на екрані.
 		}
@@ -38,14 +38,14 @@
 
 <button
 	class="copy"
-	class:copy--done={copied}
+	class:copy--done={copied.on}
 	type="button"
-	title={copied ? t('common.copied') : `${t('common.copy')}: ${label}`}
-	aria-label={copied ? t('common.copied') : `${t('common.copy')}: ${label}`}
+	title={copied.on ? t('common.copied') : `${t('common.copy')}: ${label}`}
+	aria-label={copied.on ? t('common.copied') : `${t('common.copy')}: ${label}`}
 	onclick={copy}
 	data-testid={testid}
 >
-	{#if copied}
+	{#if copied.on}
 		<IconCheck size={16} aria-hidden="true" />
 	{:else}
 		<IconCopy size={16} aria-hidden="true" />

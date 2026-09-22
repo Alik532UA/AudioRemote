@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { IconCheck, IconClose, IconCopy } from '$lib/config/icons';
 	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
+	import { confirmed } from '$lib/services/confirmed.svelte';
 	import PasswordField from '$lib/components/ui/PasswordField.svelte';
 	import CopyButton from '$lib/components/ui/CopyButton.svelte';
 	import QrCode from '$lib/components/ui/QrCode.svelte';
@@ -77,7 +78,7 @@
 	 * затемнення, Escape, пастка фокуса й повернення його назад уже написані.
 	 */
 	let node = $state<HTMLDialogElement | null>(null);
-	let copied = $state(false);
+	const copied = confirmed();
 
 	/**
 	 * Адреса, яку диктують уголос, — без шляху сторінки.
@@ -156,13 +157,12 @@
 		].join(String.fromCharCode(10))
 	);
 
-	let linkCopied = $state(false);
+	const linkCopied = confirmed();
 
 	async function copyLink() {
 		try {
 			await navigator.clipboard.writeText(link);
-			linkCopied = true;
-			setTimeout(() => (linkCopied = false), 2000);
+			linkCopied.show();
 		} catch {
 			// Буфер заборонений політикою — лишається код камерою.
 		}
@@ -171,8 +171,7 @@
 	async function copyAll() {
 		try {
 			await navigator.clipboard.writeText(fullText);
-			copied = true;
-			setTimeout(() => (copied = false), 2000);
+			copied.show();
 		} catch {
 			// Буфер заборонений політикою — усе потрібне й так на екрані.
 		}
@@ -239,7 +238,7 @@
 					data-testid="dialog-link"
 					data-link={link}
 				>
-					{#if linkCopied}
+					{#if linkCopied.on}
 						<IconCheck size={18} aria-hidden="true" />
 						{t('common.copied')}
 					{:else}
@@ -320,7 +319,7 @@
 		{/if}
 
 		<button class="btn" type="button" onclick={copyAll} data-testid="copy-secret">
-			{#if copied}
+			{#if copied.on}
 				<IconCheck size={18} aria-hidden="true" />
 				{t('common.copied')}
 			{:else}
