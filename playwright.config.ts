@@ -150,7 +150,7 @@ export default defineConfig({
 				 */
 				locale: 'uk-UA'
 			},
-			testMatch: /board\.spec\.ts$/,
+			testMatch: /(board|info)\.spec\.ts$/,
 			/*
 			 * Залежність від `chromium` — НЕ ПРО ПОРЯДОК, А ПРО МАШИНУ.
 			 *

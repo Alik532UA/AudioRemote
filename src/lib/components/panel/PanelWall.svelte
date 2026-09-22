@@ -1,37 +1,46 @@
 <script lang="ts">
 	import { t } from '$lib/i18n/i18n.svelte';
 	import type { Panel, PanelCommandType } from '$lib/net/panelTypes';
-	import type { PresenceMap } from '$lib/net/presence';
+	import type { Seat } from '$lib/services/roster';
+	import type { SpotlightView } from '$lib/panel/spotlight';
 	import { readItem, writeItem } from '$lib/services/storage';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import PanelMirror from './PanelMirror.svelte';
 
 	/**
-	 * ПО ПАНЕЛІ НА КОЖЕН ПУЛЬТ — усі одразу, а не по черзі.
+	 * ПО ПАНЕЛІ НА КОЖНОГО, ХТО ПІДКЛЮЧИВСЯ.
 	 *
-	 * Доти табло показувало ОДНУ панель із перемикачем: щоб побачити, що може
-	 * попросити другий помічник, доводилося перемкнутися й забути перше. Це
-	 * рівно те саме, від чого пішли в залі, тільки з іншого боку: звукорежисер
-	 * тримав у голові чужу розкладку замість того, щоб її бачити.
+	 * ## Пульт ОДИН — копій кілька
 	 *
-	 * ## Ключ — ПУЛЬТ, а не людина
+	 * Сітка та сама в усіх панелях: це не різні пульти, а різні ЕКРАНИ одного.
+	 * Копія існує заради єдиного — видно, ЧИЄ натискання світиться. Двоє
+	 * помічників тиснуть ту саму кнопку, і за звуковим пультом це дві різні
+	 * події: «Оля просить гучніше» і «Ада просить гучніше». Доти обидві
+	 * виглядали однаково, бо панель була одна.
 	 *
-	 * Спокуса малювати по панелі на кожну підключену вкладку сильна й
-	 * неправильна. Присутність тримається на `onDisconnect`, тобто зникає від
-	 * блимання Wi-Fi; панель, що зникає, коли помічник вийшов у коридор, — це
-	 * панель, у яку не може натиснути й сам звукорежисер, а він тисне (див.
-	 * `PanelGrid`). Двоє на одній роботі дали б дві однакові панелі, а той, хто
-	 * не обрав пульта, — повну копію дошки поруч із її ж частинами.
+	 * ## Чому не по пультах, як було
 	 *
-	 * Тому пульти задають РОЗКЛАДКУ, а присутність — лише підпис під назвою:
-	 * «світло — Оля», «завіса — нікого». Перше стабільне, друге живе.
+	 * Раніше панелі роздавалися за назвою пульта, приписаною віджету в
+	 * складальнику. Задум був розумний і мав одну ваду, яка й вирішила справу:
+	 * у типовому стані назви не призначено жодній комірці, тож панель була
+	 * рівно одна, а сама можливість не показувалася ніде. Функція, яка мовчки
+	 * нічого не робить у стані за замовчуванням, — це не «є», а «наче є».
 	 *
-	 * ## Спільні віджети повторюються в кожній панелі
+	 * Пульт при цьому нікуди не подівся: він лишився ФІЛЬТРОМ. Помічник обирає
+	 * собі пульт у залі, і його панель тут показує рівно те, що бачить він.
 	 *
-	 * «Стоп» і «готові» бачить кожен у залі, тож і тут вони стоять у кожній
-	 * панелі. Окрема панель «спільні» економила б місце ціною головного: екран
-	 * табла перестав би збігатися з екраном помічника, у якого ці кнопки стоять
-	 * у його ж сітці.
+	 * ## Місце СТАЛЕ
+	 *
+	 * Нові панелі дописуються в кінець, зниклі тьмяніють і звільняють місце аж
+	 * через витримку (`roster.ts`). Панель, що переїхала під новим
+	 * сусідом або зникла від блимання Wi-Fi, — це кнопка, яка опинилася не там,
+	 * де на неї щойно дивилися.
+	 *
+	 * ## Коли нікого немає — панель однаково є
+	 *
+	 * Порожня стіна означала б, що дошку не видно, доки хтось не підключиться, —
+	 * а тиснути її може й сам звукорежисер. Тому без помічників лишається одна
+	 * безіменна панель: та сама дошка, просто нема кому приписати натискання.
 	 *
 	 * ## Ряд із прокруткою, а не стиснуті панелі
 	 *
@@ -42,50 +51,37 @@
 		panel: Panel;
 		levels: Record<string, number>;
 		flags: Record<string, boolean>;
-		/** Назви пультів, які трапляються в панелі. Порожньо — панель одна. */
-		sheets: readonly string[];
-		present: PresenceMap;
-		recent: string | null;
-		hot: string | null;
-		press: (cell: string, type: PanelCommandType, value?: number) => void;
+		/** Хто за пультом. Порожньо — одна безіменна панель. */
+		seats: readonly Seat[];
+		/** Підсвітка по кожному місцю: чиє натискання світиться (`spotlight.ts`). */
+		spot: SpotlightView;
+		press: (cell: string, type: PanelCommandType, seat: string, value?: number) => void;
 	}
 
-	let { panel, levels, flags, sheets, present, recent, hot, press }: Props = $props();
+	let { panel, levels, flags, seats, spot, press }: Props = $props();
 
 	const MERGED_KEY = 'panel.merged';
+	/** Ключ єдиної панелі, коли всіх звели в одну або коли нікого немає. */
+	const ALL = 'all';
 
 	/**
 	 * Чи показувати все однією панеллю.
 	 *
 	 * Памʼять локальна: це вибір про ЦЕЙ екран, як і решта в картці керування.
-	 * Типово вимкнено — дошка без названих пультів однаково дає одну панель, тож
-	 * для старих дощок нічого не змінилося.
-	 *
 	 * Читається прямо в оголошенні, без ефекту: `readItem` на сервері мовчки
 	 * віддає порожнє, а ефект тут означав би друге джерело правди — сховище й
 	 * поле, які розходяться на один такт після кожного перемикання.
 	 */
 	let merged = $state(readItem(MERGED_KEY) === 'yes');
 
-	/** Хто зараз за цим пультом. Порожньо — нікого, і це теж відповідь. */
-	function whoOn(sheet: string): string[] {
-		const names: string[] = [];
-		for (const tabs of Object.values(present)) {
-			for (const entry of Object.values(tabs ?? {})) {
-				if (entry.role !== 'remote') continue;
-				if ((entry.sheet ?? '') !== sheet) continue;
-				names.push(entry.name?.trim() || t('panel.someone'));
-			}
-		}
-		return names;
-	}
+	const one = $derived(merged || seats.length === 0);
 
-	/** Скільки помічників дивиться всю дошку, не обравши пульта. */
-	const roaming = $derived(whoOn('').length);
+	/** Локатор із ключа місця: у ньому `uid/вкладка`, а скісній у назві не місце. */
+	const tid = (key: string) => `info-panel-${key.split('/').join('-')}-section`;
 </script>
 
 <div class="wall">
-	{#if sheets.length > 0}
+	{#if seats.length > 1}
 		<div class="wall__head">
 			<Switch
 				checked={merged}
@@ -96,35 +92,39 @@
 					writeItem(MERGED_KEY, next ? 'yes' : 'no');
 				}}
 			/>
-
-			<!--
-				Хто НЕ обрав пульта, бачить усю дошку — тобто його екран не збігається
-				з жодною панеллю тут. Сказати про це треба: інакше звукорежисер
-				вирішить, що всі троє сидять по своїх пультах.
-			-->
-			{#if roaming > 0}
-				<p class="muted" data-testid="info-roaming-text">
-					{t('panel.roaming', { count: `${roaming}` })}
-				</p>
-			{/if}
 		</div>
 	{/if}
 
 	<div class="wall__row" data-testid="info-wall-list">
-		{#if merged || sheets.length === 0}
-			<PanelMirror {panel} {levels} {flags} {recent} {hot} {press} sheet={null} title="" who={[]} />
+		{#if one}
+			<!--
+				Зведена панель показує ВСЮ дошку, а не чийсь пульт: вона одна на всіх,
+				і фільтр по чужому вибору зробив би її неповною.
+			-->
+			<PanelMirror
+				{panel}
+				{levels}
+				{flags}
+				sheet={null}
+				title=""
+				testid={tid(ALL)}
+				recent={spot.recent[ALL] ?? null}
+				hot={spot.hot[ALL] ?? null}
+				press={(cell, type, value) => press(cell, type, ALL, value)}
+			/>
 		{:else}
-			{#each sheets as name (name)}
+			{#each seats as seat (seat.key)}
 				<PanelMirror
 					{panel}
 					{levels}
 					{flags}
-					{recent}
-					{hot}
-					{press}
-					sheet={name}
-					title={name}
-					who={whoOn(name)}
+					sheet={seat.sheet || null}
+					title={seat.name || t('panel.someone')}
+					away={seat.gone}
+					testid={tid(seat.key)}
+					recent={spot.recent[seat.key] ?? null}
+					hot={spot.hot[seat.key] ?? null}
+					press={(cell, type, value) => press(cell, type, seat.key, value)}
 				/>
 			{/each}
 		{/if}
@@ -148,8 +148,8 @@
 
 	/*
 	 * Панелі стоять у РЯД і не стискаються: кнопка мусить лишатися кнопкою, у
-	 * яку влучає палець, навіть коли пультів чотири. Те, що не влізло, їде за
-	 * край — на табло дивляться, а не тиснуть наосліп.
+	 * яку влучає палець, навіть коли їх чотири. Те, що не влізло, їде за край —
+	 * на табло дивляться, а не тиснуть наосліп.
 	 */
 	.wall__row {
 		display: flex;

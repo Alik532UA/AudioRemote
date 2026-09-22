@@ -7,8 +7,10 @@
 	import { boardPath } from '$lib/board/boardPath';
 	import { kindOf } from '$lib/board/myBoards';
 	import { ensureBoard } from '$lib/net/board';
-	import { trackPresence, watchPresence, type PresenceMap } from '$lib/net/presence';
+	import { trackPresence, watchPresence } from '$lib/net/presence';
 	import { panelLog } from '$lib/services/panelLog.svelte';
+	import { Roster, type Seat } from '$lib/services/roster';
+	import { Spotlight, type SpotlightView } from '$lib/panel/spotlight';
 	import { pruneAcks, watchCommands } from '$lib/net/commands';
 	import {
 		emptyPanel,
@@ -30,7 +32,7 @@
 	} from '$lib/net/panelTypes';
 	import { applyPanelCommand, refused, type PanelOutcome } from '$lib/panel/apply';
 	import { starterPanel } from '$lib/panel/starter';
-	import { controlOf, fits, moveTo, sheetsOf, sizeOf, turned, withSize } from '$lib/panel/layout';
+	import { controlOf, fits, moveTo, sizeOf, turned, withSize } from '$lib/panel/layout';
 	import { keepPanel, recallPanel } from '$lib/panel/keep';
 	import { mark } from '$lib/services/breadcrumbs';
 	import { attentionState } from '$lib/services/attention.svelte';
@@ -74,26 +76,19 @@
 	let ready = $state(false);
 	let helpers = $state(0);
 	/** Хто на звʼязку. Потрібен цілим: стіна підписує ним кожен пульт. */
-	let present = $state<PresenceMap>({});
 	let fatal = $state<TranslationKey | null>(null);
 	let view = $state<View>('both');
 
 	let panel = $state<Panel>(emptyPanel());
 	let levels = $state<Record<string, number>>({});
 	let flags = $state<Record<string, boolean>>({});
-	/** Комірка, яку щойно попросили. Гасне сама через `RECENT_MS`. */
-	let recent = $state<string | null>(null);
-	/** Орган, який щойно натиснули, плюс номер натискання. Спалахує на панелі. */
-	let hot = $state<string | null>(null);
-	/*
-	 * Два лічильники, і обидва НЕ реактивні навмисно: від них не залежить
-	 * жодна розмітка. Перший робить кожне натискання відмітним — без нього та
-	 * сама кнопка вдруге дала б той самий рядок, і спалах не перезапустився б.
-	 * Другий стежить, чия черга гасити підсвітку: натискання на ту саму комірку
-	 * за дві секунди мусить дати нові три, а не догоряти старі.
+	/**
+	 * Підсвітка — ПО МІСЦЮ, а не одна на екран: пульт один, а панелей стільки,
+	 * скільки помічників, і сенс копії рівно в тому, щоб було видно, ЧИЄ
+	 * натискання світиться. Такти й арифметику рахує `spotlight.ts`.
 	 */
-	let beat = 0;
-	let watch = 0;
+	let spot = $state<SpotlightView>({ recent: {}, hot: {} });
+	const spotlight = new Spotlight((next) => (spot = next), RECENT_MS);
 	let filling = $state(false);
 	/** Чи вже пробували підняти панель із копії. Пробуємо один раз. */
 	let restored = false;
@@ -117,7 +112,29 @@
 	const INVITE_STEP2 = 'info.connectStep2' as const;
 
 	const empty = $derived(Object.keys(panel.cells).length === 0);
-	const sheets = $derived(sheetsOf(panel));
+	/**
+	 * Хто за пультом — по панелі на кожного.
+	 *
+	 * Список тримає сторінка, бо він реактивний; порядок, витримку на блимання
+	 * мережі й тьмяніння зниклих рахує `roster.ts`.
+	 */
+	let seats = $state<Seat[]>([]);
+	const roster = new Roster((next) => (seats = next));
+
+	/**
+	 * Які панелі світяться від натискання цього автора.
+	 *
+	 * Команда несе `uid`, а не вкладку: дві вкладки одного помічника
+	 * розрізнити нічим, тож світяться обидві. Це чесніше за вибір навмання, і
+	 * трапляється воно рідше, ніж двоє людей із двох телефонів.
+	 *
+	 * Коли панель одна (звели або нікого немає), світиться саме вона: місця, за
+	 * яким стежити, тоді просто немає.
+	 */
+	const lit = (uid: string): string[] => {
+		const mine = seats.filter((seat) => seat.uid === uid).map((seat) => seat.key);
+		return mine.length > 0 ? mine : ['all'];
+	};
 
 	onMount(() => {
 		boardSession.restore();
@@ -157,9 +174,11 @@
 				 * робота журналу, тож знімок віддається йому цілим.
 				 */
 				track(() => panelLog.forget());
+				track(() => roster.forget());
+				track(() => spotlight.stop());
 				track(
 					await watchPresence(board.key, (next) => {
-						present = next;
+						roster.saw(next);
 						helpers = panelLog.saw(next);
 					})
 				);
@@ -223,28 +242,20 @@
 		// Прохання ІЗ ЗАЛИ — і тільки воно гукає: власне натискання людина й так
 		// бачить, а екран, що блимає на кожен власний рух, вимикають.
 		attentionState.ask();
-		remember(result, command, `${command.at}-${command.cell}`, false, command.name ?? '');
+		remember(
+			result,
+			command,
+			`${command.at}-${command.cell}`,
+			false,
+			command.name ?? '',
+			lit(command.by)
+		);
 		await publishPanelState(board.key, result.next);
 		return null;
 	}
 
 	/** Що саме натиснули: комірки не досить — у віджеті органів кілька. */
 	type Touched = { cell: string; type: PanelCommandType; value?: string | number };
-
-	/**
-	 * ПІДСВІТКА НА ПАНЕЛІ ГАСНЕ САМА, і гасить її ОСТАННЄ натискання.
-	 *
-	 * Лічильник, а не порівняння з коміркою: два прохання на ту саму комірку за
-	 * дві секунди дали б два такти, і перший із них погасив би підсвітку
-	 * другого через секунду після її появи.
-	 */
-	function focus(cell: string): void {
-		recent = cell;
-		const mine = (watch += 1);
-		window.setTimeout(() => {
-			if (watch === mine) recent = null;
-		}, RECENT_MS);
-	}
 
 	/**
 	 * Записати наслідок: нове положення органів, підсвітка й рядок у журналі.
@@ -259,12 +270,12 @@
 		at: Touched,
 		id: string,
 		own: boolean,
-		who: string
+		who: string,
+		seats: readonly string[]
 	): void {
 		levels = result.next.levels ?? {};
 		flags = result.next.flags ?? {};
-		focus(at.cell);
-		hot = `${controlOf(at.cell, at.type, at.value)}#${(beat += 1)}`;
+		spotlight.press(at.cell, controlOf(at.cell, at.type, at.value), seats);
 
 		// Важливу дію видно навіть тому, хто дивиться не на екран (`panelTypes.ts`).
 		if (panel.cells[at.cell]?.important) attentionState.shout();
@@ -310,7 +321,7 @@
 	 * інакше картина, за якою потім розбираються, буде з діркою. Мітка `own`
 	 * каже, чия це була рука.
 	 */
-	function own(cell: string, type: PanelCommandType, value?: number) {
+	function own(cell: string, type: PanelCommandType, seat: string, value?: number) {
 		const board = boardSession.current;
 		if (!board) return;
 
@@ -322,7 +333,7 @@
 		);
 		if (refused(result)) return;
 
-		remember(result, { cell, type, value }, `self-${at}-${cell}`, true, '');
+		remember(result, { cell, type, value }, `self-${at}-${cell}`, true, '', [seat]);
 		void publishPanelState(board.key, result.next);
 	}
 
@@ -527,7 +538,7 @@
 					</section>
 				{:else}
 					{#if view !== 'log'}
-						<PanelWall {panel} {levels} {flags} {sheets} {present} {recent} {hot} press={own} />
+						<PanelWall {panel} {levels} {flags} {seats} {spot} press={own} />
 					{/if}
 
 					{#if view !== 'panel'}

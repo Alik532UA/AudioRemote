@@ -455,7 +455,7 @@ export const uk = {
 	'panel.importantHint':
 		'Натискання на мить перемикає екран на протилежну тему. Це видно краєм ока, навіть коли дивитися на пульт.',
 	'panel.merge': 'Один спільний пульт',
-	'panel.nobody': 'нікого',
+	'panel.away': 'відпав',
 	'panel.someone': 'без імені',
 	'panel.roaming': 'Дивляться всю дошку: {count}',
 	'panel.sheet': 'Пульт',
