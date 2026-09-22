@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { RENDERED, ROUTES, WALK } from './pages';
+import { PAGES, RENDERED, ROUTES, WALK } from './pages';
 
 /**
  * РОЗКЛАДКА, ЯКОЇ axe НЕ БАЧИТЬ У ПРИНЦИПІ
@@ -52,15 +52,36 @@ const INTERACTIVE =
 /**
  * Елементи, менші за 44, які ціллю НЕ є: ціль — названа тут обгортка.
  *
- * Ключ — `data-testid`, значення — селектор мітки, яка насправді приймає клік.
+ * Ключ — `data-testid`; `wrapper` — селектор мітки, яка насправді приймає клік,
+ * `on` — сторінка, на якій цей елемент існує.
+ *
+ * ## НАВІЩО ТУТ АДРЕСА
+ *
+ * Прострочений виняток ловиться тим, що елемент обійшли, а малим він уже не
+ * був. Але «обійшли» й «намалювався» — не одне й те саме: `settled()` віддає
+ * сторінку, щойно бодай один орган керування три кадри стоїть на місці, а
+ * перемикачі налаштувань приїжджають пізніше — після того, як сторінка
+ * підняла збережене. На вільній машині ця різниця в кадр, на зайнятій — у
+ * секунду, і тоді гейт казав «виняток більше не потрібен» про елемент, якого
+ * просто не дочекалися. Заміряно за ніч: дві невдачі на п'ять повних прогонів,
+ * обидві лише в повному прогоні з сусідніми проєктами на тій самій машині,
+ * окремо — зелений щоразу.
+ *
+ * З адресою питання стає чесним: на СВОЇЙ сторінці елемент чекають поіменно, і
+ * лише потім судять, чи потрібен ще виняток.
  */
-const INSIDE_BIGGER_TARGET: Readonly<Record<string, string>> = {
+const INSIDE_BIGGER_TARGET: Readonly<Record<string, { on: string; wrapper: string }>> = {
 	// Прапорець «запам'ятати» — 20×20 усередині рядка заввишки --tap.
-	'connect-remember': 'label.check',
+	'connect-remember': { on: PAGES.connect, wrapper: 'label.check' },
 	// Доріжка перемикача — 47×26; клікає по ній увесь рядок із підписом.
-	'settings-show-trigger': 'label.switch',
-	'settings-show-info-boards': 'label.switch'
+	'settings-show-trigger': { on: PAGES.settings, wrapper: 'label.switch' },
+	'settings-show-info-boards': { on: PAGES.settings, wrapper: 'label.switch' }
 };
+
+/** Те саме для браузера: лише «локатор → обгортка», без адрес. */
+const WRAPPERS: Readonly<Record<string, string>> = Object.fromEntries(
+	Object.entries(INSIDE_BIGGER_TARGET).map(([testid, where]) => [testid, where.wrapper])
+);
 
 interface Small {
 	testid: string;
@@ -102,7 +123,7 @@ async function smallTargets(page: Page): Promise<Small[]> {
 					};
 				});
 		},
-		{ selector: INTERACTIVE, tap: TAP, exceptions: INSIDE_BIGGER_TARGET }
+		{ selector: INTERACTIVE, tap: TAP, exceptions: WRAPPERS }
 	);
 }
 
@@ -236,6 +257,18 @@ test('кожна ціль не менша за 44×44, а виняток спр�
 	for (const path of ROUTES) {
 		await page.goto(path);
 		await settled(page);
+
+		/*
+		 * Виняток чекають на ЙОГО сторінці й поіменно: `settled()` стереже
+		 * розкладку загалом і нічого не знає про те, що саме тут мусить бути.
+		 */
+		for (const [testid, where] of Object.entries(INSIDE_BIGGER_TARGET)) {
+			if (where.on !== path) continue;
+			await expect(
+				page.getByTestId(testid),
+				`${path}: виняток «${testid}» не намалювався, судити про нього нема по чому`
+			).toBeVisible(RENDERED);
+		}
 
 		counted += await page.evaluate(
 			(selector) => document.querySelectorAll(selector).length,
