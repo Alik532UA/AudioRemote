@@ -454,7 +454,7 @@ export const en: Record<TranslationKey, string> = {
 	'panel.noRoom':
 		'A widget this size does not fit here: there is no room, or a neighbour is in the way. Turn it, drop a button, or choose another place.',
 	'panel.save': 'Save',
-	'panel.clearCell': 'Empty the cell',
+	'panel.clearCell': 'Clear the cell',
 	'panel.cellEmpty': 'empty',
 	'panel.summarySlider': 'slider, step {step}',
 	'panel.summaryCheck': 'switch',

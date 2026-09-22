@@ -478,7 +478,7 @@ export const uk = {
 	'panel.noRoom':
 		'Такий віджет сюди не стає: не вистачає місця або заважає сусід. Поверніть його, приберіть кнопку або оберіть інше місце.',
 	'panel.save': 'Зберегти',
-	'panel.clearCell': 'Спорожнити комірку',
+	'panel.clearCell': 'Очистити комірку',
 	'panel.cellEmpty': 'порожня',
 	'panel.summarySlider': 'повзунок, крок {step}',
 	'panel.summaryCheck': 'перемикач',
