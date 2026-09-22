@@ -330,3 +330,52 @@ test('натискання за пультом видно в залі, а не �
 	await desk.close();
 	await hall.close();
 });
+
+test('сповіщення в залі не зсуває панель під пальцем', async ({ browser }) => {
+	/*
+	 * ПАНЕЛЬ НЕ МАЄ ПРАВА ЇХАТИ. Сповіщення стояли в потоці над панеллю, і поява
+	 * кожного зсувала кнопки вниз рівно на свою висоту — у ту саму мить, коли
+	 * помічник дивиться на екран найуважніше: щойно попросив і чекає відповіді.
+	 * Зникнення смуги через кілька секунд зсувало їх назад, так само раптово.
+	 *
+	 * Опис міряє САМЕ ЦЕ — координату сітки до й після, — а не наявність смуги:
+	 * смуга була на місці й доти.
+	 */
+	const desk = await browser.newContext();
+	const hall = await browser.newContext();
+	const board = await desk.newPage();
+	const helper = await hall.newPage();
+
+	const id = await createInfoBoard(board);
+	await board.getByTestId('info-start-edit-btn').click();
+	await board.getByTestId('info-fill-btn').click();
+	await board.getByTestId('info-edit-btn').click();
+
+	await joinAsHelper(helper, id, 'Оля');
+	const grid = helper.getByTestId('panel-list');
+	await expect(grid).toBeVisible(ACROSS);
+
+	const where = async () => Math.round((await grid.boundingBox())?.y ?? -1);
+	const quiet = await where();
+	expect(quiet, 'сітки немає на екрані — міряти нема чого').toBeGreaterThan(0);
+
+	await helper.locator('[data-testid^="panel-press-"]').first().click();
+	await expect(board.getByTestId('panel-verdict-done-btn')).toBeEnabled(ACROSS);
+	await board.getByTestId('panel-verdict-done-btn').click();
+
+	const strip = helper.getByTestId('info-verdict-text');
+	await expect(strip, 'відповідь не долетіла в зал').toBeVisible(ACROSS);
+	expect(await where(), 'панель з\u0027їхала від появи сповіщення').toBe(quiet);
+
+	// І смуга справді НАД сторінкою, а не поруч: вона накриває те, що під нею.
+	const over = await helper.evaluate(() => {
+		const note = document.querySelector('[data-testid="info-verdict-text"]');
+		if (!note) return null;
+		const box = note.getBoundingClientRect();
+		return getComputedStyle(note.parentElement as HTMLElement).position === 'fixed' && box.y > 0;
+	});
+	expect(over, 'сповіщення лишилося в потоці сторінки').toBe(true);
+
+	await desk.close();
+	await hall.close();
+});
