@@ -246,6 +246,7 @@
 			name={board.name}
 			id={board.id}
 			listeners={t('player.listeners', { count: controller.remotes })}
+			names={controller.names}
 			onconnect={board.password ? () => (remoteOpen = true) : undefined}
 		/>
 	{/if}
@@ -280,14 +281,13 @@
 					Журнал доти висів завжди, і прибрати його не було чим; при цьому на
 					сусідній дошці той самий вибір є з першого дня.
 				-->
-				<div class="card">
-					<ViewPicker
-						board="audio"
-						prefix="deck-view"
-						title={t('deck.viewTitle')}
-						label={(which) => t(`deckView.${which}`)}
-					/>
-				</div>
+				<ViewPicker
+					card
+					board="audio"
+					prefix="deck-view"
+					title={t('deck.viewTitle')}
+					label={(which) => t(`deckView.${which}`)}
+				/>
 			</div>
 
 			<!-- ─── Керування ─────────────────────────────────────────────── -->

@@ -38,6 +38,7 @@
 	import { attentionState } from '$lib/services/attention.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
+	import SeatTags from '$lib/components/ui/SeatTags.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
 	import { IconPhone } from '$lib/config/icons';
 	import PanelBuilder from '$lib/components/panel/PanelBuilder.svelte';
@@ -460,6 +461,10 @@
 						<p class="muted" data-testid="info-helpers-count">
 							{t('info.helpers', { count: `${helpers}` })}
 						</p>
+						<SeatTags
+							names={[...new Set(seats.filter((seat) => seat.name).map((seat) => seat.name))]}
+							testid="info-seats-text"
+						/>
 
 						<!--
 					ЯК ПОКЛИКАТИ ПОМІЧНИКА — там само, де в плеєра «Підключити пульт».

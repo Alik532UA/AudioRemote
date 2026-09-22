@@ -2,6 +2,7 @@
 	import { IconPhone } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
+	import SeatTags from '$lib/components/ui/SeatTags.svelte';
 
 	/**
 	 * КАРТКА ДОШКИ — що ця дошка про себе каже.
@@ -28,11 +29,13 @@
 		id: string;
 		/** Хто на звʼязку — рядком, уже порахованим і перекладеним. */
 		listeners: string;
+		/** Підписи тих, хто назвався. Число каже «скільки», мітки — «хто саме». */
+		names?: readonly string[];
 		/** Покликати ще один пульт. Немає — дошка без пароля, кликати нічим. */
 		onconnect?: () => void;
 	}
 
-	let { role, name, id, listeners, onconnect }: Props = $props();
+	let { role, name, id, listeners, names = [], onconnect }: Props = $props();
 </script>
 
 <header class="head" class:card={!narrow.matches} data-testid="board-head">
@@ -46,6 +49,7 @@
 
 	<div class="head__side">
 		<p class="muted" data-testid="board-listeners-text">{listeners}</p>
+		<SeatTags {names} testid="board-seats-text" />
 		{#if onconnect}
 			<button class="btn btn--sm" type="button" onclick={onconnect} data-testid="open-remote">
 				<IconPhone size={18} aria-hidden="true" />
@@ -54,4 +58,3 @@
 		{/if}
 	</div>
 </header>
-

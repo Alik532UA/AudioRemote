@@ -1,5 +1,5 @@
 import type { Command, CommandType } from '$lib/net/boardTypes';
-import { countRemotes, type PresenceMap } from '$lib/net/presence';
+import { countRemotes, namesOf, type PresenceMap } from '$lib/net/presence';
 import { PresenceEvents } from './presenceLog';
 
 /**
@@ -52,6 +52,13 @@ const KEPT = 40;
 
 class DeckLog {
 	notes = $state<DeckNote[]>([]);
+
+	/**
+	 * Підписи пультів на звʼязку — тут, бо знімок присутності приходить сюди
+	 * цілим. Другий обхід того самого знімка в місці виклику був би другим
+	 * джерелом тієї самої відповіді.
+	 */
+	names = $state<string[]>([]);
 
 	private beat = 0;
 
@@ -109,12 +116,14 @@ class DeckLog {
 	 */
 	saw(present: PresenceMap): number {
 		this.comings.see(present);
+		this.names = namesOf(present, 'remote');
 		return countRemotes(present);
 	}
 
 	/** Зняти витримки. Без цього вони вистрелять у журнал закритої дошки. */
 	forget(): void {
 		this.comings.stop();
+		this.names = [];
 		this.clear();
 	}
 

@@ -386,7 +386,7 @@ export const uk = {
 	'info.connectTitle': 'Підключитися до інфодошки',
 	'info.boardTitle': 'Табло',
 	'info.remoteTitle': 'Підказка',
-	'info.helpers': 'Підключено підказок: {count}',
+	'info.helpers': 'Підключено помічників: {count}',
 	'info.boardOnline': 'Табло на зв’язку',
 	'info.boardOffline': 'Табло офлайн',
 	'info.noPanel': 'Панель ще не складено. Кнопки для помічника додають тут, на табло.',

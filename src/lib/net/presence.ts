@@ -221,6 +221,21 @@ export function countRemotes(present: PresenceMap): number {
 }
 
 /**
+ * Підписи тих, хто назвався, — без повторів і без порожніх.
+ *
+ * Дві вкладки однієї людини дали б дві однакові мітки, а вона одна; анонімний
+ * не дістає мітки зовсім — «без імені» не відповідає ні на що, а місце займає.
+ * Скільки їх УСЬОГО, каже число поруч.
+ */
+export function namesOf(present: PresenceMap, role: BoardRole): string[] {
+	const seen = entries(present)
+		.filter((entry) => entry.role === role)
+		.map((entry) => entry.name?.trim() ?? '')
+		.filter(Boolean);
+	return [...new Set(seen)];
+}
+
+/**
  * ЧИ ЖИВИЙ СОКЕТ ДО БАЗИ — і чому без цього застосунок бреше.
  *
  * SDK Realtime Database терпить обрив: запис лягає в локальну чергу, читання

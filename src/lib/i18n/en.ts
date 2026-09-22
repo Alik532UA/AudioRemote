@@ -360,7 +360,7 @@ export const en: Record<TranslationKey, string> = {
 	'info.connectTitle': 'Connect to a cue board',
 	'info.boardTitle': 'Board',
 	'info.remoteTitle': 'Cue',
-	'info.helpers': 'Cues connected: {count}',
+	'info.helpers': 'Helpers connected: {count}',
 	'info.boardOnline': 'Board online',
 	'info.boardOffline': 'Board offline',
 	'info.noPanel': 'No panel yet. The buttons for the assistant are added here, on the board.',

@@ -79,6 +79,8 @@ export class PlayerController implements BoardEditor {
 	/** Доки це `false`, `owned` ще нічого не означає — база не відповіла. */
 	private ownershipKnown = false;
 	remotes = $state(0);
+	/** Підписи пультів: знімок присутності розбирає журнал, другий раз — нема з чого. */
+	readonly names = $derived(deckLog.names);
 
 	/** `false` — теку видали лише на читання, налаштування не збережуться. */
 	configWritable = $state(true);

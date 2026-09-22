@@ -19,12 +19,14 @@
 		prefix: string;
 		title: string;
 		label: (view: View) => string;
+		/** Стояти власною карткою. На таблі він усередині чужої, на плеєрі — сам. */
+		card?: boolean;
 	}
 
-	let { board, prefix, title, label }: Props = $props();
+	let { board, prefix, title, label, card = false }: Props = $props();
 </script>
 
-<div class="field">
+<div class="field" class:card>
 	<span class="field__label" id="{prefix}-label">{title}</span>
 	<Picker
 		row
