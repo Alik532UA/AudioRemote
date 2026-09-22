@@ -364,7 +364,7 @@ export const BETA_TABS: readonly BetaTab[] = [
 					en: 'Close the player tab and watch the remote. Within a few seconds it must say that the player is offline.'
 				},
 				coverage: 'covered',
-				test: 'tests/e2e/board.spec.ts'
+				test: 'tests/e2e/db/board.spec.ts'
 			},
 			{
 				id: 'remote_3',
@@ -374,7 +374,7 @@ export const BETA_TABS: readonly BetaTab[] = [
 					en: 'Press a track on the remote. The sound must come from the playing device, not from the one in your hands.'
 				},
 				coverage: 'covered',
-				test: 'tests/e2e/board.spec.ts',
+				test: 'tests/e2e/db/board.spec.ts',
 				testid: 'link-state'
 			},
 			{

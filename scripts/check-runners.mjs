@@ -111,6 +111,10 @@ if (browserFiles.length > 0) {
 	 * повторенню. `--list --reporter=json` друкує саме те, що він візьме.
 	 */
 	const seen = [];
+	/** Файл опису → імена проєктів, які його справді запускають. */
+	const runs = new Map();
+	/** Імена проєктів, як їх бачить сам Playwright. */
+	const names = [];
 	try {
 		const listing = JSON.parse(
 			execFileSync(
@@ -133,10 +137,19 @@ if (browserFiles.length > 0) {
 		const here = posix(process.cwd());
 		const prefix = root.startsWith(here) ? root.slice(here.length + 1) : '';
 		const collect = (suite) => {
-			if (suite.file) seen.push(prefix ? `${prefix}/${posix(suite.file)}` : posix(suite.file));
+			const file = suite.file ? (prefix ? `${prefix}/${posix(suite.file)}` : posix(suite.file)) : null;
+			if (file) seen.push(file);
+			for (const spec of suite.specs ?? []) {
+				const where = file ?? (prefix ? `${prefix}/${posix(spec.file)}` : posix(spec.file));
+				for (const one of spec.tests ?? []) {
+					if (!runs.has(where)) runs.set(where, new Set());
+					runs.get(where).add(one.projectName);
+				}
+			}
 			for (const child of suite.suites ?? []) collect(child);
 		};
 		for (const suite of listing.suites ?? []) collect(suite);
+		names.push(...(listing.config?.projects ?? []).map((one) => one.name));
 	} catch (error) {
 		problems.push(`playwright не перелічив описи: ${String(error).slice(0, 120)}`);
 	}
@@ -147,6 +160,50 @@ if (browserFiles.length > 0) {
 	for (const file of browserFiles) {
 		if (!seen.includes(file)) {
 			problems.push(`${file}: лежить у репозиторії, але playwright його не запускає`);
+		}
+	}
+
+	/*
+	 * ─── 1в. Опис, якому потрібна дошка, НЕ БІЖИТЬ ПРОТИ БОЙОВОЇ БАЗИ ──────
+	 *
+	 * Проєкти набору дивляться на два різні сервери, і різниця тут не про
+	 * зручність. Артефакт на порті збірки несе конфіг Firebase, вшитий у
+	 * джерела: це БОЙОВА база школи, бо вимикач емулятора приїздить зі змінної,
+	 * якої в збірці немає. Дев-сервер бере `.env.development`, де прописано
+	 * емулятор і нічого іншого бути не може.
+	 *
+	 * Тобто той самий опис, поставлений не в той проєкт, мовчки створює пробні
+	 * дошки в справжній базі — і проходить зеленим, бо застосунок працює
+	 * однаково добре з обома. Саме це тут і сталося: виняток у конфігу стояв по
+	 * ІМЕНІ файлу, доданий пізніше опис під нього не підпав, і кожен прогін
+	 * писав у прод.
+	 *
+	 * Тому межа — тека, а питається вона в самого Playwright: конфіг може
+	 * стверджувати що завгодно, а `--list` каже, хто ЩО справді візьме.
+	 */
+	const LIVE = ['identity', 'chromium'];
+	const EMULATED = ['emulator', 'board'];
+	const needsBoard = (file) => /(^|\/)db\//.test(file);
+
+	/*
+	 * Новий проєкт мусить пройти повз цей рядок і змусити перечитати поділ:
+	 * мовчки він опинився б поза обома списками, і гейт нічого б не сказав.
+	 */
+	const known = [...LIVE, ...EMULATED];
+	for (const name of names) {
+		if (!known.includes(name)) {
+			problems.push(`проєкт «${name}» не віднесено ні до бойової бази, ні до емулятора`);
+		}
+	}
+
+	for (const [file, where] of runs) {
+		for (const name of where) {
+			if (needsBoard(file) && LIVE.includes(name)) {
+				problems.push(`${file}: потребує дошки, а проєкт «${name}» дивиться в БОЙОВУ базу`);
+			}
+			if (!needsBoard(file) && EMULATED.includes(name)) {
+				problems.push(`${file}: лежить поза «db/», а проєкт «${name}» тримає для нього емулятор`);
+			}
 		}
 	}
 }

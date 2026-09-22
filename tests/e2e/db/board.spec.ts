@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { uk } from '../../src/lib/i18n/uk';
+import { uk } from '../../../src/lib/i18n/uk';
 import { ACROSS, createBoard, expectInside, joinAsRemote } from './board';
 
 /*
