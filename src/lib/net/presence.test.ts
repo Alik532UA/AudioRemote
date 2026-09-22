@@ -21,8 +21,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 const onDisconnectRemove = vi.fn(() => Promise.resolve());
-const set = vi.fn(() => Promise.resolve());
+/*
+ * Аргументи оголошені навмисно: без них `mock.calls` має тип порожнього
+ * кортежу, і опис, який дивиться, ЩО саме записали, не збирається.
+ */
+const set = vi.fn((_ref: unknown, _value: unknown) => Promise.resolve());
 const remove = vi.fn(() => Promise.resolve());
+const update = vi.fn((_ref: unknown, _value: unknown) => Promise.resolve());
 
 /** Слухачі за шляхом — щоб опис міг сам сказати «звʼязок зник». */
 const listeners = new Map<string, (snapshot: { val: () => unknown }) => void>();
@@ -40,10 +45,11 @@ vi.mock('firebase/database', () => ({
 	},
 	set,
 	remove,
+	update,
 	serverTimestamp: () => 'коли-завгодно'
 }));
 
-const { trackPresence } = await import('./presence');
+const { tellPresence, trackPresence } = await import('./presence');
 
 /** Сказати модулю те, що йому скаже SDK: сокет піднявся або впав. */
 const socket = (online: boolean): void => {
@@ -57,6 +63,7 @@ beforeEach(() => {
 	onDisconnectRemove.mockClear();
 	set.mockClear();
 	remove.mockClear();
+	update.mockClear();
 });
 
 describe('присутність (presence.ts)', () => {
@@ -120,5 +127,52 @@ describe('присутність (presence.ts)', () => {
 		leave();
 		expect(remove, 'запис присутності не прибрано').toHaveBeenCalled();
 		expect([...listeners.keys()], 'підписка пережила вихід').not.toContain('.info/connected');
+	});
+});
+
+describe('підпис і пульт не виходять за межі правила', () => {
+	/*
+	 * Правило приймає імʼя до 24 символів і пульт до 16, а `$other: false`
+	 * відкидає незнане значення разом з УСІМ записом. Тобто задовгий підпис —
+	 * це не «присутність без імені», а присутності немає зовсім: помічник
+	 * зникає з табла, а пульт пише «плеєр офлайн» при відкритій дошці.
+	 *
+	 * Обидва значення дорогою лежать у сховищі, тож «місце виклику вкорочує»
+	 * тут не доказ.
+	 */
+	const last = () => set.mock.calls.at(-1)?.[1] as Record<string, unknown>;
+
+	it('перевірка жива: короткий підпис доїжджає як є', async () => {
+		await trackPresence('дошка', 'remote', { name: 'Оля', sheet: 'світло' });
+		socket(true);
+		await Promise.resolve();
+		expect(last()).toMatchObject({ name: 'Оля', sheet: 'світло' });
+	});
+
+	it('задовгий підпис вкорочується, а не валить увесь запис', async () => {
+		await trackPresence('дошка', 'remote', { name: 'я'.repeat(80), sheet: 'с'.repeat(40) });
+		socket(true);
+		await Promise.resolve();
+		expect((last().name as string).length).toBe(24);
+		expect((last().sheet as string).length).toBe(16);
+	});
+
+	it('порожнє поле не пишеться зовсім', async () => {
+		await trackPresence('дошка', 'remote', { name: '   ', sheet: '' });
+		socket(true);
+		await Promise.resolve();
+		expect(last().name).toBeUndefined();
+		expect(last().sheet).toBeUndefined();
+	});
+
+	it('пізніше «я тепер тут» вкорочується так само', async () => {
+		await trackPresence('дошка', 'remote', { name: 'Оля' });
+		socket(true);
+		await Promise.resolve();
+
+		await tellPresence('дошка', { name: 'О'.repeat(80), sheet: 'з'.repeat(40) });
+		const said = update.mock.calls.at(-1)?.[1] as Record<string, string | null>;
+		expect((said.name as string).length).toBe(24);
+		expect((said.sheet as string).length).toBe(16);
 	});
 });

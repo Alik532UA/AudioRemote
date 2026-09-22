@@ -1,5 +1,6 @@
 import { boardPath } from '$lib/board/boardPath';
 import { connect } from './firebase';
+import { MAX_SHEET, MAX_WHO } from './panelTypes';
 import type { BoardRole } from '$lib/board/myBoards';
 
 /**
@@ -101,11 +102,36 @@ export interface PresenceAbout {
  */
 const said = new Map<string, PresenceAbout>();
 
-/** Порожні поля не пишуться: `undefined` база не приймає, а `''` — це брехня. */
+/**
+ * Значення в межах, які приймає правило бази. `null` — поля не буде.
+ *
+ * ВКОРОЧУЄ ТУТ, А НЕ В МІСЦІ ВИКЛИКУ, і це не зайва обережність. Правило
+ * присутності приймає імʼя до 24 символів і пульт до 16, а `$other: false`
+ * відкидає незнане значення разом з УСІМ записом. Тобто задовге імʼя — це не
+ * «присутність без підпису», а присутності немає взагалі: помічник зникає з
+ * табла, а на пульті пише «плеєр офлайн», хоч усе на місці.
+ *
+ * Дотепер на це покладалися на тих, хто кличе: налаштування справді
+ * вкорочують імʼя, а назви пультів приходять із редактора панелі, який теж
+ * вкорочує. Але обидва значення дорогою лежать у сховищі, і жодне з двох
+ * обмежень не видно звідси. Межа мусить триматися там, де пишуть, — інакше
+ * наступний виклик звідкись іще принесе довший рядок, і симптом буде не про
+ * нього.
+ *
+ * Порожнє не пишеться: `undefined` база не приймає, а `''` — це брехня («він
+ * назвався нічим»).
+ */
+const fit = (value: string | undefined, max: number): string | null => {
+	const text = value?.trim().slice(0, max) ?? '';
+	return text.length > 0 ? text : null;
+};
+
 const trim = (about: PresenceAbout): Record<string, string> => {
 	const out: Record<string, string> = {};
-	if (about.name?.trim()) out.name = about.name.trim();
-	if (about.sheet?.trim()) out.sheet = about.sheet.trim();
+	const name = fit(about.name, MAX_WHO);
+	const sheet = fit(about.sheet, MAX_SHEET);
+	if (name) out.name = name;
+	if (sheet) out.sheet = sheet;
 	return out;
 };
 
@@ -163,8 +189,8 @@ export async function tellPresence(key: string, about: PresenceAbout): Promise<v
 	const { db, uid } = await connect();
 	const { ref, update } = await import('firebase/database');
 	await update(ref(db, `${presencePath(key)}/${uid}/${TAB_ID}`), {
-		name: about.name?.trim() || null,
-		sheet: about.sheet?.trim() || null
+		name: fit(about.name, MAX_WHO),
+		sheet: fit(about.sheet, MAX_SHEET)
 	});
 }
 
