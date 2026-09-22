@@ -66,6 +66,15 @@ export async function publishPanelState(
 	const payload: Record<string, unknown> = { atServer: serverTimestamp() };
 	if (state.levels && Object.keys(state.levels).length > 0) payload.levels = state.levels;
 	if (state.flags && Object.keys(state.flags).length > 0) payload.flags = state.flags;
+	/*
+	 * Останнє натискання — щоб його побачили ВСІ, а не лише той, хто натиснув.
+	 * `undefined` у полях RTDB не приймає взагалі, тож необов'язкове значення
+	 * дописується окремо, а не лягає в об'єкт із дірою.
+	 */
+	if (state.press) {
+		const { cell, type, value } = state.press;
+		payload.press = { cell, type, ...(value === undefined ? {} : { value }) };
+	}
 	await set(ref(db, stateNode(key)), payload);
 }
 

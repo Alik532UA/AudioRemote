@@ -241,6 +241,19 @@
 							".validate": "$cell.matches(/^([0-9]|[1-3][0-9]|4[0-7])$/) && newData.isBoolean()"
 						}
 					},
+					// ЩО НАТИСНУЛИ ОСТАННІМ — рівно та сама трійка, що в команді, і
+					// рівно з тими самими межами. Їде тут, а не своїм вузлом, бо
+					// письменник той самий (господар) і вузол однаково пишеться цілком
+					// на кожне натискання; свіжість каже `atServer` поруч.
+					"press": {
+						".validate": "newData.hasChildren(['cell', 'type'])",
+						"cell": { ".validate": "newData.val().matches(/^([0-9]|[1-3][0-9]|4[0-7])$/)" },
+						"type": { ".validate": "newData.val().matches(/^(press|bump|toggle)$/)" },
+						"value": {
+							".validate": "newData.isNumber() && ((newData.parent().child('type').val() === 'press' && newData.val() >= 0 && newData.val() <= 4) || (newData.parent().child('type').val() === 'bump' && newData.val() >= -50 && newData.val() <= 50))"
+						},
+						"$other": { ".validate": false }
+					},
 					"$other": { ".validate": false }
 				},
 				// `panelVerdict` — ЩО ЗВУКОРЕЖИСЕР ВІДПОВІВ на останнє прохання.

@@ -15,6 +15,7 @@
 		VERDICT_FRESH_MS,
 		type Panel,
 		type PanelCommandType,
+		type PanelState,
 		type PanelVerdict
 	} from '$lib/net/panelTypes';
 	import { settings } from '$lib/settings/settings.svelte';
@@ -81,6 +82,13 @@
 	 */
 	let beat = 0;
 	let watch = 0;
+	/** Серверна мітка стану, який уже показали. */
+	let seenAt = 0;
+	/**
+	 * Чи приходив хоч один знімок стану. Перший мовчить: вузол живе між
+	 * виставами, і планшет, відкритий наступного вечора, блимнув би вчорашнім.
+	 */
+	let warm = false;
 	/** Такт, який гасить підсвітку. Знімається при виході — інакше пише в мертве. */
 	let fade: number | null = null;
 	/**
@@ -140,6 +148,7 @@
 					await watchPanelState(board.key, (state) => {
 						levels = state?.levels ?? {};
 						flags = state?.flags ?? {};
+						echo(state);
 					})
 				);
 				track(
@@ -189,10 +198,15 @@
 	 * влучив?», і воно не про мережу. Чи доїхало прохання, каже окремий рядок
 	 * помилки — там, де про це й питають.
 	 */
-	function mind(cell: string, type: PanelCommandType, value?: number): void {
+	function mind(cell: string, type: PanelCommandType, value?: number, own = true): void {
 		recent = cell;
 		hot = `${controlOf(cell, type, value)}#${(beat += 1)}`;
-		if (panel.cells[cell]?.important) attentionState.shout();
+		/*
+		 * Гукає лише СВОЄ натискання. Спалах на весь екран — це «подивіться
+		 * сюди», і від чужої руки в залі він означав би «подивіться на те, що
+		 * вже зробили без вас».
+		 */
+		if (own && panel.cells[cell]?.important) attentionState.shout();
 
 		const mine = (watch += 1);
 		if (fade !== null) window.clearTimeout(fade);
@@ -200,6 +214,37 @@
 			fade = null;
 			if (watch === mine) recent = null;
 		}, RECENT_MS);
+	}
+
+	/**
+	 * ЧУЖЕ НАТИСКАННЯ — ТАК САМО ВИДНО, як своє.
+	 *
+	 * Доти зв'язок був однобічний: прохання із зали світилося на таблі, а
+	 * зроблене за пультом до зали не доїжджало ніяк. Помічник бачив лише
+	 * наслідок — і то не завжди: кнопка наслідку не лишає взагалі, тобто
+	 * натискання за пультом для зали просто не існувало.
+	 *
+	 * ПЕРШИЙ ЗНІМОК МОВЧИТЬ. Вузол стану живе між виставами, і планшет,
+	 * відкритий наступного вечора, першим ділом блимнув би вчорашнім
+	 * натисканням — так само, як показав би вчорашню відповідь, якби її не
+	 * стерегла свіжість.
+	 *
+	 * Своє натискання відблискує вдруге, і це не вада: перший спалах — «я
+	 * влучив», другий — «табло це прийняло». Обидва відповідають на різні
+	 * питання, і саме другого доти не було ні в якому вигляді.
+	 */
+	function echo(state: PanelState | null): void {
+		const at = state?.atServer ?? 0;
+		/*
+		 * «Перший знімок» — це ПЕРШИЙ ВИКЛИК, а не «мітка ще нульова». Дошка, на
+		 * якій сьогодні ще нічого не тиснули, віддає `null`, і мітка лишається
+		 * нулем; перевірка по нулю з'їдала б тоді й перше справжнє натискання —
+		 * тобто саме той випадок, заради якого все це й робиться.
+		 */
+		const fresh = warm && state?.press && at > seenAt;
+		warm = true;
+		seenAt = at;
+		if (fresh && state?.press) mind(state.press.cell, state.press.type, state.press.value, false);
 	}
 
 	async function ask(cell: string, type: PanelCommandType, value?: number) {

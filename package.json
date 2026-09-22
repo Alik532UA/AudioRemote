@@ -2,7 +2,7 @@
   "name": "audioremote",
   "description": "Remote audio board: trigger sounds on a computer from a phone.",
   "private": true,
-  "version": "0.0.188",
+  "version": "0.0.189",
   "type": "module",
   "engines": {
     "node": ">=22.12.0"

@@ -727,6 +727,52 @@ await must('господар кладе стан органів', () =>
 	)
 );
 
+/*
+ * ОСТАННЄ НАТИСКАННЯ ЇДЕ ТИМ САМИМ ВУЗЛОМ — щоб його бачила й зала, а не лише
+ * той, хто натиснув. Поле нове, і саме на таких полях тут уже ламалося:
+ * додане в коді раніше, ніж у правилах, воно відкидається РАЗОМ З УСІМ
+ * записом, тобто зникає не підсвітка, а положення органів.
+ */
+await must('господар кладе стан разом з останнім натисканням', () =>
+	write(
+		`boards/${KEY}/panelState`,
+		{ atServer: SERVER_TIME, levels: { 4: 60 }, press: { cell: '4', type: 'bump', value: -5 } },
+		owner.token
+	)
+);
+
+await mustNot('натискання з невідомим родом', () =>
+	write(
+		`boards/${KEY}/panelState`,
+		{ atServer: SERVER_TIME, press: { cell: '4', type: 'slide' } },
+		owner.token
+	)
+);
+
+await mustNot('натискання по комірці поза найбільшою сіткою', () =>
+	write(
+		`boards/${KEY}/panelState`,
+		{ atServer: SERVER_TIME, press: { cell: '48', type: 'toggle' } },
+		owner.token
+	)
+);
+
+await mustNot('натискання з зайвим полем', () =>
+	write(
+		`boards/${KEY}/panelState`,
+		{ atServer: SERVER_TIME, press: { cell: '4', type: 'toggle', who: 'Оля' } },
+		owner.token
+	)
+);
+
+await mustNot('сторонній кладе натискання', () =>
+	write(
+		`boards/${KEY}/panelState`,
+		{ atServer: SERVER_TIME, press: { cell: '4', type: 'toggle' } },
+		stranger.token
+	)
+);
+
 await must('помічник просить посунути повзунок', () =>
 	write(
 		`boards/${KEY}/cmd/n1`,

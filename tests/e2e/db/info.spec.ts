@@ -287,3 +287,46 @@ test('інфодошку зі списку «Мої дошки» можна ві
 
 	await desk.close();
 });
+
+test('натискання за пультом видно в залі, а не лише в залі — за пультом', async ({ browser }) => {
+	/*
+	 * ЗВ'ЯЗОК БУВ ОДНОБІЧНИЙ. Прохання із зали світилося на таблі — це
+	 * працювало з першого дня. Зроблене за самим пультом до зали не доїжджало
+	 * ніяк: помічник бачив лише наслідок, і то не завжди — кнопка наслідку не
+	 * лишає взагалі, тобто натискання за пультом для зали просто не існувало.
+	 *
+	 * Перевірити це можна лише двома контекстами: ані юніт, ані статичний гейт
+	 * не бачать, що саме приїхало на ДРУГИЙ екран.
+	 */
+	const desk = await browser.newContext();
+	const hall = await browser.newContext();
+	const board = await desk.newPage();
+	const helper = await hall.newPage();
+
+	const id = await createInfoBoard(board);
+	await board.getByTestId('info-start-edit-btn').click();
+	await board.getByTestId('info-fill-btn').click();
+	await board.getByTestId('info-edit-btn').click();
+
+	await joinAsHelper(helper, id, 'Оля');
+	await expect(board.getByTestId('info-wall-list')).toBeVisible(ACROSS);
+
+	// Свіжий помічник НЕ блимає чужим минулим: вузол стану живе між виставами.
+	await expect(helper.locator('.cell--recent'), 'блимнуло на порожньому місці').toHaveCount(0);
+
+	await board.locator('[data-testid^="panel-press-"]').first().click();
+	await expect(
+		helper.locator('.cell--recent'),
+		'натискання за пультом до зали не доїхало'
+	).toHaveCount(1, ACROSS);
+
+	// І в інший бік — щоб виправлення однієї сторони не зламало другу.
+	await helper.locator('[data-testid^="panel-press-"]').nth(1).click();
+	await expect(
+		board.getByTestId('info-wall-list').locator('.cell--recent'),
+		'прохання із зали перестало світитися за пультом'
+	).toHaveCount(1, ACROSS);
+
+	await desk.close();
+	await hall.close();
+});
