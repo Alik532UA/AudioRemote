@@ -63,7 +63,7 @@
 			onclick={() => onpick(option.value)}
 			data-testid="{prefix}-{option.value}-radio"
 		>
-			{option.label}
+			<span class="picker__text" data-label={option.label}>{option.label}</span>
 		</button>
 	{/each}
 </div>
@@ -78,8 +78,24 @@
 		background: var(--bg-surface-raised);
 	}
 
+	/*
+	 * РЯД ПЕРЕНОСИТЬСЯ, А НЕ ОБРІЗАЄ.
+	 *
+	 * Доти сегменти були рівні й мали право стиснутися до нуля (`flex: 1 1 0`,
+	 * `min-width: 0`), а сам перемикач — `overflow: hidden`. Тобто довгий
+	 * підпис не переносився й не зменшувався, а просто зникав за краєм: у
+	 * бічній картці табла «Максимальне» обрізалося до «Максимальн», у вікні
+	 * комірки «Свій розмір» ламався на два рядки всередині свого сегмента.
+	 *
+	 * Тепер сегмент не вужчий за свій підпис, а ряд, у який підписи не
+	 * вміщаються, переходить на наступний рядок. Межі між сегментами —
+	 * проміжком у пів точки на тлі кольору межі, а не рамкою кожного: рамка
+	 * «ліворуч» на першому сегменті другого рядка стояла б біля самого краю.
+	 */
 	.picker--row {
-		flex-direction: row;
+		flex-flow: row wrap;
+		gap: 1px;
+		background: var(--border);
 	}
 
 	.picker__item {
@@ -99,16 +115,40 @@
 
 	.picker--row .picker__item {
 		flex: 1 1 0;
-		min-width: 0;
+		min-width: max-content;
 		justify-content: center;
-		padding: 0 var(--gap-xs);
+		padding: 0 var(--gap-sm);
 		border-top: 0;
-		border-inline-start: 1px solid var(--border);
+		background: var(--bg-surface-raised);
+	}
+
+	/*
+	 * ШИРИНА ЖИРНОГО ЗАРЕЗЕРВОВАНА НАПЕРЕД.
+	 *
+	 * Обраний сегмент пишеться жирним, а жирне ширше. Без запасу вибір сам
+	 * міняв ширину сегментів — ряд стрибав під пальцем рівно в мить натискання,
+	 * і вміщений підпис після вибору міг перестати вміщатися. Невидима жирна
+	 * копія підпису нульової висоти задає ширину завжди, обраний він чи ні;
+	 * `/ ""` ховає її від читача екрана, щоб слово не звучало двічі.
+	 */
+	.picker__text {
+		display: inline-flex;
+		flex-direction: column;
+		align-items: center;
+	}
+
+	.picker__text::after {
+		content: attr(data-label) / '';
+		block-size: 0;
+		overflow: hidden;
+		visibility: hidden;
+		font-weight: 600;
+		pointer-events: none;
+		user-select: none;
 	}
 
 	.picker__item:first-child {
 		border-top: 0;
-		border-inline-start: 0;
 	}
 
 	.picker__item:hover,

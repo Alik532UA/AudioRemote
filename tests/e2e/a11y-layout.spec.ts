@@ -419,3 +419,98 @@ test('блоки сторінки стоять в одних берегах, а 
 	expect(counted, 'жодної сторінки з кількома блоками — перевірка мертва').toBeGreaterThan(5);
 	expect(ragged, `блоки в різних берегах:\n${ragged.join('\n')}`).toEqual([]);
 });
+
+test('жоден орган не обрізає власний підпис', async ({ page }) => {
+	/*
+	 * ОБРІЗАНИЙ ПІДПИС НЕ КИДАЄ НІЧОГО — його просто не видно до кінця.
+	 *
+	 * Перемикач мав рівні сегменти з правом стиснутися до нуля й
+	 * `overflow: hidden` на собі, тож довге слово не переносилося й не
+	 * зменшувалося, а зникало за краєм: «Максимальне» ставало «Максимальн»,
+	 * «Свій розмір» ламався посеред свого сегмента. Кожен випадок знаходили
+	 * очима — на екрані, де його хтось випадково побачив.
+	 *
+	 * Правило питає просте: вміст органа не ширший і не вищий за сам орган.
+	 * Навмисне обрізання (`text-overflow: ellipsis` на довгій назві файлу) —
+	 * не порушення: там крапки й кажуть, що далі є ще.
+	 */
+	const clipped: string[] = [];
+	let counted = 0;
+
+	for (const width of [320, 1280]) {
+		await page.setViewportSize({ width, height: 900 });
+
+		for (const path of ROUTES) {
+			await page.goto(path);
+			await settled(page);
+
+			const found = await page.evaluate((selector) => {
+				const cut: string[] = [];
+				let seen = 0;
+				for (const element of document.querySelectorAll<HTMLElement>(selector)) {
+					if (element.clientWidth === 0) continue;
+					if (['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName)) continue;
+					if (getComputedStyle(element).textOverflow === 'ellipsis') continue;
+					seen += 1;
+					/*
+					 * Межі САМОГО ТЕКСТУ, а не `scrollWidth`: орган із видимим
+					 * переповненням і центрованим вмістом `scrollWidth`-ом не
+					 * скаржиться, а обрізає його сусід-контейнер. Саме так і
+					 * ховалося «Максимальне» — перевірка через `scrollWidth`
+					 * пропускала його.
+					 */
+					/*
+					 * Лише ВИДИМИЙ текст. Підпис для читача екрана (`visually-hidden`)
+					 * навмисно лежить поза коробкою — у знака застосунку він дав би
+					 * «+74» на кожній сторінці, тобто брехню замість правила.
+					 */
+					const shown = (node: Node) => {
+						for (
+							let up = node.parentElement;
+							up && up !== element.parentElement;
+							up = up.parentElement
+						) {
+							const look = getComputedStyle(up);
+							if (
+								look.clip !== 'auto' ||
+								look.clipPath !== 'none' ||
+								look.visibility === 'hidden'
+							) {
+								return false;
+							}
+						}
+						return true;
+					};
+					const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+					const rects: DOMRect[] = [];
+					for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+						if (!(node.textContent ?? '').trim() || !shown(node)) continue;
+						const span = document.createRange();
+						span.selectNodeContents(node);
+						rects.push(span.getBoundingClientRect());
+					}
+					if (rects.length === 0) continue;
+					const box = element.getBoundingClientRect();
+					const out = Math.max(
+						box.left - Math.min(...rects.map((one) => one.left)),
+						Math.max(...rects.map((one) => one.right)) - box.right,
+						box.top - Math.min(...rects.map((one) => one.top)),
+						Math.max(...rects.map((one) => one.bottom)) - box.bottom
+					);
+					if (out > 1) {
+						cut.push(
+							`${element.dataset.testid ?? (element.textContent ?? '').trim().slice(0, 20)}: +${Math.round(out)}`
+						);
+					}
+				}
+				return { cut, seen };
+			}, INTERACTIVE);
+
+			counted += found.seen;
+			clipped.push(...found.cut.map((one) => `${width} ${path} ${one}`));
+		}
+	}
+
+	expect(counted, 'жодного органа не знайдено — перевірка мертва').toBeGreaterThan(40);
+	expect(clipped, `обрізані підписи:\n${clipped.join('\n')}`).toEqual([]);
+});

@@ -464,3 +464,41 @@ test('складальник уміщається в екран, а «Готов
 
 	await desk.close();
 });
+
+test('перемикачі в бічній картці табла не обрізають своїх слів', async ({ browser }) => {
+	/*
+	 * Бічна картка — найвужче місце застосунку з перемикачем у ряд: три довгі
+	 * українські слова в ~260 точок. Саме тут «Максимальне» обрізалося до
+	 * «Максимальн» — і на жодній сторінці без дошки цього не видно, тож
+	 * загальне правило в `a11y-layout.spec.ts` сюди не дотягується.
+	 */
+	const desk = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+	const board = await desk.newPage();
+
+	await createInfoBoard(board);
+	const card = board.getByTestId('info-screen-section');
+	await expect(card).toBeVisible(ACROSS);
+
+	/*
+	 * МІРЯЄТЬСЯ ТЕКСТ, А НЕ `scrollWidth`. Перша редакція опису питала
+	 * `scrollWidth > clientWidth` — і пройшла зі СТАРИМ перемикачем, тобто не
+	 * бачила саме тієї вади, заради якої написана. Сегмент там не обрізав
+	 * свого вмісту сам: вміст вилазив за нього, а обрізав — сусідній контейнер
+	 * із `overflow: hidden`; `scrollWidth` сегмента з видимим переповненням і
+	 * центрованим вмістом цього не показує. Межі самого тексту — показують.
+	 */
+	const cut = await card.evaluate((root) =>
+		[...root.querySelectorAll<HTMLElement>('[role="radio"]')]
+			.filter((one) => {
+				const span = document.createRange();
+				span.selectNodeContents(one);
+				const text = span.getBoundingClientRect();
+				const box = one.getBoundingClientRect();
+				return text.left < box.left - 1 || text.right > box.right + 1;
+			})
+			.map((one) => (one.textContent ?? '').trim())
+	);
+	expect(cut, `обрізані сегменти: ${cut.join(', ')}`).toEqual([]);
+
+	await desk.close();
+});
