@@ -1,0 +1,2 @@
+const s=[{slug:"ruby",hex:"#d64550"},{slug:"coral",hex:"#e07a3f"},{slug:"amber",hex:"#c9961e"},{slug:"olive",hex:"#8aa33c"},{slug:"emerald",hex:"#35a06b"},{slug:"teal",hex:"#2a9d9a"},{slug:"azure",hex:"#3b8fd4"},{slug:"indigo",hex:"#6b74d6"},{slug:"violet",hex:"#9a5fd0"},{slug:"rose",hex:"#d45f95"}],u=/^[a-z]{2,12}$/,o=e=>typeof e=="string"&&u.test(e);function r(e){return e?s.find(l=>l.slug===e)?.hex??null:null}function a(e){return s.findIndex(l=>l.slug===e)+1}export{s as T,a,r as c,o as i};
+//# sourceMappingURL=D6E1tlBG.js.map
