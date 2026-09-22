@@ -186,16 +186,13 @@
 	}}
 >
 	<div class="dialog__body">
+		<!--
+			ШАПКА ЛИПНЕ ДО ВЕРХУ: у вікні вісім полів, воно прокручується, і назва
+			комірки — єдине, що каже, ЩО саме зараз правлять. Поїхавши вгору, вона
+			лишає людину в діалозі без предмета.
+		-->
 		<header class="dialog__head">
 			<h2 class="dialog__title">{t('panel.cellTitle', { n: Number(index) + 1 })}</h2>
-			<button
-				type="button"
-				aria-label={t('common.close')}
-				onclick={() => node?.close()}
-				data-testid="cell-modal-close-btn"
-			>
-				<IconClose size={20} aria-hidden="true" />
-			</button>
 		</header>
 
 		<!--
@@ -281,6 +278,19 @@
 			<p class="error" role="alert" data-testid="cell-no-room-text">{t('panel.noRoom')}</p>
 		{/if}
 
+		<!--
+			ТРИ ДІЇ — В ОДНОМУ РЯДКУ Й ЗАКРІПЛЕНІ.
+
+			Доти вихід був хрестиком у правому верхньому куті, а «Зберегти» й
+			«Очистити» — текстовими кнопками внизу. Тобто три дії над однією
+			коміркою мали три різні вигляди й два різні місця, і на високому
+			вмісті всі три ховалися за прокруткою: вікно прокручується всередині,
+			і низ разом із верхом виїжджав геть.
+
+			Тепер вони поруч, одного роду й липнуть до низу вікна. Порядок —
+			найчастіша дія першою, руйнівна відбита праворуч: «Очистити» стоїть
+			окремо від «Зберегти», щоб їх не плутали пальцем.
+		-->
 		<div class="acts">
 			<button
 				class="btn btn--primary"
@@ -292,9 +302,19 @@
 				{t('panel.save')}
 			</button>
 
+			<button
+				class="btn"
+				type="button"
+				onclick={() => node?.close()}
+				data-testid="cell-modal-close-btn"
+			>
+				<IconClose size={18} aria-hidden="true" />
+				{t('common.close')}
+			</button>
+
 			{#if cell}
 				<button
-					class="btn btn--danger"
+					class="btn btn--danger acts__wipe"
 					type="button"
 					onclick={() => {
 						onsave(null);
@@ -367,12 +387,38 @@
 		min-width: 0;
 	}
 
+	/*
+	 * ШАПКА Й ДІЇ ЛИПНУТЬ ДО КРАЇВ ВІКНА, бо прокручується саме вміст. Тло
+	 * власне: під ними проїжджають поля, і без нього текст читався б крізь
+	 * текст. Відʼємні відступи — щоб смуги доходили до країв вікна, а не
+	 * лишали по собі щілину кольору сторінки.
+	 */
+	.dialog__head {
+		position: sticky;
+		top: 0;
+		z-index: 1;
+		margin: calc(-1 * var(--gap-lg)) calc(-1 * var(--gap-lg)) 0;
+		padding: var(--gap-lg) var(--gap-lg) var(--gap-sm);
+		background: var(--bg-surface);
+	}
+
 	.acts {
+		position: sticky;
+		bottom: 0;
+		z-index: 1;
 		display: flex;
 		flex-wrap: wrap;
+		align-items: center;
 		gap: var(--gap-sm);
+		margin: 0 calc(-1 * var(--gap-lg)) calc(-1 * var(--gap-lg));
 		/* Дії відбиті від полів: інакше «Зберегти» читається як ще одне поле. */
-		padding-top: var(--gap-sm);
+		padding: var(--gap-sm) var(--gap-lg) var(--gap-lg);
 		border-top: 1px solid var(--border);
+		background: var(--bg-surface);
+	}
+
+	/* Руйнівна дія відбита в інший кінець рядка: її не тиснуть мимохідь. */
+	.acts__wipe {
+		margin-inline-start: auto;
 	}
 </style>

@@ -409,11 +409,28 @@ test('складальник уміщається в екран, а «Готов
 	await board.getByTestId('info-fill-btn').click();
 	await expect(board.getByTestId('panel-editor-list')).toBeVisible(ACROSS);
 
-	// «Готово» — усередині складальника, а не в картці керування екраном.
-	await expect(
-		board.getByTestId('info-editor-section').getByTestId('info-edit-btn'),
-		'вихід зі складання стоїть не при сітці'
-	).toBeVisible();
+	/*
+	 * «Готово» — усередині складальника, і саме внизу праворуч. Воно нічого не
+	 * зберігає (кожна правка лягає в базу тієї ж миті), тобто це кінець роботи,
+	 * а не підтвердження; читається він там, де робота закінчується.
+	 */
+	const done = board.getByTestId('info-editor-section').getByTestId('info-edit-btn');
+	await expect(done, 'вихід зі складання стоїть не при сітці').toBeVisible();
+
+	const place = await board.evaluate(() => {
+		const button = document.querySelector('[data-testid="info-edit-btn"]');
+		const card = document.querySelector('[data-testid="info-editor-section"]');
+		if (!button || !card) return null;
+
+		const one = button.getBoundingClientRect();
+		const all = card.getBoundingClientRect();
+		return {
+			right: one.x + one.width / 2 > all.x + all.width / 2,
+			low: one.y + one.height / 2 > all.y + all.height / 2
+		};
+	});
+	expect(place?.right, 'вихід не праворуч').toBe(true);
+	expect(place?.low, 'вихід не внизу').toBe(true);
 
 	// Підказка переїхала в бічну колонку й згортається.
 	await expect(board.getByTestId('panel-help-section')).toBeVisible();
@@ -424,6 +441,22 @@ test('складальник уміщається в екран, а «Готов
 		() => document.documentElement.scrollHeight - document.documentElement.clientHeight
 	);
 	expect(spill, `складальник не вмістився: ${spill} точок за екраном`).toBeLessThanOrEqual(0);
+
+	/*
+	 * ВИХІД НЕ ХОВАЄТЬСЯ ЗА КРАЄМ. Сітка росте до шести на вісім, і на низькому
+	 * екрані рядок дій іде за нижній край: щоб вийти з режиму, довелося б
+	 * спершу прокрутити. Тому він липкий — і це перевіряється там, де сторінка
+	 * справді прокручується.
+	 */
+	await board.setViewportSize({ width: 1440, height: 600 });
+	await board.evaluate(() => window.scrollTo(0, 0));
+	const hidden = await board.evaluate(() => {
+		const button = document.querySelector('[data-testid="info-edit-btn"]');
+		if (!button) return true;
+		const box = button.getBoundingClientRect();
+		return box.y < 0 || box.bottom > window.innerHeight;
+	});
+	expect(hidden, 'вихід зі складання опинився за краєм екрана').toBe(false);
 
 	// І вихід справді виходить.
 	await board.getByTestId('info-editor-section').getByTestId('info-edit-btn').click();
