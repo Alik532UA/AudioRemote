@@ -494,9 +494,9 @@ export const uk = {
 	'panel.change': 'було {from} — стало {to}',
 	'panel.logTitle': 'Останні дії',
 	/* Мітка рядка, який зробили тут-таки, а не попросили із зали. */
-	'verdict.done': 'Зробив',
-	'verdict.no': 'Не буду',
-	'verdict.wait': 'Не зараз',
+	'verdict.done': 'Зроблено',
+	'verdict.no': 'Відмова',
+	'verdict.wait': 'Пізніше',
 	'verdict.doneSaid': 'зроблено',
 	'verdict.noSaid': 'не буде',
 	'verdict.waitSaid': 'зараз не можу',

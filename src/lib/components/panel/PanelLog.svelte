@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { t } from '$lib/i18n/i18n.svelte';
-	import { IconCheck } from '$lib/config/icons';
+	import { IconBan, IconCheck, IconLater } from '$lib/config/icons';
 	import LogWho from '$lib/components/ui/LogWho.svelte';
 	import type { VerdictKind } from '$lib/net/panelTypes';
 	import type { LogEntry } from '$lib/services/panelLog.svelte';
@@ -37,9 +37,12 @@
 		/**
 		 * ВІДПОВІСТИ НА ПРОХАННЯ. Є лише на таблі: у залі відповідати нема на що.
 		 *
-		 * Три кнопки стоять на ВЕРХНЬОМУ рядку, бо відповідають саме на нього — на
-		 * те, що просять зараз. Біля кожного рядка вони перетворили б журнал на
-		 * анкету, а відповідь на позавчорашнє прохання нікому не потрібна.
+		 * Відповідь стосується ОСТАННЬОГО прохання — того, що просять зараз;
+		 * відповідь на позавчорашнє нікому не потрібна. Доти три кнопки стояли
+		 * всередині самого рядка, і на вузькому екрані вони налазили на текст, до
+		 * якого й ставилося питання: підпис віджета, дія й три підписані кнопки не
+		 * вміщаються в один рядок ніяк. Тепер вони в заголовку журналу, значками,
+		 * а рядок лишається рядком.
 		 */
 		onverdict?: (kind: VerdictKind, cell: string, caption: string) => void;
 	}
@@ -64,7 +67,11 @@
 	 * екрана, а не про дошку. У базі йому не було б чого робити, а сторінці не
 	 * довелося б нести ще одне поле заради чужої галочки.
 	 */
-	const VERDICTS: readonly VerdictKind[] = ['done', 'no', 'wait'];
+	const VERDICTS = [
+		{ kind: 'done', icon: IconCheck },
+		{ kind: 'no', icon: IconBan },
+		{ kind: 'wait', icon: IconLater }
+	] as const satisfies readonly { kind: VerdictKind; icon: unknown }[];
 
 	let hushed = $state<string | null>(null);
 
@@ -72,9 +79,10 @@
 	 * Підсвічується лише ПРОХАННЯ: рядок «помічник підключено» не питає ні про
 	 * що, і відповідати на нього нема чим.
 	 */
-	const head = $derived(
-		notices.length > 0 && notices[0].notice && notices[0].id !== hushed ? notices[0].id : null
+	const answering = $derived(
+		notices.length > 0 && notices[0].notice && notices[0].id !== hushed ? notices[0] : null
 	);
+	const head = $derived(answering?.id ?? null);
 
 	const clock = (at: number) =>
 		new Date(at).toLocaleTimeString(undefined, {
@@ -99,6 +107,41 @@
 		return '';
 	};
 </script>
+
+<div class="head">
+	<h2 class="subtitle">{t('panel.logTitle')}</h2>
+
+	{#if onverdict}
+		<!--
+			ВІДПОВІДЬ ЗАРАЗОМ ГАСИТЬ ВЕРХНІЙ РЯДОК: сказавши «зроблено», людина вже
+			відповіла на питання «чим я ще займаюся», і вимагати від неї другого
+			натискання по галочці було б бюрократією.
+
+			Значками, а не словами: три підписані кнопки поруч із заголовком забрали
+			б увесь рядок, а сказати мусять те саме. Підпис нікуди не дівся — він у
+			`title` і в `aria-label`, тобто його видно при наведенні й чути читалці.
+		-->
+		<div class="head__answer">
+			{#each VERDICTS as answer (answer.kind)}
+				<button
+					class="verdict verdict--{answer.kind}"
+					type="button"
+					disabled={answering === null}
+					title={t(`verdict.${answer.kind}`)}
+					aria-label={t(`verdict.${answer.kind}`)}
+					onclick={() => {
+						if (!answering?.notice) return;
+						onverdict?.(answer.kind, answering.notice.cell, answering.notice.caption);
+						hushed = answering.id;
+					}}
+					data-testid="panel-verdict-{answer.kind}-btn"
+				>
+					<answer.icon size={18} aria-hidden="true" />
+				</button>
+			{/each}
+		</div>
+	{/if}
+</div>
 
 {#if notices.length === 0}
 	<p class="muted" data-testid="panel-log-empty-text">{t('panel.logEmpty')}</p>
@@ -141,30 +184,6 @@
 				</span>
 
 				{#if head === notice.id}
-					<!--
-						ВІДПОВІДЬ ЗАРАЗОМ ГАСИТЬ РЯДОК: сказавши «зробив», людина вже
-						відповіла на питання «чим я ще займаюся», і вимагати від неї другого
-						натискання по галочці було б бюрократією.
-					-->
-					{#if onverdict}
-						<div class="log__answer">
-							{#each VERDICTS as answer (answer)}
-								<button
-									class="log__verdict log__verdict--{answer}"
-									type="button"
-									onclick={() => {
-										if (notice.notice)
-											onverdict?.(answer, notice.notice.cell, notice.notice.caption);
-										hushed = notice.id;
-									}}
-									data-testid="panel-verdict-{answer}-btn"
-								>
-									{t(`verdict.${answer}`)}
-								</button>
-							{/each}
-						</div>
-					{/if}
-
 					<button
 						class="log__hush"
 						type="button"
@@ -250,57 +269,64 @@
 	 * Галочка тиха: вона прибирає підсвітку, а не рядок, і не мусить
 	 * сперечатися за увагу з тим, що в рядку написано.
 	 */
-	/*
-	 * ТРИ ВІДПОВІДІ — КОЛЬОРАМИ, а не самими словами: їх читають краєм ока, і
-	 * зелене-червоне-жовте впізнається швидше за будь-який напис. Слова
-	 * лишаються — сам колір каже «щось сталося», а не що саме.
-	 */
-	.log__answer {
+	.head {
 		display: flex;
-		flex: none;
 		flex-wrap: wrap;
-		gap: var(--gap-xs);
-		margin-inline-start: auto;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--gap-sm);
 	}
 
-	.log__verdict {
-		padding: 2px var(--gap-xs);
+	.subtitle {
+		font-size: 1.05rem;
+	}
+
+	.head__answer {
+		display: flex;
+		gap: var(--gap-xs);
+	}
+
+	/*
+	 * ТРИ ВІДПОВІДІ — КОЛЬОРАМИ І ЗНАЧКАМИ, а не самими написами: їх читають
+	 * краєм ока, і зелене-червоне-жовте впізнається швидше за будь-яке слово.
+	 * Значок при цьому несе те саме, що колір, — інакше відповідь була б
+	 * недоступна тому, хто кольори не розрізняє.
+	 */
+	.verdict {
+		display: grid;
+		place-items: center;
+		inline-size: var(--tap);
+		block-size: var(--tap);
 		border: 1px solid currentcolor;
 		border-radius: var(--radius-sm);
 		background: none;
 		cursor: pointer;
-		font: inherit;
-		font-size: 0.75rem;
 	}
 
-	.log__verdict--done {
+	.verdict:disabled {
+		opacity: 0.4;
+		cursor: default;
+	}
+
+	.verdict--done {
 		color: var(--ok);
 	}
 
-	.log__verdict--no {
+	.verdict--no {
 		color: var(--danger);
 	}
 
-	.log__verdict--wait {
+	.verdict--wait {
 		color: var(--warn);
 	}
 
 	/*
-	 * ПІДСВІТКА — ВТОПЛЕНОЮ ПОВЕРХНЕЮ, А НЕ ДОМІШКОЮ САМОЇ КНОПКИ.
-	 *
-	 * Доти під курсором кнопка отримувала 14% ВЛАСНОГО кольору. Тло при цьому
-	 * їде рівно в бік напису — у темній темі світлішає під світло-зеленим, у
-	 * світлій темнішає під темно-зеленим, — тобто контраст падає завжди, і
-	 * падає він у той самий момент, коли кнопку читають перед натисканням:
-	 * 5.20 → 4.20 у темній темі при потрібних 4.5 (`contrast.test.ts`).
-	 *
-	 * `--bg-sunken` не має цієї вади ні в одній темі й не забирає ознаки типу:
-	 * колір лишається в рамці та написі, де він контрасту не псує
-	 * (product_criteria/v1 NOTIFICATIONS § 6). Те саме тло на тій самій події
-	 * вже стоїть у кнопок закриття (`base.css`).
+	 * ПІДСВІТКА — ВТОПЛЕНОЮ ПОВЕРХНЕЮ, А НЕ ДОМІШКОЮ САМОЇ КНОПКИ: тло від
+	 * домішки їде в бік напису, і контраст падає саме тоді, коли кнопку
+	 * читають перед натисканням.
 	 */
-	.log__verdict:hover,
-	.log__verdict:focus-visible {
+	.verdict:hover:not(:disabled),
+	.verdict:focus-visible {
 		background: var(--bg-sunken);
 	}
 

@@ -543,7 +543,6 @@
 
 					{#if view !== 'panel'}
 						<section class="card stack log" data-testid="info-log-section">
-							<h2 class="subtitle">{t('panel.logTitle')}</h2>
 							<PanelLog notices={panelLog.entries} onverdict={answer} />
 						</section>
 					{/if}
@@ -695,7 +694,4 @@
 		overflow: auto;
 	}
 
-	.subtitle {
-		font-size: 1.05rem;
-	}
 </style>

@@ -46,5 +46,6 @@ export { default as IconSliders } from '@lucide/svelte/icons/sliders-horizontal'
 export { default as IconInfo } from '@lucide/svelte/icons/info';
 export { default as IconClose } from '@lucide/svelte/icons/x';
 export { default as IconBan } from '@lucide/svelte/icons/ban';
+export { default as IconLater } from '@lucide/svelte/icons/clock';
 export { default as IconZap } from '@lucide/svelte/icons/zap';
 export { default as IconGrid } from '@lucide/svelte/icons/layout-grid';

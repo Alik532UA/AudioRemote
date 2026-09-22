@@ -102,3 +102,41 @@ test('другий помічник — друга панель, і натиск
 	await desk.close();
 	await second.close();
 });
+
+test('відповідь дається із заголовка журналу й долітає в зал', async ({ browser }) => {
+	/*
+	 * Кнопки відповіді доти стояли всередині рядка журналу й на вузькому екрані
+	 * налазили на його ж текст. Тепер вони в заголовку — значками, а підпис у
+	 * `title`. Опис перевіряє не розкладку, а те, заради чого вони існують:
+	 * відповідь мусить долетіти до того, хто просив.
+	 */
+	const desk = await browser.newContext();
+	const hall = await browser.newContext();
+	const board = await desk.newPage();
+	const helper = await hall.newPage();
+
+	const id = await createInfoBoard(board);
+	await board.getByTestId('info-start-edit-btn').click();
+	await board.getByTestId('info-fill-btn').click();
+	await board.getByTestId('info-edit-btn').click();
+
+	await joinAsHelper(helper, id, 'Оля');
+	await expect(board.getByTestId('info-wall-list')).toBeVisible(ACROSS);
+
+	// Доки нема про що питати, відповідати теж нема на що.
+	await expect(board.getByTestId('panel-verdict-done-btn')).toBeDisabled();
+
+	await helper.locator('[data-testid^="panel-press-"]').first().click();
+	await expect(board.getByTestId('panel-verdict-done-btn')).toBeEnabled(ACROSS);
+	await board.getByTestId('panel-verdict-done-btn').click();
+
+	await expect(helper.getByTestId('info-verdict-text'), 'відповідь не долетіла в зал').toBeVisible(
+		ACROSS
+	);
+
+	// Відповідь заразом гасить верхній рядок: удруге питати нема про що.
+	await expect(board.getByTestId('panel-verdict-done-btn')).toBeDisabled();
+
+	await desk.close();
+	await hall.close();
+});
