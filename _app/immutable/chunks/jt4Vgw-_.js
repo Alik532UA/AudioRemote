@@ -1,2 +1,0 @@
-import"./Dof2PsIB.js";import{A as i,w as n,z as v,B as d,t as m,x as p,q as _,y as f}from"./C7_7dCAz.js";import{s as l}from"./Ba9C_VwV.js";import{T as x}from"./DrGrGw0J.js";var b=f('<div class="blocker svelte-s0w5d1"><p class="blocker__card card svelte-s0w5d1" role="alert"><!> <span> </span></p></div>');function B(o,a){var t=b(),e=i(t),s=i(e);x(s,{size:22,"aria-hidden":"true"});var r=n(s,2),c=v(r,!0);d(e),d(t),m(()=>{l(t,"data-testid",a.testid),l(r,"data-testid",`${a.testid??""}-text`),p(c,a.text)}),_(o,t)}export{B};
-//# sourceMappingURL=jt4Vgw-_.js.map
