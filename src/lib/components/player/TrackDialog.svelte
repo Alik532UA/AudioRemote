@@ -2,11 +2,11 @@
 	import { untrack } from 'svelte';
 	import { IconClose, IconKeyboard, IconZap } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
-	import { colorNumber, TRACK_COLORS } from '$lib/config/trackColors';
 	import { MAX_GAP_SEC, MAX_ICON, MAX_PLAYS } from '$lib/audio/boardConfig';
 	import { isAssignable, labelForCode, ordinalKey } from '$lib/hotkeys/hotkeys';
 	import type { BoardEditor, BoardTrack } from '$lib/board/editor';
 	import TriggerEditor from './TriggerEditor.svelte';
+	import ColorPalette from '$lib/components/ui/ColorPalette.svelte';
 	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
 	import VisibilityPicker from './VisibilityPicker.svelte';
 
@@ -284,28 +284,11 @@
 
 				<div class="field">
 					<span class="field__label">{t('color.pick')}</span>
-					<div class="palette">
-						<button
-							class="palette__cell palette__cell--none"
-							type="button"
-							title={t('color.none')}
-							aria-label={t('color.none')}
-							aria-pressed={track.color === null}
-							onclick={() => controller.setColor(track.id, null)}
-						></button>
-						{#each TRACK_COLORS as swatch (swatch.slug)}
-							<button
-								class="palette__cell"
-								type="button"
-								style="--swatch: {swatch.hex}"
-								title={t('color.label', { n: colorNumber(swatch.slug) })}
-								aria-label={t('color.label', { n: colorNumber(swatch.slug) })}
-								aria-pressed={track.color === swatch.slug}
-								onclick={() => controller.setColor(track.id, swatch.slug)}
-								data-testid="swatch-{swatch.slug}"
-							></button>
-						{/each}
-					</div>
+					<ColorPalette
+						value={track.color ?? null}
+						testid="swatch"
+						onpick={(slug) => controller.setColor(track.id, slug)}
+					/>
 				</div>
 
 				<VisibilityPicker
@@ -447,36 +430,4 @@
 		}
 	}
 
-	.palette {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--gap-xs);
-	}
-
-	.palette__cell {
-		width: 32px;
-		height: 32px;
-		border: 2px solid transparent;
-		border-radius: 50%;
-		background: var(--swatch);
-		cursor: pointer;
-		transition: transform var(--transition-fast);
-	}
-
-	.palette__cell--none {
-		border-color: var(--border-strong);
-		background: var(--bg-sunken);
-	}
-
-	.palette__cell:hover,
-	.palette__cell:focus-visible {
-		border-color: var(--accent);
-		transform: scale(1.1);
-	}
-
-	.palette__cell[aria-pressed='true'] {
-		border-color: var(--text-primary);
-		/* Обраний колір видно й тоді, коли він майже збігається з тлом вікна. */
-		box-shadow: 0 0 0 2px var(--bg-surface-raised) inset;
-	}
 </style>

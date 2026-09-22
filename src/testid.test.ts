@@ -236,7 +236,6 @@ const LEGACY_ALLOWED = new Set<string>([
 	'settings-save',
 	'start-notice',
 	'starting',
-	'swatch-{swatch.slug}',
 	"theme-{option.value ?? 'system'}",
 	'tips',
 	'track-settings-{entry.id}',
