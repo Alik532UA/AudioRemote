@@ -504,11 +504,12 @@ export const en: Record<TranslationKey, string> = {
 	'panel.badValue': 'The board did not understand the request.',
 	'panel.louder': 'louder',
 	'panel.fine': 'fine',
+	'panel.louderBit': 'a bit louder',
+	'panel.quieterBit': 'a bit quieter',
+	'panel.alarm': 'attention',
 	'panel.quieter': 'quieter',
 	'panel.track': 'backing track',
 	'panel.mic': 'microphone',
-	'panel.overall': 'overall level',
-	'panel.ready': 'ready',
 
 	// ─── Third role: administrator ───────────────────────────────────────────
 	'admin.title': 'Administrator',

@@ -528,12 +528,13 @@ export const uk = {
 	'panel.wrongKind': 'Комірку змінили, поки прохання летіло. Спробуйте ще раз.',
 	'panel.badValue': 'Табло не зрозуміло прохання.',
 	'panel.louder': 'гучніше',
-	'panel.fine': 'ок',
+	'panel.fine': 'добре',
+	'panel.louderBit': 'трохи гучніше',
+	'panel.quieterBit': 'трохи тихіше',
+	'panel.alarm': 'увага',
 	'panel.quieter': 'тихіше',
 	'panel.track': 'фонограма',
 	'panel.mic': 'мікрофон',
-	'panel.overall': 'загальна гучність',
-	'panel.ready': 'готові',
 
 	// ─── Третя роль: адміністратор ───────────────────────────────────────────
 	'admin.title': 'Адміністратор',
