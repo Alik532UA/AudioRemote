@@ -252,3 +252,38 @@ test('три колонки стола стоять посередині, а н�
 
 	await desk.close();
 });
+
+test('інфодошку зі списку «Мої дошки» можна відкрити знову', async ({ browser }) => {
+	/*
+	 * ПОВЕРНУТИСЯ НА СВОЮ ДОШКУ — і це не про зручність.
+	 *
+	 * Дошка живе в сеансі вкладки, тобто закриття вкладки її закриває; список
+	 * «Мої дошки» — єдиний шлях назад, і для інфодошки він не працював зовсім.
+	 * Список вів на `/info` правильно (вид він рахує зі збереженого запису), а
+	 * сама сторінка бачила дошку вже без виду, читала її як аудіо й чесно
+	 * відправляла назад у меню. З боку людини — «кнопка не працює».
+	 *
+	 * Аудіодошка при цьому відкривалася, бо для неї «вид втрачено» і «вид
+	 * аудіо» — те саме значення. Тобто половина списку працювала, і саме тому
+	 * вада прожила стільки: екран, на якому щось не так, виглядав як робочий.
+	 *
+	 * Опис іде людським шляхом: із дошки в меню, зі списку — назад.
+	 */
+	const desk = await browser.newContext();
+	const board = await desk.newPage();
+
+	const id = await createInfoBoard(board);
+
+	await board.goto('./menu');
+	const mine = board.getByTestId('my-boards');
+	await expect(mine, 'створена дошка не потрапила до списку').toContainText(id, ACROSS);
+
+	await mine.getByRole('button', { name: new RegExp(id) }).click();
+
+	await expect(board, 'інфодошка зі списку не відкрилася').toHaveURL(/\/info(\?|$)/, ACROSS);
+	await expect(board.getByTestId('info-screen-section')).toBeVisible(ACROSS);
+	// І це та сама дошка, а не якась інша з того ж списку.
+	await expect(board.getByTestId('board-head')).toContainText(id);
+
+	await desk.close();
+});
