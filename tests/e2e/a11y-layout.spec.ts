@@ -287,3 +287,66 @@ test('цілі не перекривають одна одну', async ({ page }
 		`цілі накладаються — клік дістанеться сусідові:\n${problems.join('\n')}`
 	).toEqual([]);
 });
+
+test('текст в органах керування стоїть посередині, а не притиснутий до краю', async ({ page }) => {
+	/*
+	 * ПРАВИЛО, ЯКОГО НЕ БУЛО, І САМЕ ТОМУ ЙОГО ЛАМАЛИ.
+	 *
+	 * Ціль у 44 точки заввишки — це вимога дотику, а не привід лишити текст
+	 * там, де він опинився. Вкладки чеклиста мали `align-items: baseline` при
+	 * `min-height`: рядок у 24 точки притискався до верху коробки в 44, і під
+	 * ним зяяло 20 порожніх. Заміряно було 4 зверху й 20 знизу — при 13 і 15 у
+	 * всіх сусідніх органів на тій самій сторінці.
+	 *
+	 * Око ловить саме РІЗНИЦЮ між сусідами, а не абсолютне значення, тож
+	 * правило й питає симетрію: скільки місця над текстом, стільки й під ним.
+	 *
+	 * Допуск у 6 точок — це метрики шрифту (надрядкові елементи вищі за
+	 * підрядкові), а не розкладка. Беруться лише однорядкові органи: у
+	 * багаторядковій картці «посередині» нічого не означає.
+	 */
+	await page.setViewportSize({ width: 1280, height: 900 });
+
+	const crooked: string[] = [];
+	let counted = 0;
+
+	for (const path of ROUTES) {
+		await page.goto(path);
+		await settled(page);
+
+		const found = await page.evaluate((selector) => {
+			const off: { where: string; top: number; bottom: number }[] = [];
+			let seen = 0;
+
+			for (const element of document.querySelectorAll<HTMLElement>(selector)) {
+				const box = element.getBoundingClientRect();
+				if (box.width === 0 || box.height < 36) continue;
+
+				const span = document.createRange();
+				span.selectNodeContents(element);
+				const text = span.getBoundingClientRect();
+				// Порожній орган і багаторядковий — обидва не про це правило.
+				if (text.height === 0 || text.height > 30) continue;
+
+				seen += 1;
+				const top = text.y - box.y;
+				const bottom = box.bottom - text.bottom;
+				if (Math.abs(top - bottom) > 6) {
+					off.push({
+						where: element.dataset.testid ?? (element.textContent ?? '').trim().slice(0, 20),
+						top: Math.round(top),
+						bottom: Math.round(bottom)
+					});
+				}
+			}
+
+			return { off, seen };
+		}, INTERACTIVE);
+
+		counted += found.seen;
+		crooked.push(...found.off.map((one) => `${path} ${one.where}: ${one.top} зверху, ${one.bottom} знизу`));
+	}
+
+	expect(counted, 'жодного однорядкового органа не знайдено — перевірка мертва').toBeGreaterThan(20);
+	expect(crooked, `текст не посередині:\n${crooked.join('\n')}`).toEqual([]);
+});
