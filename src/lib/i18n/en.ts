@@ -408,6 +408,9 @@ export const en: Record<TranslationKey, string> = {
 	'deckAct.seek': 'seek',
 	'panel.edit': 'Build the panel',
 	'panel.editDone': 'Done',
+	'panel.helpTitle': 'How this works',
+	'panel.helpHide': 'Collapse the hint',
+	'panel.helpShow': 'Expand the hint',
 	'panel.editHint':
 		'Tap a cell to put buttons, a slider or a switch into it. Empty places stay empty — they are what keeps the grid steady.',
 	'panel.dragHint':

@@ -7,6 +7,7 @@
 		type Grid,
 		type Panel
 	} from '$lib/net/panelTypes';
+	import { IconCheck } from '$lib/config/icons';
 	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
 	import PanelEditorGrid from './PanelEditorGrid.svelte';
 	import PanelFile from './PanelFile.svelte';
@@ -38,51 +39,64 @@
 		onload: (panel: Panel) => void;
 		/** Змінити розмір самої дошки. */
 		onresize: (grid: Grid) => void;
+		/** Вийти зі складання. Кнопка живе тут, бо закінчує саме ЦЕЙ режим. */
+		ondone: () => void;
 	}
 
-	let { panel, empty, filling, name, onpick, onrotate, onmove, onfill, onload, onresize }: Props =
+	let { panel, empty, filling, name, onpick, onrotate, onmove, onfill, onload, onresize, ondone }: Props =
 		$props();
 
 	const grid = $derived(gridOf(panel));
 </script>
 
 <section class="card stack" data-testid="info-editor-section">
-	<p class="muted">{t('panel.editHint')}</p>
-	<p class="muted">{t('panel.dragHint')}</p>
-
 	<!--
-		РОЗМІР ДОШКИ — ТУТ, над сіткою місць, яку він і міняє.
+		ВИХІД ЗІ СКЛАДАННЯ — ТУТ, а не в сусідній колонці.
 
-		Три на п'ять добрі для телефона в руці; планшет на стійці біля пульта
-		тримає більше, а дошка на дві кнопки не мусить малювати тринадцять
-		порожніх місць. Комірки, що опинилися за межею зменшеної сітки, НЕ
-		стираються — їх просто не видно, доки сітку не повернуть.
+		Доти «Готово» стояло в картці керування екраном, ліворуч: кнопка, яка
+		закінчує роботу над сіткою, жила окремо від сітки, і між натисканням і
+		наслідком око проходило через увесь екран. Тут вона над тим, що
+		закінчує, і перша в порядку читання — бо це єдина дія, після якої з
+		цього режиму виходять.
+
+		РОЗМІР ДОШКИ — поруч, у тому самому рядку: він теж про всю сітку, а не
+		про окрему комірку. Три на п'ять добрі для телефона в руці; планшет на
+		стійці біля пульта тримає більше, а дошка на дві кнопки не мусить
+		малювати тринадцять порожніх місць. Комірки, що опинилися за межею
+		зменшеної сітки, НЕ стираються — їх просто не видно, доки сітку не
+		повернуть.
 	-->
-	<div class="pair">
-		<div class="field">
-			<label class="field__label" for="panel-cols">{t('panel.boardCols')}</label>
-			<NumberStepper
-				id="panel-cols"
-				value={grid.cols}
-				min={1}
-				max={MAX_PANEL_COLS}
-				label={t('panel.boardCols')}
-				onchange={(next) => onresize({ rows: grid.rows, cols: next })}
-			/>
-		</div>
-		<div class="field">
-			<label class="field__label" for="panel-rows">{t('panel.boardRows')}</label>
-			<NumberStepper
-				id="panel-rows"
-				value={grid.rows}
-				min={1}
-				max={MAX_PANEL_ROWS}
-				label={t('panel.boardRows')}
-				onchange={(next) => onresize({ rows: next, cols: grid.cols })}
-			/>
+	<div class="top">
+		<button class="btn btn--primary" type="button" onclick={ondone} data-testid="info-edit-btn">
+			<IconCheck size={18} aria-hidden="true" />
+			{t('panel.editDone')}
+		</button>
+
+		<div class="pair">
+			<div class="field">
+				<label class="field__label" for="panel-cols">{t('panel.boardCols')}</label>
+				<NumberStepper
+					id="panel-cols"
+					value={grid.cols}
+					min={1}
+					max={MAX_PANEL_COLS}
+					label={t('panel.boardCols')}
+					onchange={(next) => onresize({ rows: grid.rows, cols: next })}
+				/>
+			</div>
+			<div class="field">
+				<label class="field__label" for="panel-rows">{t('panel.boardRows')}</label>
+				<NumberStepper
+					id="panel-rows"
+					value={grid.rows}
+					min={1}
+					max={MAX_PANEL_ROWS}
+					label={t('panel.boardRows')}
+					onchange={(next) => onresize({ rows: next, cols: grid.cols })}
+				/>
+			</div>
 		</div>
 	</div>
-	<p class="muted">{t('panel.boardSizeHint')}</p>
 
 	<PanelEditorGrid {panel} {onpick} {onrotate} {onmove} />
 
@@ -113,6 +127,22 @@
 </section>
 
 <style>
+	/*
+	 * ВИХІД І РОЗМІР В ОДНОМУ РЯДКУ — це верх складальника, і він має бути
+	 * низьким: кожен його зайвий рядок — це рядок, на який сітка з'їжджає вниз.
+	 * На вузькому екрані рядок переноситься, і кнопка лишається першою.
+	 */
+	.top {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		gap: var(--gap-sm) var(--gap);
+	}
+
+	.top > .pair {
+		flex: 1 1 16rem;
+	}
+
 	/* Стовпці й ряди — поруч: це одна відповідь, розбита на два числа. */
 	.pair {
 		display: flex;

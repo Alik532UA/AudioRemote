@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { expect, test, type Page } from '@playwright/test';
 import type { AxeResults, TagValue } from 'axe-core';
 import { A11Y_BASELINE, A11Y_KNOWN, type A11yState } from './a11y-baseline';
-import { PAGES, RENDERED, WALK } from './pages';
+import { PAGES, RENDERED, settled, WALK } from './pages';
 
 /**
  * МАШИННО-ВИЯВНІ ПОРУШЕННЯ WCAG НАД ЗІБРАНИМ САЙТОМ
@@ -155,7 +155,14 @@ test('світла тема: жодна сторінка не має машин�
 	const problems: string[] = [];
 	for (const [state, path] of Object.entries(PAGES)) {
 		await page.goto(path);
-		await expect(page.locator('main')).toBeVisible(RENDERED);
+		/*
+		 * НЕ «`main` зʼявився», А «РОЗКЛАДКА СТАЛА». Стилі маршруту приїжджають
+		 * окремим файлом, і поки він у дорозі, розмітка вже є, а кольори ще
+		 * типові — axe тоді бачить контраст, якого на екрані не буває жодної
+		 * миті. Заміряно: приблизно один повний прогін із трьох червонів на
+		 * `settings` двома кнопками мови, а окремо ця ж перевірка зелена щоразу.
+		 */
+		await settled(page);
 		problems.push(...(await audit(page, state as A11yState)));
 	}
 	expect(problems, `axe у світлій темі:\n${problems.join('\n')}`).toEqual([]);

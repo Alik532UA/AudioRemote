@@ -39,10 +39,10 @@
 	import { attentionState } from '$lib/services/attention.svelte';
 	import { describeError } from '$lib/net/describeError';
 	import Failure from '$lib/components/ui/Failure.svelte';
-	import SeatTags from '$lib/components/ui/SeatTags.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
-	import { IconPhone } from '$lib/config/icons';
 	import PanelBuilder from '$lib/components/panel/PanelBuilder.svelte';
+	import PanelHelp from '$lib/components/panel/PanelHelp.svelte';
+	import InfoHead from '$lib/components/panel/InfoHead.svelte';
 	import PanelWall from '$lib/components/panel/PanelWall.svelte';
 	import PanelLog from '$lib/components/panel/PanelLog.svelte';
 	import ScreenControls from '$lib/components/panel/ScreenControls.svelte';
@@ -259,7 +259,6 @@
 		return null;
 	}
 
-
 	/**
 	 * Записати наслідок: нове положення органів, підсвітка й рядок у журналі.
 	 *
@@ -454,46 +453,22 @@
 		-->
 		<div class="desk">
 			<div class="desk__side">
-				<header class="head card desk__who" data-testid="board-head">
-					<div class="head__who">
-						<h1 class="head__role" data-testid="board-role-title">{t('info.boardTitle')}</h1>
-						{#if board.name}
-							<p class="head__title">{board.name}</p>
-						{/if}
-						<p class="muted mono">{board.id}</p>
-					</div>
-					<div class="head__side">
-						<p class="muted" data-testid="info-helpers-count">
-							{t('info.helpers', { count: `${helpers}` })}
-						</p>
-						<SeatTags
-							names={[...new Set(seats.filter((seat) => seat.name).map((seat) => seat.name))]}
-							testid="info-seats-text"
-						/>
+				<InfoHead
+					name={board.name}
+					id={board.id}
+					helpers={t('info.helpers', { count: `${helpers}` })}
+					names={[...new Set(seats.filter((seat) => seat.name).map((seat) => seat.name))]}
+					onconnect={board.password ? () => (inviteOpen = true) : undefined}
+				/>
 
-						<!--
-					ЯК ПОКЛИКАТИ ПОМІЧНИКА — там само, де в плеєра «Підключити пульт».
-					Без цієї кнопки дошка була глухим кутом: ідентифікатор на екрані є,
-					пароль знає лише той, хто створював, а звідки його взяти вдруге —
-					нізвідки. Те саме вікно, ті самі кроки; різне лише слово «помічник»
-					і розділ, у якому шукати форму.
-
-					Лише для СВОЄЇ дошки: пароля в чужому записі немає, і показувати
-					порожнє вікно нема сенсу.
+				<!--
+					ПІДКАЗКА ПРО СКЛАДАЛЬНИК — У ЦІЙ колонці, а не в його власній.
+					Чому саме тут — у докблоці `PanelHelp`: там вона коштувала сітці
+					третини висоти, а тут місце все одно вільне.
 				-->
-						{#if board.password}
-							<button
-								class="btn btn--sm"
-								type="button"
-								onclick={() => (inviteOpen = true)}
-								data-testid="info-open-remote-btn"
-							>
-								<IconPhone size={18} aria-hidden="true" />
-								{t('info.connectHelper')}
-							</button>
-						{/if}
-					</div>
-				</header>
+				{#if editing}
+					<PanelHelp />
+				{/if}
 
 				<ScreenControls
 					{editing}
@@ -519,6 +494,10 @@
 					onfill={fill}
 					onload={(next) => void putPanel(next)}
 					onresize={(grid) => void putPanel({ ...panel, ...grid })}
+					ondone={() => {
+						editing = false;
+						picked = null;
+					}}
 				/>
 			{:else if empty}
 				<!--
@@ -585,22 +564,6 @@
 </div>
 
 <style>
-	/*
-	 * Шапка стовпчиком, а не в два кінці рядка: у вузькій колонці «в два кінці»
-	 * означає «майже впритул», і роль злипалася б із лічильником.
-	 */
-	.desk__who {
-		flex-direction: column;
-		align-items: stretch;
-	}
-
-	.head__side {
-		display: flex;
-		flex-direction: column;
-		align-items: stretch;
-		gap: var(--gap-xs);
-	}
-
 	/*
 	 * Дві половини поруч на пульті, одна під одною на телефоні. Журнал
 	 * розтягується, сітка — ні: у неї є власне відношення сторін.
@@ -701,7 +664,6 @@
 	 * `margin-block` замість `margin` — журнал знову від'їжджає праворуч.
 	 */
 	.desk > .card,
-	.desk__side > .card,
 	.desk__side :global(.card) {
 		margin: 0;
 	}

@@ -389,3 +389,45 @@ test('сповіщення в залі не зсуває панель під п�
 	await desk.close();
 	await hall.close();
 });
+
+test('складальник уміщається в екран, а «Готово» стоїть при сітці', async ({ browser }) => {
+	/*
+	 * СКЛАДАЛЬНИК — ЦЕ ОДИН ЕКРАН, а не сувій. Доти його колонка несла три
+	 * абзаци пояснення над самою сіткою, і на звичайному моніторі сітка — те
+	 * єдине, задля чого сюди заходять — не вміщалася: доводилося прокручувати
+	 * сторінку, щоб побачити нижній ряд місць. Сусідня колонка в цьому режимі
+	 * при цьому стояла майже порожня.
+	 *
+	 * А кнопка виходу жила саме в тій сусідній колонці: між натисканням і
+	 * наслідком око проходило через увесь екран.
+	 */
+	const desk = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+	const board = await desk.newPage();
+
+	await createInfoBoard(board);
+	await board.getByTestId('info-start-edit-btn').click();
+	await board.getByTestId('info-fill-btn').click();
+	await expect(board.getByTestId('panel-editor-list')).toBeVisible(ACROSS);
+
+	// «Готово» — усередині складальника, а не в картці керування екраном.
+	await expect(
+		board.getByTestId('info-editor-section').getByTestId('info-edit-btn'),
+		'вихід зі складання стоїть не при сітці'
+	).toBeVisible();
+
+	// Підказка переїхала в бічну колонку й згортається.
+	await expect(board.getByTestId('panel-help-section')).toBeVisible();
+	await board.getByTestId('panel-help-fold-btn').click();
+	await expect(board.getByTestId('panel-help-fold-btn')).toHaveAttribute('aria-expanded', 'false');
+
+	const spill = await board.evaluate(
+		() => document.documentElement.scrollHeight - document.documentElement.clientHeight
+	);
+	expect(spill, `складальник не вмістився: ${spill} точок за екраном`).toBeLessThanOrEqual(0);
+
+	// І вихід справді виходить.
+	await board.getByTestId('info-editor-section').getByTestId('info-edit-btn').click();
+	await expect(board.getByTestId('info-wall-list')).toBeVisible(ACROSS);
+
+	await desk.close();
+});

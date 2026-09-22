@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { PAGES, RENDERED, ROUTES, WALK } from './pages';
+import { INTERACTIVE, PAGES, RENDERED, ROUTES, settled, WALK } from './pages';
 
 /**
  * РОЗКЛАДКА, ЯКОЇ axe НЕ БАЧИТЬ У ПРИНЦИПІ
@@ -45,9 +45,6 @@ const TAP = 44;
 
 /** Допуск на перетин цілей: менше — це антиаліасинг і рамки, а не помилка. */
 const OVERLAP = 4;
-
-const INTERACTIVE =
-	'button, a[href], input:not([type=hidden]), select, textarea, summary, [role=button], [role=switch]';
 
 /**
  * Елементи, менші за 44, які ціллю НЕ є: ціль — названа тут обгортка.
@@ -127,72 +124,6 @@ async function smallTargets(page: Page): Promise<Small[]> {
 	);
 }
 
-/**
- * ДОЧЕКАТИСЯ, ДОКИ РОЗКЛАДКА ПЕРЕСТАНЕ ЇХАТИ.
- *
- * Плеєр, пульт і обидва екрани інфодошки без дошки чесно відправляють у меню, і
- * перехід іде вже в браузері. `main` при цьому стає видимим ДВІЧІ: спершу на
- * сторінці, з якої йдуть, потім на меню — а після переходу меню ще й дописує
- * згори рядок «чому ви тут», який зсуває картки. Вимір, зроблений між цими
- * моментами, застає розкладку на півдорозі: перевірка перекриття бачила
- * `go-create × go-connect: 287×17`, якого на екрані не буває жодної миті.
- *
- * Заміряно перед виправленням: один прогін із трьох, і щоразу на ІНШІЙ
- * сторінці (`./remote`, `./info-remote`, `./player`), а на самому `./menu` —
- * ніколи. Саме така форма й означає гонку, а не розкладку.
- *
- * Чекаємо не «трохи» й не адреси, а того самого, що потім міряємо: усі стилі
- * застосовані, у `main` є бодай один орган керування, і геометрія всіх органів
- * не змінюється три кадри поспіль. Адреси мало — вона встигає застигнути раніше за напис, що зсуває
- * картки; сон на фіксовані мілісекунди на зайнятій машині коротший за перехід,
- * а на вільній витрачається дарма.
- */
-async function settled(page: Page) {
-	await expect(page.locator('main')).toBeVisible(RENDERED);
-	await page.waitForFunction(
-		(selector) => {
-			const seen = window as unknown as { __boxes?: string; __still?: number };
-			/*
-			 * СТИЛІ МАРШРУТУ ПРИЇЖДЖАЮТЬ ОКРЕМИМ ФАЙЛОМ, і поки він у дорозі,
-			 * розмітка вже є, а розкладки ще немає.
-			 *
-			 * Заміряно на зібраному сайті: під час переходу з `./info` у меню
-			 * стилів застосовано 10 з 11, потім 11 з 12, і лише коли всі 12 —
-			 * картка стає 358×180. До того вона 287×17, тобто рівно те число, яке
-			 * гейт і показував. `link` без `.sheet` — це стиль, який ще не
-			 * застосовано; чекати на нього точніше, ніж на будь-яку кількість
-			 * кадрів.
-			 */
-			const styles = [...document.querySelectorAll<HTMLLinkElement>('link[rel=stylesheet]')];
-			if (styles.some((link) => link.sheet === null)) return false;
-
-			const main = document.querySelector('main');
-			const controls = main ? [...main.querySelectorAll<HTMLElement>(selector)] : [];
-			/*
-			 * Порожній `main` — це ОБОЛОНКА сторінки, з якої йдуть: шапка вже
-			 * намальована, вміст ще ні. Заміряно: на `./player` таких кадрів
-			 * два-три поспіль, тобто «геометрія не міняється» справджується на
-			 * стані, у якому міряти нема чого.
-			 */
-			if (controls.length === 0) return false;
-			const now = controls
-				.map((element) => {
-					const box = element.getBoundingClientRect();
-					return [box.x, box.y, box.width, box.height].map(Math.round).join(',');
-				})
-				.join('|');
-			if (seen.__boxes !== now) {
-				seen.__boxes = now;
-				seen.__still = 0;
-				return false;
-			}
-			seen.__still = (seen.__still ?? 0) + 1;
-			return seen.__still >= 3;
-		},
-		INTERACTIVE,
-		{ timeout: 10_000 }
-	);
-}
 
 test('на 320 px сторінка не їде вбік', async ({ page }) => {
 	/*
