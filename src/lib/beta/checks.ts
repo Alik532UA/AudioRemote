@@ -741,6 +741,136 @@ export const BETA_TABS: readonly BetaTab[] = [
 				coverage: 'testable'
 			}
 		]
+	},
+	{
+		id: 'ui',
+		title: { uk: 'Розкладка й поведінка екранів', en: 'Layout and screen behaviour' },
+		/*
+		 * ВКЛАДКА БЕЗ ВЛАСНИХ СТОРІНОК — і це не пропуск.
+		 *
+		 * Решта вкладок питає, чи працює те, що на своєму екрані. Ця питає
+		 * правила, спільні для ВСІХ екранів, і закріпити її за котримсь одним
+		 * означало б сказати, що на інших ці правила не діють.
+		 *
+		 * Взялася вона з дефектів, а не з підручника: за два дні нотаток автора
+		 * 186 записів «актуальний / очікуваний», і ті самі формулювання
+		 * повторюються дослівно — «все в один стовпець, і тому купа вільного
+		 * місця по боках і скрол», «подвійний скрол», «сповіщення внизу списку,
+		 * і його не видно», «стрибає». Тобто це не окремі помилки, а кілька
+		 * правил, яких ніхто не звіряв.
+		 */
+		routes: [],
+		checks: [
+			{
+				id: 'ui_1',
+				category: { uk: 'Широкий екран', en: 'Wide screen' },
+				text: {
+					uk: 'Відкрийте кожен екран на компʼютері в повне вікно. Вміст має розходитися на колонки; одна вузька колонка з порожнечею обабіч — помилка.',
+					en: 'Open every screen on a computer in a full window. The content must spread into columns; one narrow column with empty space on both sides is a defect.'
+				},
+				coverage: 'manual'
+			},
+			{
+				id: 'ui_2',
+				category: { uk: 'Прокрутка', en: 'Scrolling' },
+				text: {
+					uk: 'Покрутіть колесо на кожному екрані. Прокрутка має бути одна — сторінки; смуга всередині смуги означає, що вміст не вмістили, а сховали.',
+					en: 'Scroll on every screen. There must be a single scrollbar, the page one; a bar inside a bar means the content was hidden rather than fitted.'
+				},
+				coverage: 'manual'
+			},
+			{
+				id: 'ui_3',
+				category: { uk: 'Прокрутка', en: 'Scrolling' },
+				text: {
+					uk: 'Звузьте вікно до ширини телефона. Сторінка НЕ мусить їхати вбік: горизонтальна прокрутка означає, що щось ширше за екран.',
+					en: 'Narrow the window to phone width. The page must NOT scroll sideways: horizontal scrolling means something is wider than the screen.'
+				},
+				coverage: 'covered',
+				test: 'tests/e2e/a11y-layout.spec.ts',
+				negative: true
+			},
+			{
+				id: 'ui_4',
+				category: { uk: 'Що видно одразу', en: 'What is visible at once' },
+				text: {
+					uk: 'Доведіть екран до стану з повідомленням або помилкою. Її має бути видно без прокрутки: повідомлення під краєм не існує для того, хто його не шукає.',
+					en: 'Bring a screen to a state with a message or an error. It must be visible without scrolling: a message below the fold does not exist for someone who is not looking for it.'
+				},
+				coverage: 'manual'
+			},
+			{
+				id: 'ui_5',
+				category: { uk: 'Вікна', en: 'Dialogs' },
+				text: {
+					uk: 'Відкрийте вікно правки віджета й прокрутіть його вміст. Назва вгорі й рядок дій унизу мають лишатися на місці, а всі дії — стояти поруч і виглядати однаково.',
+					en: 'Open the widget editing dialog and scroll its content. The title at the top and the action row at the bottom must stay put, and all the actions must sit together and look alike.'
+				},
+				coverage: 'manual',
+				testid: 'cell-save-btn'
+			},
+			{
+				id: 'ui_6',
+				category: { uk: 'Ніщо не стрибає', en: 'Nothing jumps' },
+				text: {
+					uk: 'Попросіть щось із зали й дочекайтеся відповіді табла. Кнопки під пальцем НЕ мусять зсунутися ні від появи смуги, ні від її зникнення.',
+					en: 'Press a button in the hall and wait for the board to answer. The buttons under your finger must NOT shift either when the strip appears or when it goes away.'
+				},
+				coverage: 'covered',
+				test: 'tests/e2e/db/info.spec.ts',
+				negative: true
+			},
+			{
+				id: 'ui_7',
+				category: { uk: 'Відгук', en: 'Feedback' },
+				text: {
+					uk: 'Натисніть зупинку треку — дію, яка триває. Вигляд кнопки має змінитися одразу, а не після того, як звук стихне.',
+					en: 'Press the track stop, an action that takes time. The button must change its look at once, not after the sound has faded.'
+				},
+				coverage: 'manual',
+				testid: 'player-stop'
+			},
+			{
+				id: 'ui_8',
+				category: { uk: 'Однакове однаково', en: 'Same things look the same' },
+				text: {
+					uk: 'Порівняйте однойменні місця на аудіодошці й на таблі: «Останні дії», картку дошки, підключення. Однакове за змістом має зватися тим самим словом і виглядати так само.',
+					en: 'Compare the matching places on the audio board and on the info board: recent actions, the board card, connecting. Things that mean the same must be named the same and look the same.'
+				},
+				coverage: 'manual'
+			},
+			{
+				id: 'ui_9',
+				category: { uk: 'Що видно одразу', en: 'What is visible at once' },
+				text: {
+					uk: 'Знайдіть орган, який зараз нічого не робить: вибір того, чого немає на екрані, гучність там, де нічого не грає. Такого не мусить бути видно — або він має бути явно вимкнений.',
+					en: 'Look for a control that currently does nothing: a choice about something not on screen, a volume where nothing plays. There must be none visible, or it must be plainly disabled.'
+				},
+				coverage: 'manual',
+				negative: true
+			},
+			{
+				id: 'ui_10',
+				category: { uk: 'Пастки', en: 'Traps' },
+				text: {
+					uk: 'Закрийте дошку на пристрої, що грає. Попередження має перекрити екран, але НЕ смугу застосунку: вихід мусить лишатися під рукою завжди.',
+					en: 'Close the board on the playing device. The warning must cover the screen but NOT the app bar: the way out must stay at hand at all times.'
+				},
+				coverage: 'manual',
+				testid: 'info-offline-hint',
+				negative: true
+			},
+			{
+				id: 'ui_11',
+				category: { uk: 'Ціль під палець', en: 'Finger-sized targets' },
+				text: {
+					uk: 'На телефоні спробуйте влучити пальцем у найдрібніші органи: прапорці, перемикачі, стрілки лічильників. У кожен має бути легко поцілити, і вони не мусять налазити один на одного.',
+					en: 'On a phone press the smallest controls: checkboxes, switches, stepper arrows. Each must be easy to hit, and they must not overlap.'
+				},
+				coverage: 'covered',
+				test: 'tests/e2e/a11y-layout.spec.ts'
+			}
+		]
 	}
 ];
 
