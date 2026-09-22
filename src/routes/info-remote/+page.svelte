@@ -73,8 +73,8 @@
 	 */
 	let beat = 0;
 	let watch = 0;
-	/** Такт, який прибере відповідь з екрана. */
-	let told: number | null = null;
+	/** Такт, який гасить підсвітку. Знімається при виході — інакше пише в мертве. */
+	let fade: number | null = null;
 	/**
 	 * ЩО ВІДПОВІВ ЗВУКОРЕЖИСЕР. `null` — не відповідав або відповідь протухла.
 	 *
@@ -140,7 +140,6 @@
 						// виставами, тож планшет, відкритий наступного вечора, першим
 						// ділом показав би вчорашнє «зроблено».
 						verdict = next && Date.now() - next.at < VERDICT_FRESH_MS ? next : null;
-						if (verdict) hold();
 					})
 				);
 				track(
@@ -157,6 +156,7 @@
 
 		return () => {
 			stopped = true;
+			if (fade !== null) window.clearTimeout(fade);
 			for (const stop of cleanups.splice(0)) stop();
 		};
 	});
@@ -173,21 +173,6 @@
 	 * у `panelTypes.ts`.
 	 */
 	/**
-	 * ВІДПОВІДЬ ЗНИКАЄ САМА, бо це новина, а не стан.
-	 *
-	 * Смуга, яку треба закрити рукою, коштувала б одного натискання в темряві
-	 * щоразу — і висить вона рівно над кнопками. Десять секунд: досить, щоб
-	 * підняти очі від сцени, і замало, щоб почати заважати.
-	 */
-	function hold(): void {
-		if (told !== null) window.clearTimeout(told);
-		told = window.setTimeout(() => {
-			told = null;
-			verdict = null;
-		}, VERDICT_SHOWN_MS);
-	}
-
-	/**
 	 * ВІДГУК НА НАТИСКАННЯ — одразу й на місці, ще до відповіді табла.
 	 *
 	 * Помічник тисне наосліп і не дивиться на екран довше за мить. Чекати з
@@ -202,7 +187,9 @@
 		if (panel.cells[cell]?.important) attentionState.shout();
 
 		const mine = (watch += 1);
-		window.setTimeout(() => {
+		if (fade !== null) window.clearTimeout(fade);
+		fade = window.setTimeout(() => {
+			fade = null;
 			if (watch === mine) recent = null;
 		}, RECENT_MS);
 	}
@@ -258,7 +245,7 @@
 			ВІДПОВІДЬ ЗВЕРХУ, НАД ПАНЕЛЛЮ: планшет тримають у руці, і внизу екрана
 			лежать пальці, а посередині — кнопки, заради яких його й відкрили.
 		-->
-		<VerdictToast {verdict} />
+		<VerdictToast {verdict} shownMs={VERDICT_SHOWN_MS} ondone={() => (verdict = null)} />
 
 		{#if trouble}
 			<p class="error" role="alert" data-testid="info-trouble-text">{t(trouble)}</p>
