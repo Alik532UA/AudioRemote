@@ -29,8 +29,16 @@ import { PresenceEvents, type PresenceEventKind } from './presenceLog';
 export interface LogEntry {
 	id: string;
 	at: number;
-	/** Дія з цього ж пристрою, а не із зали. */
+	/** Дія з цього ж пристрою. Фарбує мітку: своє око знаходить одразу. */
 	own: boolean;
+	/**
+	 * Натиснули за звуковим пультом, а не в залі.
+	 *
+	 * Окремо від `own`, бо це різні питання, і збігаються вони лише на таблі.
+	 * У залі своє натискання — теж «зала»: сторона каже, ЗВІДКИ рука, а `own` —
+	 * чи вона моя.
+	 */
+	desk: boolean;
 	/** Як підписався той, хто натиснув. Порожньо — не називався. */
 	who: string;
 	/** Підключення або відключення помічника. Порожньо — це прохання. */
@@ -48,7 +56,7 @@ class PanelLogState {
 	private beat = 0;
 
 	private readonly comings = new PresenceEvents('remote', ({ kind, who }) =>
-		this.add({ own: false, who, join: kind })
+		this.add({ own: false, desk: false, who, join: kind })
 	);
 
 	/**
@@ -58,8 +66,8 @@ class PanelLogState {
 	 * саме за ним сторінка впізнає своє натискання, коли воно повертається
 	 * підпискою.
 	 */
-	asked(notice: PanelNotice, id: string, own: boolean, who: string): void {
-		this.entries = [{ notice, id, at: Date.now(), own, who }, ...this.entries].slice(0, KEPT);
+	asked(notice: PanelNotice, id: string, own: boolean, who: string, desk = own): void {
+		this.entries = [{ notice, id, at: Date.now(), own, who, desk }, ...this.entries].slice(0, KEPT);
 	}
 
 	/**

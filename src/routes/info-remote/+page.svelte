@@ -29,6 +29,10 @@
 	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
 	import SheetPicker from '$lib/components/panel/SheetPicker.svelte';
 	import VerdictToast from '$lib/components/panel/VerdictToast.svelte';
+	import PanelLog from '$lib/components/panel/PanelLog.svelte';
+	import { applyPanelCommand, refused } from '$lib/panel/apply';
+	import { panelLog } from '$lib/services/panelLog.svelte';
+	import { connect } from '$lib/net/firebase';
 	import type { BoardInfo } from '$lib/net/boardTypes';
 
 	/**
@@ -89,6 +93,14 @@
 	 * виставами, і планшет, відкритий наступного вечора, блимнув би вчорашнім.
 	 */
 	let warm = false;
+	/**
+	 * ВЛАСНИЙ `uid` — щоб упізнати в журналі СВОЮ руку.
+	 *
+	 * Натискання повертається з табла тим самим шляхом, що й чуже, і з боку
+	 * зали вони нічим не відрізняються. Порівняння з власним `uid` — єдине, що
+	 * їх розводить: підпис може збігтися, вкладка може бути друга.
+	 */
+	let me = '';
 	/** Такт, який гасить підсвітку. Знімається при виході — інакше пише в мертве. */
 	let fade: number | null = null;
 	/**
@@ -142,6 +154,8 @@
 						sheet: sheet ?? ''
 					})
 				);
+				me = (await connect()).uid;
+				track(() => panelLog.forget());
 				track(await watchInfo(board.key, (next) => (info = next)));
 				track(await watchPanel(board.key, (next) => (panel = next ?? emptyPanel())));
 				track(
@@ -242,9 +256,29 @@
 		 * тобто саме той випадок, заради якого все це й робиться.
 		 */
 		const fresh = warm && state?.press && at > seenAt;
+		const was = { levels, flags };
 		warm = true;
 		seenAt = at;
-		if (fresh && state?.press) mind(state.press.cell, state.press.type, state.press.value, false);
+		if (!fresh || !state?.press) return;
+
+		const { cell, type, value, by, name, desk } = state.press;
+		mind(cell, type, value, false);
+
+		/*
+		 * Рядок журналу рахується з ПОПЕРЕДНЬОГО положення органів: повідомлення
+		 * каже «було 50 — стало 60», а знімок, що приїхав, несе вже «стало».
+		 * Той самий `applyPanelCommand`, що й на таблі, — інакше два журнали на
+		 * одну подію розійшлися б у словах.
+		 */
+		const result = applyPanelCommand(panel, was, {
+			by: by ?? '',
+			type,
+			at,
+			cell,
+			...(value === undefined ? {} : { value })
+		});
+		if (refused(result)) return;
+		panelLog.asked(result.notice, `echo-${at}-${cell}`, Boolean(by) && by === me, desk ? '' : (name ?? ''), desk);
 	}
 
 	async function ask(cell: string, type: PanelCommandType, value?: number) {
@@ -279,14 +313,6 @@
 		<Failure reason={fatal} block testid="info-remote-fatal-error" />
 	{:else if boardSession.current}
 		{@const board = boardSession.current}
-		<header class="bar" data-testid="board-head">
-			<span class="bar__name">{info?.name || board.id}</span>
-			<span class="link" class:link--on={boardOnline} data-testid="link-state">
-				<span class="link__dot" aria-hidden="true"></span>
-				{boardOnline ? t('info.boardOnline') : t('info.boardOffline')}
-			</span>
-		</header>
-
 		{#if blocked}
 			<Blocker testid="info-offline-hint" text={t('info.offlineHint')} />
 		{/if}
@@ -319,28 +345,52 @@
 				{/if}
 			</div>
 
-			{#if empty}
-				<p class="card muted" data-testid="info-remote-empty-text">
-					{presenceKnown ? t('info.noPanelRemote') : t('common.loading')}
-				</p>
-			{:else}
-				<SheetPicker
-					{sheets}
-					value={sheet}
-					onpick={(next) => {
-						sheet = next;
-						writeItem(SHEET_KEY, next ?? '');
-						const board = boardSession.current;
-						if (board) {
-							void tellPresence(board.key, { name: settings.displayName, sheet: next ?? '' });
-						}
-					}}
-				/>
+			<div class="desk">
+				<header class="bar" data-testid="board-head">
+					<span class="bar__name">{info?.name || board.id}</span>
+					<span class="link" class:link--on={boardOnline} data-testid="link-state">
+						<span class="link__dot" aria-hidden="true"></span>
+						{boardOnline ? t('info.boardOnline') : t('info.boardOffline')}
+					</span>
+				</header>
 
-				<div class="room">
-					<PanelGrid {panel} {levels} {flags} {recent} {hot} {busy} {sheet} press={ask} />
-				</div>
-			{/if}
+				{#if empty}
+					<p class="card muted" data-testid="info-remote-empty-text">
+						{presenceKnown ? t('info.noPanelRemote') : t('common.loading')}
+					</p>
+				{:else}
+					<div class="mid">
+						<SheetPicker
+							{sheets}
+							value={sheet}
+							onpick={(next) => {
+								sheet = next;
+								writeItem(SHEET_KEY, next ?? '');
+								const board = boardSession.current;
+								if (board) {
+									void tellPresence(board.key, { name: settings.displayName, sheet: next ?? '' });
+								}
+							}}
+						/>
+
+						<div class="room">
+							<PanelGrid {panel} {levels} {flags} {recent} {hot} {busy} {sheet} press={ask} />
+						</div>
+					</div>
+
+					<!--
+						ЖУРНАЛ І В ЗАЛІ ТЕЖ. Доти в помічника не було відповіді на «що тут
+						щойно сталося»: він бачив лише власне натискання, та й те мить.
+						Тепер кожне натискання приїжджає станом (`panelState.press`), тож
+						рядок збирається з того ж джерела, що й підсвітка, — і журнал
+						виходить той самий, що за пультом, лише без кнопок відповіді: у
+						залі відповідати нема на що.
+					-->
+					<section class="card stack log" data-testid="info-remote-log-section">
+						<PanelLog notices={panelLog.entries} />
+					</section>
+				{/if}
+			</div>
 		</div>
 	{/if}
 </div>
@@ -413,6 +463,74 @@
 		display: flex;
 		flex: 1;
 		min-block-size: 0;
+	}
+
+	/*
+	 * ТЕЛЕФОН ЛИШАЄТЬСЯ ЯК БУВ: `display: contents` — і жодного сліду в
+	 * розкладці. Там екран належить сітці, і будь-яка друга колонка забирає
+	 * висоту в кнопок, які тиснуть наосліп.
+	 */
+	.desk,
+	.mid {
+		display: contents;
+	}
+
+	.log {
+		display: none;
+	}
+
+	/*
+	 * КОМП'ЮТЕР: ТА САМА РОЗКЛАДКА, ЩО В ТАБЛА.
+	 *
+	 * Доти в помічника за комп'ютером був лише пульт — половина порожнього
+	 * екрана й жодної відповіді на «що тут щойно сталося», хоч за пультом та
+	 * сама дошка показує це третьою колонкою. Людина ходить між двома екранами
+	 * одного вечора, і дві різні розкладки на один предмет означають, що на
+	 * кожному треба наново шукати, де тут що.
+	 *
+	 * Межа 900 — та сама, з якої дошка стає дво- й трипільною
+	 * (`base.css`): одна відповідь на «чи це вже не телефон» на весь застосунок.
+	 */
+	@media (min-width: 900px) {
+		.desk {
+			display: flex;
+			flex: 1;
+			gap: var(--gap);
+			align-items: stretch;
+			min-block-size: 0;
+		}
+
+		.mid {
+			display: flex;
+			flex: 1 1 auto;
+			flex-direction: column;
+			gap: var(--gap);
+			min-inline-size: 0;
+		}
+
+		.room {
+			flex: 1 1 auto;
+			min-inline-size: 0;
+		}
+
+		.bar {
+			flex: 0 1 16rem;
+			flex-direction: column;
+			align-items: start;
+			align-self: start;
+			padding: var(--gap-sm) var(--gap);
+			border: 1px solid var(--border);
+			border-radius: var(--radius);
+			background: var(--bg-surface);
+		}
+
+		.log {
+			display: flex;
+			flex: 0 1 26rem;
+			min-inline-size: min(100%, 260px);
+			margin: 0;
+			overflow: auto;
+		}
 	}
 
 	/*

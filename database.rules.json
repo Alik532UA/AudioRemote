@@ -252,6 +252,12 @@
 						"value": {
 							".validate": "newData.isNumber() && ((newData.parent().child('type').val() === 'press' && newData.val() >= 0 && newData.val() <= 4) || (newData.parent().child('type').val() === 'bump' && newData.val() >= -50 && newData.val() <= 50))"
 						},
+						// ХТО НАТИСНУВ. `by` — той самий `uid`, що в команді: кожен екран
+						// упізнає СВОЮ руку порівнянням із власним. `name` — той самий
+						// підпис і та сама межа, що в конверті команди.
+						"by": { ".validate": "newData.isString() && newData.val().length <= 64" },
+						"name": { ".validate": "newData.isString() && newData.val().length <= 24" },
+						"desk": { ".validate": "newData.isBoolean()" },
 						"$other": { ".validate": false }
 					},
 					"$other": { ".validate": false }

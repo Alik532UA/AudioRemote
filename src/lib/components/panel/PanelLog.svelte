@@ -161,7 +161,7 @@
 					з журналом аудіодошки, бо питання в обох те саме.
 				-->
 				<LogWho
-					side={notice.own ? t('panelFrom.self') : t('panelFrom.remote')}
+					side={notice.desk ? t('panelFrom.self') : t('panelFrom.remote')}
 					name={notice.who}
 					tone={notice.own ? 'own' : 'remote'}
 					testid="panel-notice-{index}-who-text"

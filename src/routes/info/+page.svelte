@@ -28,10 +28,10 @@
 		type PanelCell,
 		type PanelCommand,
 		type PanelCommandType,
-		type PanelState,
 		type VerdictKind
 	} from '$lib/net/panelTypes';
 	import { applyPanelCommand, refused, type PanelOutcome } from '$lib/panel/apply';
+	import { pressOf, type Touched } from '$lib/panel/press';
 	import { starterPanel } from '$lib/panel/starter';
 	import { controlOf, fits, moveTo, sizeOf, turned, withSize } from '$lib/panel/layout';
 	import { keepPanel, recallPanel } from '$lib/panel/keep';
@@ -252,25 +252,13 @@
 			command.name ?? '',
 			lit(command.by)
 		);
-		await publishPanelState(board.key, { ...result.next, press: pressOf(command) });
+		await publishPanelState(board.key, {
+			...result.next,
+			press: pressOf(command, command.by, command.name ?? '', false)
+		});
 		return null;
 	}
 
-	/** Що саме натиснули: комірки не досить — у віджеті органів кілька. */
-	type Touched = { cell: string; type: PanelCommandType; value?: string | number };
-
-	/**
-	 * НАТИСКАННЯ У ВИГЛЯДІ, ЯКИЙ ЇДЕ В БАЗУ — щоб його побачила й зала.
-	 *
-	 * Рядкове значення сюди не потрапляє: у базі це поле числове (номер кнопки
-	 * або крок повзунка), а рядок буває лише в розкладці, яку кожен екран
-	 * рахує собі сам.
-	 */
-	const pressOf = (at: Touched): PanelState['press'] => ({
-		cell: at.cell,
-		type: at.type,
-		...(typeof at.value === 'number' ? { value: at.value } : {})
-	});
 
 	/**
 	 * Записати наслідок: нове положення органів, підсвітка й рядок у журналі.
@@ -349,7 +337,10 @@
 		if (refused(result)) return;
 
 		remember(result, { cell, type, value }, `self-${at}-${cell}`, true, '', [seat]);
-		void publishPanelState(board.key, { ...result.next, press: pressOf({ cell, type, value }) });
+		void publishPanelState(board.key, {
+			...result.next,
+			press: pressOf({ cell, type, value }, '', '', true)
+		});
 	}
 
 	/**

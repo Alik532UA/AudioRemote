@@ -274,7 +274,17 @@ export interface PanelState {
 	 * розкладки (`controlOf`), і вшити його в базу означало б, що зміна
 	 * розкладки ламає старі записи.
 	 */
-	press?: { cell: string; type: PanelCommandType; value?: number };
+	press?: {
+		cell: string;
+		type: PanelCommandType;
+		value?: number;
+		/** Хто натиснув — `uid`. Свою руку кожен екран упізнає порівнянням із власним. */
+		by?: string;
+		/** Як підписався. Порожньо — не називався. */
+		name?: string;
+		/** Натиснули за звуковим пультом, а не в залі. */
+		desk?: boolean;
+	};
 	/** Серверний час останньої зміни. */
 	atServer: number;
 }
