@@ -2,6 +2,7 @@
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { DEFAULT_LEVEL, type Panel, type PanelCommandType } from '$lib/net/panelTypes';
 	import { controlOf, layoutPanel, type Placed } from '$lib/panel/layout';
+	import { fitKeys } from '$lib/panel/fitKeys';
 	import { colorOf } from '$lib/config/trackColors';
 
 	/**
@@ -166,6 +167,14 @@
 		{@const cell = panel.cells[key]}
 		{#if cell}
 			{@const hex = colorOf(cell.color)}
+			<!--
+				Підписи, за якими `fitKeys` знає, що пора перерахувати розмір. Дія
+				висить на `.cell__stack`, а не на самій комірці: `style` комірки
+				належить Svelte, і перше ж оновлення переписувало його цілком — разом
+				із розміром, який поставила дія. Заміряно: після перезавантаження
+				змінної на комірці не лишалося зовсім.
+			-->
+			{@const words = `${cell.kind}|${(cell.buttons ?? []).map((one) => one.label).join('|')}`}
 			<div
 				class="cell"
 				class:cell--recent={recent === key}
@@ -187,7 +196,7 @@
 						самі чотири в 1×4 — рядком, і окремого правила для кожної форми не
 						треба жодного.
 					-->
-					<div class="cell__stack cell__stack--grid">
+					<div class="cell__stack cell__stack--grid" use:fitKeys={words}>
 						{#each cell.buttons ?? [] as button, index (index)}
 							{@const own = colorOf(button.color)}
 							{@const mark = fire(controlOf(key, 'press', index))}
@@ -217,7 +226,7 @@
 						головне — помічник просить НАПРЯМОК («гучніше»), а не число:
 						скільки саме це буде, вирішує крок, який поставив господар.
 					-->
-					<div class="cell__stack" class:cell__stack--row={at.cols > at.rows}>
+					<div class="cell__stack" class:cell__stack--row={at.cols > at.rows} use:fitKeys={words}>
 						<button
 							class="key"
 							class:key--hot={up !== ''}
@@ -249,7 +258,7 @@
 				{:else}
 					{@const on = flags[key] === true}
 					{@const mark = fire(controlOf(key, 'toggle'))}
-					<div class="cell__stack">
+					<div class="cell__stack" use:fitKeys={words}>
 						<button
 							class="key key--check"
 							class:key--on={on}
@@ -445,8 +454,14 @@
 		color: inherit;
 		cursor: pointer;
 		font: inherit;
-		font-size: 0.78rem;
-		line-height: 1.05;
+		/*
+		 * РОЗМІР ПІДБИРАЄ `fitKeys` — найбільший, що вміщається, один на віджет.
+		 * Сталий 0.78rem хибив в обидва боки: у широкій кнопці підпис був
+		 * дрібний, у вузькій — «трохи гучніше» зрізало краєм. Запасне значення
+		 * — на мить до першого заміру.
+		 */
+		font-size: var(--key-size);
+		line-height: 1.1;
 		text-align: center;
 	}
 

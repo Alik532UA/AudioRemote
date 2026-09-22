@@ -465,6 +465,54 @@ test('складальник уміщається в екран, а «Готов
 	await desk.close();
 });
 
+test('підписи кнопок віджета вміщаються й ростуть разом із кнопкою', async ({ browser }) => {
+	/*
+	 * РОЗМІР ПІДПИСУ БУВ СТАЛИЙ — і хибив в обидва боки одночасно. На широкому
+	 * екрані кнопка 83 точки тримала підпис на 12.5: дрібно, читали, нахиляючись.
+	 * На вужчому «трохи гучніше» переносилося на два рядки, і другий зрізало
+	 * краєм кнопки.
+	 *
+	 * Тому опис питає обидва боки: на кожній ширині НЕ ВИЛАЗИТЬ жоден підпис, і
+	 * на ширшій розмір БІЛЬШИЙ. Перше без другого пройшло б і зі старим сталим
+	 * розміром на дрібному шрифті; друге без першого — з великим, що зрізається.
+	 */
+	const desk = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+	const board = await desk.newPage();
+
+	await createInfoBoard(board);
+	await board.getByTestId('info-start-edit-btn').click();
+	await board.getByTestId('info-fill-btn').click();
+	await board.getByTestId('info-edit-btn').click();
+	const wall = board.getByTestId('info-wall-list');
+	await expect(wall).toBeVisible(ACROSS);
+
+	const measure = () =>
+		wall.evaluate((root) => {
+			const keys = [...root.querySelectorAll<HTMLElement>('[data-testid^="panel-press-"]')];
+			return {
+				size: Math.min(...keys.map((key) => parseFloat(getComputedStyle(key).fontSize))),
+				clipped: keys
+					.filter(
+						(key) =>
+							key.scrollWidth > key.clientWidth + 0.5 || key.scrollHeight > key.clientHeight + 0.5
+					)
+					.map((key) => (key.textContent ?? '').trim())
+			};
+		});
+
+	await expect.poll(async () => (await measure()).size, ACROSS).toBeGreaterThan(14);
+	const wide = await measure();
+	expect(wide.clipped, 'на широкому екрані підпис вилазить').toEqual([]);
+
+	// Той самий вид — вужче. Розмір мусить піти за кнопкою сам, без перезавантаження.
+	await board.setViewportSize({ width: 390, height: 844 });
+	await expect.poll(async () => (await measure()).size, ACROSS).toBeLessThan(wide.size);
+	const narrow = await measure();
+	expect(narrow.clipped, 'на вузькому екрані підпис вилазить').toEqual([]);
+
+	await desk.close();
+});
+
 test('перемикачі в бічній картці табла не обрізають своїх слів', async ({ browser }) => {
 	/*
 	 * Бічна картка — найвужче місце застосунку з перемикачем у ряд: три довгі
