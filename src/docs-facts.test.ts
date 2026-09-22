@@ -35,8 +35,15 @@ import { join } from 'node:path';
 const ROOT = process.cwd();
 const read = (name: string): string => readFileSync(join(ROOT, name), 'utf8');
 
-/** Документи, які взагалі щось стверджують про цей проєкт. */
-const DOCS = ['PROJECT-CONTEXT.md', 'README.md'];
+/**
+ * Документи, які взагалі щось стверджують про цей проєкт.
+ *
+ * `AGENTS.md` тут не за компанію: канон називає його поруч із PROJECT-CONTEXT
+ * саме тому, що його читає агент і діє за ним не питаючи (PIT-DOC-FACTS). Файл
+ * із застарілим шляхом до гейта гірший за відсутній — агент виконає команду,
+ * якої немає, і вирішить, що зламаний проєкт.
+ */
+const DOCS = ['PROJECT-CONTEXT.md', 'README.md', 'AGENTS.md'];
 
 // ─── 1. Склад гейта правил доступу ────────────────────────────────────────
 
