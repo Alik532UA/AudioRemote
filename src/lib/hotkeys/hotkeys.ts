@@ -248,7 +248,8 @@ export function isCovered(target: EventTarget | null): boolean {
 	// Обережність поширюється й на сам `Node`: без DOM його в глобальному немає
 	// так само, як і `document`, тож `target instanceof Node` кидав би рівно
 	// там, де опис вище обіцяє чесну відповідь. Обіцянка була, перевірки — ні.
-	if (typeof Node === 'undefined') return globalThis.document?.querySelector('dialog[open]') != null;
+	if (typeof Node === 'undefined')
+		return globalThis.document?.querySelector('dialog[open]') != null;
 	const doc = target instanceof Node ? target.ownerDocument : (globalThis.document ?? null);
 	return doc?.querySelector('dialog[open]') != null;
 }

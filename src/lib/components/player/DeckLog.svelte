@@ -2,6 +2,7 @@
 	import { t } from '$lib/i18n/i18n.svelte';
 	import type { BoardTrack } from '$lib/board/editor';
 	import { deckLog, type DeckNote } from '$lib/services/deckLog.svelte';
+	import LogWho from '$lib/components/ui/LogWho.svelte';
 
 	/**
 	 * ОСТАННІ ДІЇ АУДІОДОШКИ — те саме, що давно є в інфодошки.
@@ -12,10 +13,13 @@
 	 *
 	 * ## Джерело — МІТКОЮ, а не текстом рядка
 	 *
-	 * «Пульт», «API», підпис людини: це відповідь на «хто», і вона мусить
-	 * читатися окремо від «що». Мітка «сам» не ставиться зовсім — дію руками за
-	 * цим самим комп'ютером людина щойно бачила, і підписувати її означало б
-	 * шуміти в кожному другому рядку.
+	 * «Плеєр», «пульт», «за API», підпис людини: це відповідь на «хто», і вона
+	 * мусить читатися окремо від «що». Мітка стоїть НА КОЖНОМУ рядку, включно з
+	 * власними: доти їх не підписували зовсім — мовляв, дію руками за цим самим
+	 * пристроєм людина щойно бачила. Це правда рівно доти, доки вона на нього
+	 * дивиться; о пів на десяту, розбираючись, чому заграло не те, вона бачить
+	 * список, де половина рядків без відповіді на «хто», і мусить здогадуватися,
+	 * що порожнє місце означає «я».
 	 *
 	 * ## Назва треку береться зі СПИСКУ
 	 *
@@ -50,6 +54,7 @@
 	 * наказ посеред фрази, або кнопку, підписану дієсловом минулого часу.
 	 */
 	function say(note: DeckNote): string {
+		if (note.kind === 'came' || note.kind === 'went') return t(`logAct.${note.kind}`);
 		if (note.kind === 'trigger') return t('deckAct.trigger', { track: titleOf(note.trackId) });
 		if (note.kind === 'play') return t('deckAct.play', { track: titleOf(note.trackId) });
 		if (note.kind === 'volume') return t('deckAct.volume', { n: `${note.value ?? 0}` });
@@ -86,11 +91,12 @@
 				<li class="log__row" data-testid="deck-note-{index}-row">
 					<span class="log__time mono">{clock(note.at)}</span>
 
-					{#if note.source !== 'self'}
-						<span class="log__who log__who--{note.source}">
-							{note.who || t(`deckFrom.${note.source}`)}
-						</span>
-					{/if}
+					<LogWho
+						side={t(`deckFrom.${note.source}`)}
+						name={note.who}
+						tone={note.source === 'self' ? 'own' : note.source}
+						testid="deck-note-{index}-who-text"
+					/>
 
 					<span class="log__what">{say(note)}</span>
 				</li>
@@ -143,27 +149,6 @@
 		flex: none;
 		color: var(--text-secondary);
 		font-size: 0.75rem;
-	}
-
-	/*
-	 * Мітка джерела помітна рівно настільки, щоб відрізнятися від тексту:
-	 * питання «хто» тут друге за важливістю, а не перше.
-	 */
-	.log__who {
-		flex: none;
-		padding: 0 6px;
-		border: 1px solid currentcolor;
-		border-radius: var(--radius-full);
-		font-size: 0.7rem;
-	}
-
-	.log__who--remote {
-		color: var(--text-secondary);
-	}
-
-	/* Спрацювання за API — єдине, до чого не торкалася жодна рука. */
-	.log__who--api {
-		color: var(--accent);
 	}
 
 	.log__what {

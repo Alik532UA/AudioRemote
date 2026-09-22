@@ -88,7 +88,9 @@ function locatorPatterns(): RegExp[] {
 
 	return [...written, ...given].map(
 		(name) =>
-			new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\{[^}]*\\?\}?/g, '.+')}$`)
+			new RegExp(
+				`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\{[^}]*\\?\}?/g, '.+')}$`
+			)
 	);
 }
 
@@ -199,7 +201,9 @@ describe('чеклист бета-тесту (BETA-CHECKLIST-v9 § 5)', () => {
 
 	it('id унікальні, форми {вкладка}_{номер}, і локатор із них виходить чистий (§ 2.2)', () => {
 		const ids = ALL_CHECKS.map((check) => check.id);
-		expect(ids.length - new Set(ids).size, 'два пункти з одним id — прогрес переплутається').toBe(0);
+		expect(ids.length - new Set(ids).size, 'два пункти з одним id — прогрес переплутається').toBe(
+			0
+		);
 
 		for (const tab of BETA_TABS) {
 			const wrong = tab.checks
@@ -267,7 +271,9 @@ describe('чеклист бета-тесту (BETA-CHECKLIST-v9 § 5)', () => {
 
 		// Людина, яка згодилася потикати застосунок, не знає, що таке локатор.
 		const internal = named(
-			ALL_CHECKS.filter((check) => /data-testid|\$state|\.ts\b|localStorage|RTDB/i.test(check.text.uk)),
+			ALL_CHECKS.filter((check) =>
+				/data-testid|\$state|\.ts\b|localStorage|RTDB/i.test(check.text.uk)
+			),
 			() => 'внутрішня назва в тексті для людини'
 		);
 		expect(internal).toEqual([]);
@@ -276,8 +282,10 @@ describe('чеклист бета-тесту (BETA-CHECKLIST-v9 § 5)', () => {
 	it('у кожній вкладці є робота для людини і є межа (§ 2.3, § 5.4)', () => {
 		for (const tab of BETA_TABS) {
 			const manual = tab.checks.filter((check) => check.coverage === 'manual');
-			expect(manual.length, `вкладка ${tab.id}: усе покрито машиною — час людини марнується`)
-				.toBeGreaterThan(0);
+			expect(
+				manual.length,
+				`вкладка ${tab.id}: усе покрито машиною — час людини марнується`
+			).toBeGreaterThan(0);
 
 			const edges = tab.checks.filter((check) => check.negative);
 			expect(edges.length, `вкладка ${tab.id}: немає пункта «не мусить»`).toBeGreaterThan(0);

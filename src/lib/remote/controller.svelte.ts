@@ -4,6 +4,8 @@ import { watchInfo, watchLibrary, watchState } from '$lib/net/board';
 import type { BoardInfo, CommandType, Library, PlayerState, Track } from '$lib/net/boardTypes';
 import { sendCommand, serverNow, waitForAck } from '$lib/net/commands';
 import { hasPlayer, trackPresence, watchPresence } from '$lib/net/presence';
+import { MAX_WHO } from '$lib/net/panelTypes';
+import { settings } from '$lib/settings/settings.svelte';
 import {
 	builtinFor,
 	isHotkeyEvent,
@@ -30,6 +32,22 @@ export interface VisibleTrack extends Track {
  * Людині в залі це три різні дії: піти й відкрити вкладку, попросити натиснути
  * кнопку, натиснути ще раз.
  */
+
+/**
+ * ПІДПИС У КОНВЕРТІ КОМАНДИ — щоб журнал плеєра казав «пульт · Оля».
+ *
+ * Поле в конверті було з самого початку: правило бази його приймає, плеєр його
+ * читає, журнал уміє його показати. Не надсилав його НІХТО — гілка з підписом
+ * не виконувалася жодного разу, і сховане це було приведенням типу в журналі.
+ *
+ * Порожнє імʼя не надсилається взагалі: `''` у базі означало б «назвався
+ * нічим», а не «не називався».
+ */
+const signature = (): Record<string, string> | undefined => {
+	const who = settings.displayName.trim().slice(0, MAX_WHO);
+	return who ? { name: who } : undefined;
+};
+
 export class RemoteController {
 	info = $state<BoardInfo | null>(null);
 	library = $state<Library | null>(null);
@@ -168,7 +186,7 @@ export class RemoteController {
 		this.trouble = null;
 
 		try {
-			const { id } = await sendCommand(boardPath(this.board.key), type, value);
+			const { id } = await sendCommand(boardPath(this.board.key), type, value, signature());
 			const ack = await waitForAck(boardPath(this.board.key), id);
 
 			if (ack === null) this.trouble = 'remote.noAck';
@@ -334,9 +352,11 @@ export class RemoteController {
 	setVolume(percent: number): void {
 		if (this.volumeTimer) clearTimeout(this.volumeTimer);
 		this.volumeTimer = setTimeout(() => {
-			void sendCommand(boardPath(this.board.key), 'volume', Math.round(percent)).catch(() => {
-				this.trouble = 'error.network';
-			});
+			void sendCommand(boardPath(this.board.key), 'volume', Math.round(percent), signature()).catch(
+				() => {
+					this.trouble = 'error.network';
+				}
+			);
 		}, 150);
 	}
 }

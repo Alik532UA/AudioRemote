@@ -7,7 +7,8 @@
 	import { boardPath } from '$lib/board/boardPath';
 	import { kindOf } from '$lib/board/myBoards';
 	import { ensureBoard } from '$lib/net/board';
-	import { countRemotes, trackPresence, watchPresence, type PresenceMap } from '$lib/net/presence';
+	import { trackPresence, watchPresence, type PresenceMap } from '$lib/net/presence';
+	import { panelLog } from '$lib/services/panelLog.svelte';
 	import { pruneAcks, watchCommands } from '$lib/net/commands';
 	import {
 		emptyPanel,
@@ -27,12 +28,7 @@
 		type PanelCommandType,
 		type VerdictKind
 	} from '$lib/net/panelTypes';
-	import {
-		applyPanelCommand,
-		refused,
-		type PanelNotice,
-		type PanelOutcome
-	} from '$lib/panel/apply';
+	import { applyPanelCommand, refused, type PanelOutcome } from '$lib/panel/apply';
 	import { starterPanel } from '$lib/panel/starter';
 	import { controlOf, fits, moveTo, sheetsOf, sizeOf, turned, withSize } from '$lib/panel/layout';
 	import { keepPanel, recallPanel } from '$lib/panel/keep';
@@ -63,9 +59,6 @@
 	 * усередині плеєра означала б, що кожна наступна правка звуку мусить
 	 * питати, чи вона не про табло.
 	 */
-
-	/** Скільки прохань тримати на екрані. Далі найстаріші випадають. */
-	const KEPT = 40;
 
 	/**
 	 * СКІЛЬКИ ЖИВЕ ПІДСВІТКА НА ПАНЕЛІ — три секунди, а не до наступного прохання.
@@ -101,7 +94,6 @@
 	 */
 	let beat = 0;
 	let watch = 0;
-	let notices = $state<(PanelNotice & { id: string; at: number; own: boolean; who: string })[]>([]);
 	let filling = $state(false);
 	/** Чи вже пробували підняти панель із копії. Пробуємо один раз. */
 	let restored = false;
@@ -159,10 +151,16 @@
 						flags = state?.flags ?? {};
 					})
 				);
+				/*
+				 * Знімок присутності відповідає на два питання одразу: скільки
+				 * помічників ЗАРАЗ і коли якийсь із них зʼявився чи відпав. Друге —
+				 * робота журналу, тож знімок віддається йому цілим.
+				 */
+				track(() => panelLog.forget());
 				track(
 					await watchPresence(board.key, (next) => {
 						present = next;
-						helpers = countRemotes(next);
+						helpers = panelLog.saw(next);
 					})
 				);
 				track(await watchCommands<PanelCommandType, PanelCommand>(boardPath(board.key), receive));
@@ -271,7 +269,7 @@
 		// Важливу дію видно навіть тому, хто дивиться не на екран (`panelTypes.ts`).
 		if (panel.cells[at.cell]?.important) attentionState.shout();
 
-		notices = [{ ...result.notice, id, at: Date.now(), own, who }, ...notices].slice(0, KEPT);
+		panelLog.asked(result.notice, id, own, who);
 	}
 
 	/**
@@ -535,7 +533,7 @@
 					{#if view !== 'panel'}
 						<section class="card stack log" data-testid="info-log-section">
 							<h2 class="subtitle">{t('panel.logTitle')}</h2>
-							<PanelLog {notices} onverdict={answer} />
+							<PanelLog notices={panelLog.entries} onverdict={answer} />
 						</section>
 					{/if}
 				{/if}

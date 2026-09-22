@@ -358,5 +358,4 @@
 		border-radius: 50%;
 		background: currentColor;
 	}
-
 </style>

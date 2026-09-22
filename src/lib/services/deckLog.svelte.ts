@@ -1,4 +1,6 @@
 import type { Command, CommandType } from '$lib/net/boardTypes';
+import { countRemotes, type PresenceMap } from '$lib/net/presence';
+import { PresenceEvents } from './presenceLog';
 
 /**
  * ЩО ЩОЙНО СТАЛОСЯ НА АУДІОДОШЦІ — і чому цього досі не було.
@@ -29,8 +31,13 @@ export type DeckSource = 'self' | 'remote' | 'api';
 export interface DeckNote {
 	id: string;
 	at: number;
-	/** Що саме сталося. `trigger` — спрацював API, решта — звичайні команди. */
-	kind: CommandType | 'trigger';
+	/**
+	 * Що саме сталося.
+	 *
+	 * `trigger` — спрацював API; `came`/`went` — пульт прийшов або пішов; решта
+	 * — звичайні команди.
+	 */
+	kind: CommandType | 'trigger' | 'came' | 'went';
 	/** Трек, якого це стосується. Порожньо — дія не про конкретний трек. */
 	trackId: string;
 	/** Число команди: гучність або позиція перемотки. */
@@ -48,6 +55,10 @@ class DeckLog {
 
 	private beat = 0;
 
+	private readonly comings = new PresenceEvents('remote', ({ kind, who }) =>
+		this.add({ kind, trackId: '', value: null, source: 'remote', who })
+	);
+
 	/**
 	 * Команда з мережі. Пишеться ПІСЛЯ виконання — журнал каже, що сталося, а
 	 * не що просили: відхилену команду (зниклий файл, прихований трек) до
@@ -59,10 +70,7 @@ class DeckLog {
 			trackId: command.type === 'play' ? String(command.value ?? '') : '',
 			value: typeof command.value === 'number' ? command.value : null,
 			source: 'remote',
-			who:
-				typeof (command as Command & { name?: string }).name === 'string'
-					? ((command as Command & { name?: string }).name as string)
-					: ''
+			who: command.name ?? ''
 		});
 	}
 
@@ -81,6 +89,33 @@ class DeckLog {
 			source,
 			who: ''
 		});
+	}
+
+	/**
+	 * ЗНІМОК ПРИСУТНОСТІ — і журнал сам вирішує, що з нього стало рядком.
+	 *
+	 * Картка дошки каже, скільки пультів ЗАРАЗ; на питання «а коли він відпав»
+	 * вона не відповідає ніяк — число просто стає іншим, і помітити це можна
+	 * лише дивлячись на нього в ту саму секунду.
+	 *
+	 * Знімок приходить сирим, а не готовою подією, саме тому, що перетворення
+	 * знімка на рядок — робота журналу: витримку на блимання мережі тримає
+	 * `presenceLog.ts`, і приймачу не треба знати ні про неї, ні про те, що
+	 * подій буває нуль.
+	 *
+	 * Повертає, скільки пультів на звʼязку: той самий знімок однаково вже
+	 * розібрано, і другий прохід по ньому в місці виклику був би другим
+	 * джерелом того самого числа.
+	 */
+	saw(present: PresenceMap): number {
+		this.comings.see(present);
+		return countRemotes(present);
+	}
+
+	/** Зняти витримки. Без цього вони вистрелять у журнал закритої дошки. */
+	forget(): void {
+		this.comings.stop();
+		this.clear();
 	}
 
 	clear(): void {

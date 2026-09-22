@@ -227,11 +227,21 @@
 
 	<section class="card stack">
 		<div class="beta__actions">
-			<button class="btn btn--primary" type="button" onclick={copyReport} data-testid="beta-report-btn">
+			<button
+				class="btn btn--primary"
+				type="button"
+				onclick={copyReport}
+				data-testid="beta-report-btn"
+			>
 				<IconCopy size={18} aria-hidden="true" />
 				{say('Скопіювати звіт', 'Copy the report')}
 			</button>
-			<button class="btn btn--danger" type="button" onclick={clearMarks} data-testid="beta-clear-btn">
+			<button
+				class="btn btn--danger"
+				type="button"
+				onclick={clearMarks}
+				data-testid="beta-clear-btn"
+			>
 				{#if armed}<IconCheck size={18} aria-hidden="true" />{:else}<IconClose
 						size={18}
 						aria-hidden="true"

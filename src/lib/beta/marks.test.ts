@@ -76,7 +76,10 @@ describe('позначки чеклиста', () => {
 
 describe('прочитане зі сховища — недовірений ввід', () => {
 	it('пункт, якого вже немає, у поступ не потрапляє', () => {
-		const out = trusted({ [first]: { vote: 'ok', version: VERSION }, ghost_9: { vote: 'ok', version: VERSION } }, known);
+		const out = trusted(
+			{ [first]: { vote: 'ok', version: VERSION }, ghost_9: { vote: 'ok', version: VERSION } },
+			known
+		);
 		expect(Object.keys(out), 'видалений пункт дав би поступ більший за список').toEqual([first]);
 	});
 

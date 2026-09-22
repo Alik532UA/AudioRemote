@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { IconCheck } from '$lib/config/icons';
-	import type { PanelNotice } from '$lib/panel/apply';
+	import LogWho from '$lib/components/ui/LogWho.svelte';
 	import type { VerdictKind } from '$lib/net/panelTypes';
+	import type { LogEntry } from '$lib/services/panelLog.svelte';
+	import type { PanelNotice } from '$lib/panel/apply';
 
 	/**
 	 * ЖУРНАЛ ПРОХАНЬ — те, заради чого інфодошка й існує.
@@ -16,8 +18,8 @@
 	 * Бо журнал відповідає на питання «що тут щойно сталося», а не «хто винен».
 	 * Звукорежисер, який сам посунув повзунок і за хвилину дивиться, чому звук
 	 * не той, мусить бачити обидві половини картини. Власні рядки позначені
-	 * тихою міткою: без неї людина шукала б у залі того, хто попросив, хоч
-	 * просила вона сама.
+	 * стороною — «табло»: без цього людина шукала б у залі того, хто попросив,
+	 * хоч просила вона сама.
 	 *
 	 * ## Останнє — ЗВЕРХУ, і воно більше за решту
 	 *
@@ -31,13 +33,7 @@
 	 * відповідає на те саме питання й не рухається.
 	 */
 	interface Props {
-		notices: readonly (PanelNotice & {
-			id: string;
-			at: number;
-			own: boolean;
-			/** Як підписався той, хто натиснув. Порожньо — анонімно. */
-			who?: string;
-		})[];
+		notices: readonly LogEntry[];
 		/**
 		 * ВІДПОВІСТИ НА ПРОХАННЯ. Є лише на таблі: у залі відповідати нема на що.
 		 *
@@ -72,7 +68,13 @@
 
 	let hushed = $state<string | null>(null);
 
-	const head = $derived(notices.length > 0 && notices[0].id !== hushed ? notices[0].id : null);
+	/*
+	 * Підсвічується лише ПРОХАННЯ: рядок «помічник підключено» не питає ні про
+	 * що, і відповідати на нього нема чим.
+	 */
+	const head = $derived(
+		notices.length > 0 && notices[0].notice && notices[0].id !== hushed ? notices[0].id : null
+	);
 
 	const clock = (at: number) =>
 		new Date(at).toLocaleTimeString(undefined, {
@@ -109,25 +111,32 @@
 				data-testid="panel-notice-{index}-row"
 			>
 				<span class="log__time mono">{clock(notice.at)}</span>
+				<!--
+					СТОРОНА, ПОТІМ ІМʼЯ — одна вісь, а не дві. Доти тут стояло «сам» АБО
+					підпис: перше відповідає на «чия сторона», друге на «хто саме», і
+					поруч вони читалися як дві відповіді на одне питання. Мітка спільна
+					з журналом аудіодошки, бо питання в обох те саме.
+				-->
+				<LogWho
+					side={notice.own ? t('panelFrom.self') : t('panelFrom.remote')}
+					name={notice.who}
+					tone={notice.own ? 'own' : 'remote'}
+					testid="panel-notice-{index}-who-text"
+				/>
 				<span class="log__what">
-					<!--
-						Підпис ЗАМІСТЬ «сам», а не разом із ним: обидві мітки відповідають на
-						те саме питання «чия це рука», і поруч вони читалися б як дві різні
-						відповіді на нього.
-					-->
-					{#if notice.own}
-						<span class="log__own">{t('panel.byHost')}</span>
-					{:else if notice.who}
-						<span class="log__own">{notice.who}</span>
-					{/if}
-					{#if notice.caption}
-						<strong>{notice.caption}</strong>
-					{/if}
-					<span>{notice.label ?? moveWord(notice.move)}</span>
-					{#if notice.from !== null && notice.to !== null}
-						<span class="muted">
-							{t('panel.change', { from: `${notice.from}`, to: `${notice.to}` })}
-						</span>
+					{#if notice.join}
+						{t(`logAct.${notice.join}`)}
+					{:else if notice.notice}
+						{@const asked = notice.notice}
+						{#if asked.caption}
+							<strong>{asked.caption}</strong>
+						{/if}
+						<span>{asked.label ?? moveWord(asked.move)}</span>
+						{#if asked.from !== null && asked.to !== null}
+							<span class="muted">
+								{t('panel.change', { from: `${asked.from}`, to: `${asked.to}` })}
+							</span>
+						{/if}
 					{/if}
 				</span>
 
@@ -144,7 +153,8 @@
 									class="log__verdict log__verdict--{answer}"
 									type="button"
 									onclick={() => {
-										onverdict?.(answer, notice.cell, notice.caption);
+										if (notice.notice)
+											onverdict?.(answer, notice.notice.cell, notice.notice.caption);
 										hushed = notice.id;
 									}}
 									data-testid="panel-verdict-{answer}-btn"
@@ -234,19 +244,6 @@
 		flex: none;
 		color: var(--text-secondary);
 		font-size: 0.75rem;
-	}
-
-	/*
-	 * Мітка «сам» — тиха: вона уточнює рядок, а не сперечається з ним. Тому
-	 * дрібна рамка кольору тексту, а не акцент і не попередження.
-	 */
-	.log__own {
-		flex: none;
-		padding: 0 6px;
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-full);
-		color: var(--text-secondary);
-		font-size: 0.7rem;
 	}
 
 	/*

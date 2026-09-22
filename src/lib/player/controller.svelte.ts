@@ -18,7 +18,7 @@ import { closeChannel, openChannel, publishTracks } from '$lib/net/admin';
 import { ensureBoard, publishLibrary, publishState } from '$lib/net/board';
 import type { AdminCommandType, BoardInfo, Command, Track } from '$lib/net/boardTypes';
 import { pruneAcks, watchCommands } from '$lib/net/commands';
-import { countRemotes, trackPresence, watchConnection, watchPresence } from '$lib/net/presence';
+import { trackPresence, watchConnection, watchPresence } from '$lib/net/presence';
 import {
 	builtinFor,
 	isAssignable,
@@ -322,9 +322,14 @@ export class PlayerController implements BoardEditor {
 		await this.publish();
 
 		this.track(await trackPresence(this.board.key, 'player'));
-		this.track(
-			await watchPresence(this.board.key, (present) => (this.remotes = countRemotes(present)))
-		);
+
+		/*
+		 * Знімок присутності відповідає на два питання одразу: скільки пультів
+		 * ЗАРАЗ і коли якийсь із них зʼявився чи відпав. Друге — робота журналу,
+		 * тож знімок віддається йому цілим (`deckLog.saw`).
+		 */
+		this.track(() => deckLog.forget());
+		this.track(await watchPresence(this.board.key, (at) => (this.remotes = deckLog.saw(at))));
 		this.track(await watchCommands(boardPath(this.board.key), (command) => this.execute(command)));
 
 		/*
