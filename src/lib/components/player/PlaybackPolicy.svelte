@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { t } from '$lib/i18n/i18n.svelte';
 	import Switch from '$lib/components/ui/Switch.svelte';
+	import Picker from '$lib/components/ui/Picker.svelte';
 	import type { RepeatMode } from '$lib/audio/boardConfig';
 	import type { PlayerController } from '$lib/player/controller.svelte';
 
@@ -45,20 +46,17 @@
 		onchange={(next) => controller.setPlay({ autoNext: next })}
 	/>
 
-	<div class="policy__row" role="radiogroup" aria-label={t('player.repeatTitle')}>
-		{#each MODES as mode (mode)}
-			<button
-				class="policy__item"
-				type="button"
-				role="radio"
-				aria-checked={controller.play.repeat === mode}
-				onclick={() => controller.setPlay({ repeat: mode })}
-				data-testid="repeat-{mode}-radio"
-			>
-				{t(`repeat.${mode}`)}
-			</button>
-		{/each}
-	</div>
+	<Picker
+		row
+		label={t('player.repeatTitle')}
+		value={controller.play.repeat}
+		prefix="repeat"
+		options={MODES.map((mode) => ({
+			value: mode,
+			label: t(`repeat.${mode}`)
+		}))}
+		onpick={(next) => controller.setPlay({ repeat: next as RepeatMode })}
+	/>
 
 	{#if idle}
 		<p class="muted policy__note" data-testid="repeat-idle-text">{t('player.repeatIdle')}</p>
@@ -72,43 +70,6 @@
 		gap: var(--gap-sm);
 		padding-top: var(--gap-sm);
 		border-top: 1px solid var(--border);
-	}
-
-	/* Три варіанти в один ряд: підписи короткі, і вибір видно цілком. */
-	.policy__row {
-		display: flex;
-		overflow: hidden;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-	}
-
-	.policy__item {
-		flex: 1 1 0;
-		min-width: 0;
-		min-height: var(--tap);
-		padding: 0 var(--gap-xs);
-		border: 0;
-		border-inline-start: 1px solid var(--border);
-		background: var(--bg-surface-raised);
-		color: var(--text-secondary);
-		cursor: pointer;
-		font: inherit;
-		font-size: 0.85rem;
-	}
-
-	.policy__item:first-child {
-		border-inline-start: 0;
-	}
-
-	.policy__item:hover,
-	.policy__item:focus-visible {
-		background: var(--bg-sunken);
-	}
-
-	.policy__item[aria-checked='true'] {
-		background: var(--accent-soft);
-		color: var(--accent);
-		font-weight: 600;
 	}
 
 	.policy__note {

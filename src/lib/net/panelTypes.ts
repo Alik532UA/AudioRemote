@@ -69,8 +69,8 @@ export const PANEL_COLS = 3;
 export const PANEL_ROWS = 5;
 export const PANEL_CELLS = PANEL_COLS * PANEL_ROWS;
 
-export const MAX_PANEL_COLS = 6;
-export const MAX_PANEL_ROWS = 8;
+export const MAX_PANEL_COLS = 9;
+export const MAX_PANEL_ROWS = 9;
 /** Найбільша можлива кількість комірок. Від неї залежать межі ключів у правилах. */
 export const MAX_PANEL_CELLS = MAX_PANEL_COLS * MAX_PANEL_ROWS;
 

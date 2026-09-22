@@ -163,8 +163,8 @@ describe('свій розмір віджета', () => {
 	});
 
 	it('розмір поза сіткою не береться', () => {
-		expect(sizeOf({ ...buttons(2), rows: 9, cols: 1 })).toEqual({ rows: 2, cols: 1 });
-		expect(sizeOf({ ...buttons(2), rows: 1, cols: 7 })).toEqual({ rows: 2, cols: 1 });
+		expect(sizeOf({ ...buttons(2), rows: 10, cols: 1 })).toEqual({ rows: 2, cols: 1 });
+		expect(sizeOf({ ...buttons(2), rows: 1, cols: 10 })).toEqual({ rows: 2, cols: 1 });
 	});
 
 	it('прямокутник займає всі свої клітинки', () => {

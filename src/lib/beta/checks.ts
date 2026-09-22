@@ -666,7 +666,7 @@ export const BETA_TABS: readonly BetaTab[] = [
 					en: 'Choose the system option and switch dark or light mode in the operating system. The page must follow it without asking again.'
 				},
 				coverage: 'manual',
-				testid: 'theme-system'
+				testid: 'theme-system-radio'
 			},
 			{
 				id: 'settings_4',

@@ -104,8 +104,8 @@ describe('панель із файлу (CLOUD-DATABASE-v9 § 4)', () => {
 	});
 
 	it('комірка за межею сітки не береться взагалі', () => {
-		// Правило бази знає номери 0…47; 48 у ньому вже немає.
-		const panel = panelFromText(fileWith({ '0': cell(), '48': cell(), '999': cell() }));
+		// Правило бази знає номери 0…80; 81 у ньому вже немає.
+		const panel = panelFromText(fileWith({ '0': cell(), '81': cell(), '999': cell() }));
 		expect(Object.keys(panel?.cells ?? {})).toEqual(['0']);
 	});
 

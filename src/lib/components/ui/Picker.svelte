@@ -42,9 +42,21 @@
 		label?: string;
 		row?: boolean;
 		onpick: (value: string) => void;
+		onitementer?: (value: string, event: PointerEvent) => void;
+		onitemleave?: (value: string, event: PointerEvent) => void;
 	}
 
-	let { options, value, prefix, labelledby, label, row = false, onpick }: Props = $props();
+	let {
+		options,
+		value,
+		prefix,
+		labelledby,
+		label,
+		row = false,
+		onpick,
+		onitementer,
+		onitemleave
+	}: Props = $props();
 </script>
 
 <div
@@ -61,6 +73,8 @@
 			role="radio"
 			aria-checked={value === option.value}
 			onclick={() => onpick(option.value)}
+			onpointerenter={(event) => onitementer?.(option.value, event)}
+			onpointerleave={(event) => onitemleave?.(option.value, event)}
 			data-testid="{prefix}-{option.value}-radio"
 		>
 			<span class="picker__text" data-label={option.label}>{option.label}</span>

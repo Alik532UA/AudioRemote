@@ -7,10 +7,11 @@
 		id: string;
 		/** Що саме крутять. Іде в підпис кнопок для читалки. */
 		label: string;
+		square?: boolean;
 		onchange: (next: number) => void;
 	}
 
-	let { value, min, max, id, label, onchange }: Props = $props();
+	let { value, min, max, id, label, square = false, onchange }: Props = $props();
 
 	/**
 	 * ЧОТИРИ КНОПКИ ЗАМІСТЬ РІДНОГО ЛІЧИЛЬНИКА.
@@ -47,7 +48,7 @@
 	const stepTitle = (step: number): string => `${label}: ${step > 0 ? '+' : '−'}${Math.abs(step)}`;
 </script>
 
-<div class="stepper">
+<div class="stepper" class:stepper--square={square}>
 	{#each STEPS as step (step)}
 		{#if step < 0}
 			<button
@@ -100,6 +101,10 @@
 		gap: var(--gap-xs);
 	}
 
+	.stepper--square {
+		width: fit-content;
+	}
+
 	/*
 	 * Поле посередині й вужче за кнопки: число тут щонайбільше чотиризначне, а
 	 * місце в рядку віддане тому, у що цілять пальцем.
@@ -110,6 +115,14 @@
 		text-align: center;
 		/* Рідні стрілки прибрані — замість них кнопки обабіч. */
 		appearance: textfield;
+	}
+
+	.stepper--square .stepper__input {
+		flex: 0 0 var(--tap);
+		width: var(--tap);
+		min-width: 0;
+		padding-inline: 0;
+		aspect-ratio: 1;
 	}
 
 	.stepper__input::-webkit-outer-spin-button,

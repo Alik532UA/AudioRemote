@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { TRACK_VISIBILITIES, type TrackVisibility } from '$lib/audio/boardConfig';
+	import Picker from '$lib/components/ui/Picker.svelte';
 
 	interface Props {
 		value: TrackVisibility;
@@ -27,60 +28,16 @@
 
 <div class="field">
 	<span class="field__label" id="visibility-label-{trackId}">{t('visibility.label')}</span>
-	<div class="picker" role="radiogroup" aria-labelledby="visibility-label-{trackId}">
-		{#each TRACK_VISIBILITIES as option (option)}
-			<button
-				class="picker__item"
-				type="button"
-				role="radio"
-				aria-checked={value === option}
-				onclick={() => onchange(option)}
-				data-testid="visibility-{option}-{trackId}"
-			>
-				{t(`visibility.${option}`)}
-			</button>
-		{/each}
-	</div>
+	<Picker
+		row
+		labelledby="visibility-label-{trackId}"
+		{value}
+		prefix="visibility-{trackId}"
+		options={TRACK_VISIBILITIES.map((option) => ({
+			value: option,
+			label: t(`visibility.${option}`)
+		}))}
+		onpick={(next) => onchange(next as TrackVisibility)}
+	/>
 	<p class="muted">{t(`visibility.${value}Hint`)}</p>
 </div>
-
-<style>
-	/* Той самий перемикач списком, що й в умові тригера: один вибір — одна рамка. */
-	.picker {
-		display: grid;
-		/*
-		 * Рівно три колонки, а не `auto-fit`: варіантів теж три, і автопідбір у
-		 * вузькій колонці ставив два — тобто лишав четверту комірку порожньою.
-		 * Підписи тут короткі, вони вміщаються й на телефоні.
-		 */
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: 1px;
-		overflow: hidden;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--border);
-	}
-
-	.picker__item {
-		min-height: var(--tap);
-		padding: var(--gap-sm) var(--gap);
-		border: 0;
-		background: var(--bg-surface-raised);
-		color: var(--text-primary);
-		cursor: pointer;
-		font: inherit;
-		font-size: 0.9rem;
-		text-align: start;
-	}
-
-	.picker__item:hover,
-	.picker__item:focus-visible {
-		background: var(--bg-sunken);
-	}
-
-	.picker__item[aria-checked='true'] {
-		box-shadow: inset 3px 0 0 var(--accent);
-		background: var(--accent-soft);
-		font-weight: 600;
-	}
-</style>

@@ -849,13 +849,13 @@ await mustNot('сторонній малює панель', () =>
 );
 
 // РОЗМІР САМОЇ ДОШКИ. Сітка більше не лише три на п'ять, тож комірка 15 тепер
-// законна — незаконна та, що за межею НАЙБІЛЬШОЇ можливої сітки (6×8).
+// законна — незаконна та, що за межею НАЙБІЛЬШОЇ можливої сітки (9×9).
 await must('комірка в більшій сітці', () =>
 	patch(`boards/${KEY}/panel/cells`, { 20: { kind: 'check' } }, owner.token)
 );
 
 await mustNot('комірка поза найбільшою сіткою', () =>
-	patch(`boards/${KEY}/panel/cells`, { 48: { kind: 'check' } }, owner.token)
+	patch(`boards/${KEY}/panel/cells`, { 81: { kind: 'check' } }, owner.token)
 );
 
 await must('своя сітка дошки', () =>
@@ -863,7 +863,7 @@ await must('своя сітка дошки', () =>
 );
 
 await mustNot('сітка ширша за дозволене', () =>
-	patch(`boards/${KEY}/panel`, { cols: 9 }, owner.token)
+	patch(`boards/${KEY}/panel`, { cols: 10 }, owner.token)
 );
 
 await mustNot('сітка вища за дозволене', () =>
@@ -905,7 +905,7 @@ await mustNot('рядів більше, ніж у сітці', () =>
 );
 
 await mustNot('стовпців більше, ніж у сітці', () =>
-	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 1, cols: 7 } }, owner.token)
+	patch(`boards/${KEY}/panel/cells`, { 2: { kind: 'buttons', rows: 1, cols: 10 } }, owner.token)
 );
 
 await mustNot('розмір не числом', () =>

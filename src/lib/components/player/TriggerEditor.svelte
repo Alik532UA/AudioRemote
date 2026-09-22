@@ -10,12 +10,14 @@
 		MIN_INTERVAL_SEC,
 		TRIGGER_TESTS,
 		withinSchedule,
-		type TrackTrigger
+		type TrackTrigger,
+		type TriggerTest
 	} from '$lib/triggers/trigger';
 	import { FAULT_TEXT, triggerWatcher } from '$lib/triggers/watcher.svelte';
 	import type { BoardEditor } from '$lib/board/editor';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
+	import Picker from '$lib/components/ui/Picker.svelte';
 
 	interface Props {
 		trackId: string;
@@ -213,20 +215,17 @@
 
 		<div class="field">
 			<span class="field__label" id="trigger-test-label">{t('trigger.test')}</span>
-			<div class="picker" role="radiogroup" aria-labelledby="trigger-test-label">
-				{#each TRIGGER_TESTS as test (test)}
-					<button
-						class="picker__item"
-						type="button"
-						role="radio"
-						aria-checked={draft.test === test}
-						onclick={() => (draft.test = test)}
-						data-testid="trigger-test-{test}"
-					>
-						{t(`trigger.${test}`)}
-					</button>
-				{/each}
-			</div>
+			<Picker
+				row
+				labelledby="trigger-test-label"
+				value={draft.test}
+				prefix="trigger-test"
+				options={TRIGGER_TESTS.map((test) => ({
+					value: test,
+					label: t(`trigger.${test}`)
+				}))}
+				onpick={(next) => (draft.test = next as TriggerTest)}
+			/>
 		</div>
 
 		<div class="field">
@@ -542,36 +541,4 @@
 	 * Проміжок в один піксель на тлі рамки — це і є лінії між пунктами: власні
 	 * рамки комірок подвоювалися б на стиках.
 	 */
-	.picker {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(132px, 100%), 1fr));
-		gap: 1px;
-		overflow: hidden;
-		border: 1px solid var(--border);
-		border-radius: var(--radius);
-		background: var(--border);
-	}
-
-	.picker__item {
-		min-height: var(--tap);
-		padding: var(--gap-sm) var(--gap);
-		border: 0;
-		background: var(--bg-surface-raised);
-		color: var(--text-primary);
-		cursor: pointer;
-		font: inherit;
-		font-size: 0.9rem;
-		text-align: start;
-	}
-
-	.picker__item:hover,
-	.picker__item:focus-visible {
-		background: var(--bg-sunken);
-	}
-
-	.picker__item[aria-checked='true'] {
-		box-shadow: inset 3px 0 0 var(--accent);
-		background: var(--accent-soft);
-		font-weight: 600;
-	}
 </style>

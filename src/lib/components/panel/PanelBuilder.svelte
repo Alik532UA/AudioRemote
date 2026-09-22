@@ -79,6 +79,7 @@
 					min={1}
 					max={MAX_PANEL_COLS}
 					label={t('panel.boardCols')}
+					square
 					onchange={(next) => onresize({ rows: grid.rows, cols: next })}
 				/>
 			</div>
@@ -90,6 +91,7 @@
 					min={1}
 					max={MAX_PANEL_ROWS}
 					label={t('panel.boardRows')}
+					square
 					onchange={(next) => onresize({ rows: next, cols: grid.cols })}
 				/>
 			</div>

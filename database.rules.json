@@ -173,12 +173,12 @@
 					// Межі не косметичні: понад шість стовпців комірка на телефоні
 					// стає вужчою за палець, понад вісім рядів сітка не вміщається в
 					// екран без прокрутки, а прокрутка вбиває натискання наосліп.
-					"cols": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6" },
-					"rows": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 8" },
+					"cols": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9" },
+					"rows": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9" },
 					"cells": {
-						// Ключ — номер комірки сітки 3×5, тобто 0…14 і нічого іншого.
+						// Ключ — номер комірки сітки, тобто 0…80 і нічого іншого.
 						"$cell": {
-							".validate": "$cell.matches(/^([0-9]|[1-3][0-9]|4[0-7])$/) && newData.hasChildren(['kind'])",
+							".validate": "$cell.matches(/^([0-9]|[1-7][0-9]|80)$/) && newData.hasChildren(['kind'])",
 							"kind": { ".validate": "newData.val().matches(/^(buttons|slider|check)$/)" },
 							"caption": { ".validate": "newData.isString() && newData.val().length <= 24" },
 							// Назва заготовки, а не код кольору: перелік живе в коді, і
@@ -198,13 +198,13 @@
 							// Стовпчиком чи рядком. Скільки клітинок займе віджет, рахує
 							// клієнт (`panel/layout.ts`): сітка — не дані, а розкладка.
 							"vertical": { ".validate": "newData.isBoolean()" },
-							// Свій розмір у клітинках. Межі — сама сітка 3×5; чи не
+							// Свій розмір у клітинках. Межі — сама сітка; чи не
 							// наступає віджет на сусіда, однаково вирішує клієнт.
 							"rows": {
-								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 8"
+								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9"
 							},
 							"cols": {
-								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
+								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 9"
 							},
 							// Гучне натискання: спалах на весь екран табла.
 							"important": { ".validate": "newData.isBoolean()" },

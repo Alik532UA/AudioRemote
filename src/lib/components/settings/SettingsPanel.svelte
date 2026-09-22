@@ -122,20 +122,14 @@
 
 			<div class="field">
 				<span class="field__label" id="lang-label">{t('settings.language')}</span>
-				<div class="langs" role="group" aria-labelledby="lang-label">
-					{#each LOCALES as locale (locale)}
-						<button
-							type="button"
-							class="btn langs__btn"
-							class:btn--primary={i18n.locale === locale}
-							aria-pressed={i18n.locale === locale}
-							data-testid="settings-lang-{locale}"
-							onclick={() => void i18n.set(locale)}
-						>
-							{LOCALE_NAMES[locale]}
-						</button>
-					{/each}
-				</div>
+				<Picker
+					row
+					labelledby="lang-label"
+					value={i18n.locale}
+					prefix="settings-lang"
+					options={LOCALES.map((locale) => ({ value: locale, label: LOCALE_NAMES[locale] }))}
+					onpick={(next) => void i18n.set(next as Locale)}
+				/>
 			</div>
 
 			<div class="field">
@@ -149,9 +143,7 @@
 				Тому воно тут, разом із показом теми на наведенні, якого тугал теж
 				не вміє (THEME-SWITCHER § 2–4).
 			-->
-				<div aria-labelledby="theme-label">
-					<ThemeSwitcher />
-				</div>
+				<ThemeSwitcher labelledby="theme-label" />
 			</div>
 		</section>
 
@@ -559,17 +551,6 @@
 		margin: 0;
 		border: 0;
 		background: var(--border);
-	}
-
-	.langs {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--gap-sm);
-	}
-
-	.langs__btn {
-		flex: 1;
-		min-width: 120px;
 	}
 
 	/* Поле розтягується, кнопка-кубик лишається квадратною поруч із ним. */
