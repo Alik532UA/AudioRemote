@@ -86,9 +86,24 @@ export const RESERVED_CODES: readonly string[] = [
 	'Numpad0'
 ];
 
+/**
+ * ФОРМА КОДУ КЛАВІШІ — ТА САМА, ЩО В ПРАВИЛІ БАЗИ.
+ *
+ * `KeyboardEvent.code` завжди складається з латиниці й цифр: `KeyQ`, `F5`,
+ * `Numpad3`, `IntlBackslash`, найдовший — `MediaTrackPrevious` (18). Тому
+ * `database.rules.json` і приймає рівно `/^[A-Za-z0-9]{1,20}$/`, і ту саму
+ * форму фільтрує читання файлу налаштувань.
+ *
+ * Тут вона потрібна тому, що клавіша приходить НЕ ЛИШЕ з події: адміністратор
+ * надсилає її рядком із чужого пристрою. Рядок іншої форми правило бази
+ * відкидає разом з УСІМ записом бібліотеки — тобто ціна не «клавіша не
+ * призначилася», а «бібліотеки на пульті немає».
+ */
+export const KEY_CODE = /^[A-Za-z0-9]{1,20}$/;
+
 /** Чи можна віддати цю клавішу треку. */
 export const isAssignable = (code: string): boolean =>
-	code.length > 0 && !RESERVED_CODES.includes(code);
+	KEY_CODE.test(code) && !RESERVED_CODES.includes(code);
 
 /**
  * Підпис клавіші для екрана.

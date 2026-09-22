@@ -1,3 +1,5 @@
+import { isColorSlug } from '$lib/config/trackColors';
+import { KEY_CODE } from '$lib/hotkeys/hotkeys';
 import { mark } from '$lib/services/breadcrumbs';
 import {
 	TRIGGER_TESTS,
@@ -198,11 +200,11 @@ function toSetting(value: unknown): TrackSetting | null {
 		...(typeof record.title === 'string' && record.title.trim().length > 0
 			? { title: record.title.trim().slice(0, 200) }
 			: {}),
-		...(typeof record.color === 'string' ? { color: record.color } : {}),
+		...(isColorSlug(record.color) ? { color: record.color } : {}),
 		...(typeof record.icon === 'string' && record.icon.trim().length > 0
 			? { icon: record.icon.trim().slice(0, MAX_ICON) }
 			: {}),
-		...(hotkey && /^[A-Za-z0-9]{1,20}$/.test(hotkey) ? { hotkey } : {}),
+		...(hotkey && KEY_CODE.test(hotkey) ? { hotkey } : {}),
 		...(playsOf(record) > 1 ? { plays: playsOf(record) } : {}),
 		...(gapOf(record) > 0 ? { gapSec: gapOf(record) } : {}),
 		...(visibilityOf(record) === 'all' ? {} : { visibility: visibilityOf(record) })

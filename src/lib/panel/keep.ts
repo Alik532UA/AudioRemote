@@ -1,3 +1,4 @@
+import { isColorSlug } from '$lib/config/trackColors';
 import { readJson, writeJson } from '$lib/services/storage';
 import {
 	MAX_BUTTONS,
@@ -97,8 +98,9 @@ const text = (value: unknown, max: number): string | undefined => {
 	return trimmed.length > 0 ? trimmed : undefined;
 };
 
-const slug = (value: unknown): string | undefined =>
-	typeof value === 'string' && /^[a-z]{2,12}$/.test(value) ? value : undefined;
+// Форма — з `trackColors.ts`: там вона звірена з правилом бази, а тут потрібна
+// відповідь «нема чого класти», а не «ні».
+const slug = (value: unknown): string | undefined => (isColorSlug(value) ? value : undefined);
 
 const whole = (value: unknown, min: number, max: number): number | undefined => {
 	if (!Number.isInteger(value)) return undefined;

@@ -182,8 +182,12 @@
 							"kind": { ".validate": "newData.val().matches(/^(buttons|slider|check)$/)" },
 							"caption": { ".validate": "newData.isString() && newData.val().length <= 24" },
 							// Назва заготовки, а не код кольору: перелік живе в коді, і
-							// довільний рядок кольору правилом не перевіриш.
-							"color": { ".validate": "newData.val().matches(/^[a-z]{2,12}$/)" },
+							// довільний рядок кольору правилом не перевіриш. Форма — та сама,
+							// що в кольору треку вище й у `COLOR_SLUG` у джерелах; що всі три
+							// збігаються, стереже `src/db-sources.test.ts`.
+							"color": {
+								".validate": "newData.isString() && newData.val().matches(/^[a-z]{2,12}$/)"
+							},
 							"icon": { ".validate": "newData.isString() && newData.val().length <= 16" },
 							// Чий це пульт. Порожнього поля тут не буває: спільний віджет
 							// просто не має цього поля взагалі (`panelTypes.ts`).
@@ -196,8 +200,12 @@
 							"vertical": { ".validate": "newData.isBoolean()" },
 							// Свій розмір у клітинках. Межі — сама сітка 3×5; чи не
 							// наступає віджет на сусіда, однаково вирішує клієнт.
-							"rows": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 8" },
-							"cols": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6" },
+							"rows": {
+								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 8"
+							},
+							"cols": {
+								".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 6"
+							},
 							// Гучне натискання: спалах на весь екран табла.
 							"important": { ".validate": "newData.isBoolean()" },
 							"buttons": {
@@ -207,7 +215,9 @@
 									".validate": "$index.matches(/^[0-4]$/) && newData.hasChildren(['label'])",
 									"label": { ".validate": "newData.isString() && newData.val().length <= 24" },
 									// Свій колір кнопки — назва заготовки, як і в віджета.
-									"color": { ".validate": "newData.val().matches(/^[a-z]{2,12}$/)" },
+									"color": {
+										".validate": "newData.isString() && newData.val().matches(/^[a-z]{2,12}$/)"
+									},
 									"$other": { ".validate": false }
 								}
 							},
