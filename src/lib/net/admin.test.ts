@@ -73,8 +73,10 @@ describe('канал стоїть поза дошкою', () => {
 			...onValue.mock.calls.map((call) => call[0])
 		];
 
-		expect(touched.length, 'жодної адреси не заміряно — підставка розійшлася з модулем')
-			.toBeGreaterThan(0);
+		expect(
+			touched.length,
+			'жодної адреси не заміряно — підставка розійшлася з модулем'
+		).toBeGreaterThan(0);
 		// Дозвіл читати `boards/{ключ}` поширюється на ВСЕ піддерево: канал,
 		// покладений туди, прочитав би кожен, хто знає пароль дошки.
 		expect(touched.filter((path) => path.startsWith('boards/'))).toEqual([]);

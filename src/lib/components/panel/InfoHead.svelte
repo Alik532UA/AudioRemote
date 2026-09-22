@@ -48,7 +48,12 @@
 			розділ, у якому шукати форму.
 		-->
 		{#if onconnect}
-			<button class="btn btn--sm" type="button" onclick={onconnect} data-testid="info-open-remote-btn">
+			<button
+				class="btn btn--sm"
+				type="button"
+				onclick={onconnect}
+				data-testid="info-open-remote-btn"
+			>
 				<IconPhone size={18} aria-hidden="true" />
 				{t('info.connectHelper')}
 			</button>

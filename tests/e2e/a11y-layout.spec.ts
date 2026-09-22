@@ -124,7 +124,6 @@ async function smallTargets(page: Page): Promise<Small[]> {
 	);
 }
 
-
 test('на 320 px сторінка не їде вбік', async ({ page }) => {
 	/*
 	 * 320 — не «маленький телефон», а ширина з 1.4.10: вона ж виходить із
@@ -344,10 +343,14 @@ test('текст в органах керування стоїть посере�
 		}, INTERACTIVE);
 
 		counted += found.seen;
-		crooked.push(...found.off.map((one) => `${path} ${one.where}: ${one.top} зверху, ${one.bottom} знизу`));
+		crooked.push(
+			...found.off.map((one) => `${path} ${one.where}: ${one.top} зверху, ${one.bottom} знизу`)
+		);
 	}
 
-	expect(counted, 'жодного однорядкового органа не знайдено — перевірка мертва').toBeGreaterThan(20);
+	expect(counted, 'жодного однорядкового органа не знайдено — перевірка мертва').toBeGreaterThan(
+		20
+	);
 	expect(crooked, `текст не посередині:\n${crooked.join('\n')}`).toEqual([]);
 });
 
@@ -383,7 +386,8 @@ test('блоки сторінки стоять в одних берегах, а 
 			 * можна — там уже вміст блоку, а не блоки.
 			 */
 			let holder: HTMLElement | null = document.querySelector('main');
-			while (holder && holder.children.length === 1) holder = holder.firstElementChild as HTMLElement;
+			while (holder && holder.children.length === 1)
+				holder = holder.firstElementChild as HTMLElement;
 			if (!holder) return null;
 
 			const blocks = [...holder.children]
@@ -400,7 +404,10 @@ test('блоки сторінки стоять в одних берегах, а 
 				seen: blocks.length,
 				off: blocks
 					.filter(({ box }) => Math.abs(box.x - left) > 2 || Math.abs(box.right - right) > 2)
-					.map(({ kid, box }) => `${kid.dataset.testid ?? (kid.className.split(' ')[0] || kid.tagName)}: ${Math.round(box.x)}…${Math.round(box.right)} при ${Math.round(left)}…${Math.round(right)}`)
+					.map(
+						({ kid, box }) =>
+							`${kid.dataset.testid ?? (kid.className.split(' ')[0] || kid.tagName)}: ${Math.round(box.x)}…${Math.round(box.right)} при ${Math.round(left)}…${Math.round(right)}`
+					)
 			};
 		});
 

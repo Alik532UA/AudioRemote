@@ -240,7 +240,10 @@ for (const window of WINDOWS) {
 		await expect(page.getByTestId(window.box)).toBeVisible(ACROSS);
 
 		const broken = await inspect(page, window.box);
-		expect(broken.map((one) => `${one.rule}: ${one.detail}`), 'вікно порушує правила').toEqual([]);
+		expect(
+			broken.map((one) => `${one.rule}: ${one.detail}`),
+			'вікно порушує правила'
+		).toEqual([]);
 
 		expect(
 			await hides(page, window.box, window.keep),

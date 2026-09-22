@@ -76,6 +76,9 @@ describe('типова панель', () => {
 			const row = Math.floor(Number(at) / PANEL_COLS);
 			return row + rows > PANEL_ROWS - 1 || Number(at) >= first;
 		});
-		expect(busy.map(([at]) => at), 'нижній ряд зайнято').toEqual([]);
+		expect(
+			busy.map(([at]) => at),
+			'нижній ряд зайнято'
+		).toEqual([]);
 	});
 });

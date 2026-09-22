@@ -137,7 +137,11 @@ if (browserFiles.length > 0) {
 		const here = posix(process.cwd());
 		const prefix = root.startsWith(here) ? root.slice(here.length + 1) : '';
 		const collect = (suite) => {
-			const file = suite.file ? (prefix ? `${prefix}/${posix(suite.file)}` : posix(suite.file)) : null;
+			const file = suite.file
+				? prefix
+					? `${prefix}/${posix(suite.file)}`
+					: posix(suite.file)
+				: null;
 			if (file) seen.push(file);
 			for (const spec of suite.specs ?? []) {
 				const where = file ?? (prefix ? `${prefix}/${posix(spec.file)}` : posix(spec.file));

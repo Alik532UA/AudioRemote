@@ -46,7 +46,10 @@ describe('describeError — відмова стає порадою', () => {
 	it.each([
 		['код RTDB', { code: 'PERMISSION_DENIED' }],
 		['код Auth', { code: 'permission-denied' }],
-		['голий текст правил', new Error('permission_denied at /boards/ABCDE: Client doesn\u2019t have')],
+		[
+			'голий текст правил',
+			new Error('permission_denied at /boards/ABCDE: Client doesn\u2019t have')
+		],
 		['текст із великої', new Error('Permission denied')]
 	])('відмова правил упізнається: %s', (_what, error) => {
 		expect(describeError(error)).toBe('error.denied');

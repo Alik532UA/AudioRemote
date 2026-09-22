@@ -278,7 +278,13 @@
 			...(value === undefined ? {} : { value })
 		});
 		if (refused(result)) return;
-		panelLog.asked(result.notice, `echo-${at}-${cell}`, Boolean(by) && by === me, desk ? '' : (name ?? ''), desk);
+		panelLog.asked(
+			result.notice,
+			`echo-${at}-${cell}`,
+			Boolean(by) && by === me,
+			desk ? '' : (name ?? ''),
+			desk
+		);
 	}
 
 	async function ask(cell: string, type: PanelCommandType, value?: number) {
