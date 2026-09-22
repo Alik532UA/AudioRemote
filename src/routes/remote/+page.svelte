@@ -31,6 +31,7 @@
 	import { folderOf, titleLines } from '$lib/audio/source';
 	import Equalizer from '$lib/components/ui/Equalizer.svelte';
 	import { releaseAfterTap } from '$lib/services/focus';
+	import Blocker from '$lib/components/ui/Blocker.svelte';
 	import HotkeyTips from '$lib/components/ui/HotkeyTips.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
@@ -207,6 +208,13 @@
 	 */
 	const rows = $derived(editor ? editor.entries : (controller?.tracks ?? []));
 
+	/**
+	 * Дошку на пристрої, що грає, закрито — і тоді на пульті не працює НІЧОГО.
+	 *
+	 * `presenceKnown` — щоб не лякати завчасно: доки перший знімок присутності
+	 * не приїхав, «офлайн» означає лише «ще не знаємо».
+	 */
+	const offline = $derived(controller?.presenceKnown === true && !controller.playerOnline);
 	const armed = $derived(controller?.state?.armed === true);
 	const playing = $derived(controller?.state?.playing === true);
 
@@ -279,22 +287,18 @@
 			На телефоні — де пульт і живе — колонки однаково згортаються в один
 			стовпець, тож ширший екран нічого не коштує вузькому.
 		-->
-		<div class="board">
+		<!--
+			ПЕРЕКРИТИЙ ВМІСТ ПОЗНАЧЕНИЙ `inert`, а не лише накритий шаром.
+			Сам шар ловить мишу й палець; `Tab` пройшов би крізь нього в кнопки,
+			яких не видно, і читалка прочитала б їх усі.
+		-->
+		<div class="board" inert={offline}>
 			<div class="board__col board__col--side">
 				{#if !narrow.matches}
 					{@render boardHead()}
 				{/if}
 
-				<!--
-					`presenceKnown` — щоб не лякати завчасно. Доки перший знімок
-					присутності не приїхав, «офлайн» означає лише «ще не знаємо».
-				-->
-				{#if controller.presenceKnown && !controller.playerOnline}
-					<p class="note note--warn card" data-testid="offline-hint">
-						<IconWarning size={18} aria-hidden="true" />
-						<span>{t('remote.offlineHint')}</span>
-					</p>
-				{:else if controller.state !== null && !armed}
+				{#if controller.state !== null && !armed && !offline}
 					<!--
 						ІНШИЙ ТЕКСТ, А НЕ ТОЙ САМИЙ. «Вкладку закрито» й «звук не ввімкнено»
 						виглядають однаково — обидва означають «не працює», — але дії різні:
@@ -741,6 +745,10 @@
 				</section>
 			</div>
 		</div>
+
+		{#if offline}
+			<Blocker testid="offline-hint" text={t('remote.offlineHint')} />
+		{/if}
 
 		{#if adminOpen}
 			<AdminDialog onenter={enterAdmin} onclose={() => (adminOpen = false)} />

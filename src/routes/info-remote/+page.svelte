@@ -23,11 +23,11 @@
 	import { mark } from '$lib/services/breadcrumbs';
 	import { attentionState } from '$lib/services/attention.svelte';
 	import { describeError } from '$lib/net/describeError';
+	import Blocker from '$lib/components/ui/Blocker.svelte';
 	import Failure from '$lib/components/ui/Failure.svelte';
 	import PanelGrid from '$lib/components/panel/PanelGrid.svelte';
 	import SheetPicker from '$lib/components/panel/SheetPicker.svelte';
 	import VerdictToast from '$lib/components/panel/VerdictToast.svelte';
-	import { IconWarning } from '$lib/config/icons';
 	import type { BoardInfo } from '$lib/net/boardTypes';
 
 	/**
@@ -55,6 +55,14 @@
 	let boardOnline = $state(false);
 	/** Доки перший знімок присутності не приїхав, «офлайн» означає «ще не знаємо». */
 	let presenceKnown = $state(false);
+
+	/**
+	 * Табло закрите — і тоді на панелі не працює жодна кнопка.
+	 *
+	 * `presenceKnown` — щоб не лякати завчасно: доки перший знімок присутності
+	 * не приїхав, «офлайн» означає лише «ще не знаємо».
+	 */
+	const blocked = $derived(presenceKnown && !boardOnline);
 	let fatal = $state<TranslationKey | null>(null);
 
 	let panel = $state<Panel>(emptyPanel());
@@ -234,45 +242,48 @@
 			</span>
 		</header>
 
-		{#if presenceKnown && !boardOnline}
-			<p class="note card" data-testid="info-offline-hint-text">
-				<IconWarning size={18} aria-hidden="true" />
-				<span>{t('info.offlineHint')}</span>
-			</p>
+		{#if blocked}
+			<Blocker testid="info-offline-hint" text={t('info.offlineHint')} />
 		{/if}
 
 		<!--
+			`display: contents` — щоб `inert` дістався всьому вмісту, не змінивши
+			жодного відступу: обгортка потрібна атрибутові, а не розкладці.
+		-->
+		<div class="hall__body" inert={blocked}>
+			<!--
 			ВІДПОВІДЬ ЗВЕРХУ, НАД ПАНЕЛЛЮ: планшет тримають у руці, і внизу екрана
 			лежать пальці, а посередині — кнопки, заради яких його й відкрили.
 		-->
-		<VerdictToast {verdict} shownMs={VERDICT_SHOWN_MS} ondone={() => (verdict = null)} />
+			<VerdictToast {verdict} shownMs={VERDICT_SHOWN_MS} ondone={() => (verdict = null)} />
 
-		{#if trouble}
-			<p class="error" role="alert" data-testid="info-trouble-text">{t(trouble)}</p>
-		{/if}
+			{#if trouble}
+				<p class="error" role="alert" data-testid="info-trouble-text">{t(trouble)}</p>
+			{/if}
 
-		{#if empty}
-			<p class="card muted" data-testid="info-remote-empty-text">
-				{presenceKnown ? t('info.noPanelRemote') : t('common.loading')}
-			</p>
-		{:else}
-			<SheetPicker
-				{sheets}
-				value={sheet}
-				onpick={(next) => {
-					sheet = next;
-					writeItem(SHEET_KEY, next ?? '');
-					const board = boardSession.current;
-					if (board) {
-						void tellPresence(board.key, { name: settings.displayName, sheet: next ?? '' });
-					}
-				}}
-			/>
+			{#if empty}
+				<p class="card muted" data-testid="info-remote-empty-text">
+					{presenceKnown ? t('info.noPanelRemote') : t('common.loading')}
+				</p>
+			{:else}
+				<SheetPicker
+					{sheets}
+					value={sheet}
+					onpick={(next) => {
+						sheet = next;
+						writeItem(SHEET_KEY, next ?? '');
+						const board = boardSession.current;
+						if (board) {
+							void tellPresence(board.key, { name: settings.displayName, sheet: next ?? '' });
+						}
+					}}
+				/>
 
-			<div class="room">
-				<PanelGrid {panel} {levels} {flags} {recent} {hot} {busy} {sheet} press={ask} />
-			</div>
-		{/if}
+				<div class="room">
+					<PanelGrid {panel} {levels} {flags} {recent} {hot} {busy} {sheet} press={ask} />
+				</div>
+			{/if}
+		</div>
 	{/if}
 </div>
 
@@ -293,6 +304,15 @@
 		flex: 1;
 		min-block-size: 0;
 		margin-block: 0;
+	}
+
+	/*
+	 * Обгортка існує лише заради `inert`, тож у розкладці її немає зовсім:
+	 * діти лишаються прямими елементами колонки, і сітка так само дістає все
+	 * вільне місце.
+	 */
+	.hall__body {
+		display: contents;
 	}
 
 	/* flex-колонка — умова, яку ставить сама сітка; див. її стилі. */
@@ -339,11 +359,4 @@
 		background: currentColor;
 	}
 
-	.note {
-		display: flex;
-		gap: var(--gap-sm);
-		align-items: start;
-		color: var(--warn);
-		font-size: 0.85rem;
-	}
 </style>

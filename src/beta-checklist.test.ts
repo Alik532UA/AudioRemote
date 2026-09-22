@@ -55,19 +55,42 @@ const APOSTROPHE = 'ʼ';
 const OTHER_APOSTROPHES = /['’`´]/;
 
 /**
- * Локатори так, як їх збирає браузер: динамічна частина стає підстановкою.
+ * Локатори так, як їх збирає БРАУЗЕР, а не як вони лежать у файлі.
  *
- * Без цього кроку `theme-system` вважався б вигаданим — у джерелі стоїть
- * `data-testid="theme-{option.value ?? 'system'}"`, і рядка `theme-system`
- * немає ніде. Перевірка, яка цього не знає, бракує ПРАВИЛЬНІ назви, а
- * закінчується це її вимкненням, а не правкою.
+ * Дві речі, без яких перевірка бракує ПРАВИЛЬНІ назви — а закінчується це її
+ * вимкненням, не правкою:
+ *
+ * 1. Динамічна частина стає підстановкою. Інакше `theme-system` вважався б
+ *    вигаданим: у джерелі стоїть `data-testid="theme-{option.value ?? 'system'}"`,
+ *    і рядка `theme-system` немає ніде.
+ * 2. Локатор буває СКЛАДЕНИЙ ІЗ ДВОХ ФАЙЛІВ: `<Blocker testid="info-offline-hint" />`
+ *    в одному, `data-testid={testid}` в іншому — і знову жодного файлу з
+ *    готовим рядком. Тому імена, віддані компонентам пропом `testid`, беруться
+ *    як окремі локатори — але лише тоді, коли бодай один компонент справді
+ *    ставить атрибут голим виразом. Інакше перевірка приймала б вигадані назви
+ *    просто за те, що вони десь згадані.
  */
-const locatorPatterns = (): RegExp[] =>
-	walk('src')
+function locatorPatterns(): RegExp[] {
+	const files = walk('src')
 		.filter((file) => file.endsWith('.svelte'))
-		.flatMap((file) => [...read(file).matchAll(/data-testid=(?:"([^"]*)"|\{`([^`]*)`\})/g)])
-		.map((match) => match[1] ?? match[2])
-		.map((raw) => new RegExp(`^${raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\{[^}]*\\?\}?/g, '.+')}$`));
+		.map(read);
+
+	const written = files.flatMap((text) =>
+		[...text.matchAll(/data-testid=(?:"([^"]*)"|\{`([^`]*)`\})/g)].map(
+			(match) => match[1] ?? match[2]
+		)
+	);
+
+	const passesBare = files.some((text) => /data-testid=\{\s*[A-Za-z_$][\w$]*\s*\}/.test(text));
+	const given = passesBare
+		? files.flatMap((text) => [...text.matchAll(/\btestid="([^"{}]+)"/g)].map((match) => match[1]))
+		: [];
+
+	return [...written, ...given].map(
+		(name) =>
+			new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\{[^}]*\\?\}?/g, '.+')}$`)
+	);
+}
 
 /** Чи знає застосунок таку клавішу вбудованою дією. */
 const handlesKey = (code: string): boolean =>

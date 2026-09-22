@@ -617,7 +617,7 @@ export const BETA_TABS: readonly BetaTab[] = [
 					en: 'Close the board on the device at the sound desk. The helper page must say that the board is closed rather than stay silent.'
 				},
 				coverage: 'manual',
-				testid: 'info-offline-hint-text'
+				testid: 'info-offline-hint'
 			},
 			{
 				id: 'helper_7',
