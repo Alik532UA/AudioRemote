@@ -1229,27 +1229,5 @@
 		gap: 2px;
 	}
 
-	.icon-btn {
-		display: grid;
-		place-items: center;
-		width: 28px;
-		height: 28px;
-		border: 0;
-		border-radius: var(--radius-sm);
-		background: transparent;
-		color: var(--text-muted);
-		cursor: pointer;
-	}
-
-	.icon-btn:hover:not(:disabled),
-	.icon-btn:focus-visible {
-		color: var(--accent);
-	}
-
-	.icon-btn:disabled {
-		opacity: 0.3;
-		cursor: default;
-	}
-
 	/* --- Панель призначень -------------------------------------------------- */
 </style>

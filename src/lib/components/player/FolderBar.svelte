@@ -63,6 +63,7 @@
 		<button
 			class="icon-btn"
 			type="button"
+			disabled={controller.scanning}
 			title={t('player.rescan')}
 			aria-label={t('player.rescan')}
 			onclick={() => controller.rescan()}
@@ -73,6 +74,7 @@
 		<button
 			class="icon-btn"
 			type="button"
+			disabled={controller.scanning}
 			title={t('player.changeFolder')}
 			aria-label={t('player.changeFolder')}
 			onclick={onpick}

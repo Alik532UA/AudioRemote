@@ -9,7 +9,7 @@ describe('attentionState — привертання уваги', () => {
 	beforeEach(() => {
 		vi.useFakeTimers();
 		vi.stubGlobal('localStorage', memoryStorage());
-		attentionState.choose('min');
+		attentionState.choose('head');
 		attentionState.paint(null);
 	});
 
@@ -19,17 +19,17 @@ describe('attentionState — привертання уваги', () => {
 		vi.unstubAllGlobals();
 	});
 
-	it('початковий стан: тихий режим min та дефолтний колір null (протилежна тема)', () => {
+	it('початковий стан: стандартний режим head та дефолтний колір null (протилежна тема)', () => {
 		attentionState.init();
-		expect(attentionState.mode).toBe('min');
+		expect(attentionState.mode).toBe('head');
 		expect(attentionState.color).toBeNull();
 		expect(attentionState.lit).toBeNull();
 	});
 
 	it('зберігає та відновлює вибір режиму', () => {
-		attentionState.choose('head');
-		expect(attentionState.mode).toBe('head');
-		expect(window.localStorage.getItem(`${PREFIX}attention.mode`)).toBe('head');
+		attentionState.choose('min');
+		expect(attentionState.mode).toBe('min');
+		expect(window.localStorage.getItem(`${PREFIX}attention.mode`)).toBe('min');
 
 		attentionState.choose('page');
 		expect(attentionState.mode).toBe('page');

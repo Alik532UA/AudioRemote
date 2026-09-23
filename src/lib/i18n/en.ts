@@ -349,8 +349,6 @@ export const en: Record<TranslationKey, string> = {
 	 * the person at the sound desk, who would then look for the music.
 	 */
 	'info.lead': 'Cue board',
-	'info.leadHint':
-		'An assistant in the hall presses a button; at the sound desk it is plain what was asked for. No talking, no walkie-talkie.',
 	'info.create': 'Create',
 	'info.createHint': 'On the device by the sound desk',
 	'info.connect': 'Connect',

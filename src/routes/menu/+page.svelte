@@ -141,19 +141,9 @@
 		</p>
 	{/if}
 
-	<h1 class="lead">{t('entry.lead')}</h1>
-
-	<!--
-		СПЕРШУ СВОЇ ДОШКИ, ПОТІМ ДВІ КНОПКИ.
-
-		Дошки внизу мали сенс, поки їх не було: перший екран мусив ставити одне
-		питання — «біля комп'ютера ви чи біля пульта». Але в того, хто вже
-		працював, відповідь на нього щодня та сама, і шукати свою дошку під
-		кнопками означало гортати повз питання, на яке відповідь відома.
-	-->
 	{#if saved.length > 0}
-		<section class="card" data-testid="my-boards">
-			<h2 class="mine__title">{t('entry.mine')}</h2>
+		<section data-testid="my-boards">
+			<h2 class="menu__title">{t('entry.mine')}</h2>
 			<ul class="mine">
 				{#each saved as board (board.key)}
 					<li class="mine__row">
@@ -200,29 +190,35 @@
 				{/each}
 			</ul>
 		</section>
+
+		<hr class="divider" />
 	{/if}
 
-	<!--
-		ДВІ КНОПКИ, І БІЛЬШЕ НІЧОГО НА ПЕРШОМУ ЕКРАНІ.
+	<section>
+		<h1 class="menu__title">{t('entry.lead')}</h1>
 
-		Людина, яка вперше відкрила застосунок, стоїть перед одним питанням: вона
-		біля комп'ютера, що гратиме, чи біля пристрою, з якого керуватимуть. Усе
-		інше — назва дошки, пароль, тека — має сенс лише після відповіді на це,
-		і на першому екрані воно тільки заважає.
-	-->
-	<div class="choice">
-		<a class="choice__card" href={resolve('/create')} data-testid="go-create">
-			<IconBoard size={40} aria-hidden="true" />
-			<span class="choice__title">{t('entry.create')}</span>
-			<span class="choice__hint">{t('entry.createHint')}</span>
-		</a>
+		<!--
+			ДВІ КНОПКИ, І БІЛЬШЕ НІЧОГО НА ПЕРШОМУ ЕКРАНІ.
 
-		<a class="choice__card" href={resolve('/connect')} data-testid="go-connect">
-			<IconPhone size={40} aria-hidden="true" />
-			<span class="choice__title">{t('entry.connect')}</span>
-			<span class="choice__hint">{t('entry.connectHint')}</span>
-		</a>
-	</div>
+			Людина, яка вперше відкрила застосунок, стоїть перед одним питанням: вона
+			біля комп'ютера, що гратиме, чи біля пристрою, з якого керуватимуть. Усе
+			інше — назва дошки, пароль, тека — має сенс лише після відповіді на це,
+			і на першому екрані воно тільки заважає.
+		-->
+		<div class="choice">
+			<a class="choice__card" href={resolve('/create')} data-testid="go-create">
+				<IconBoard size={40} aria-hidden="true" />
+				<span class="choice__title">{t('entry.create')}</span>
+				<span class="choice__hint">{t('entry.createHint')}</span>
+			</a>
+
+			<a class="choice__card" href={resolve('/connect')} data-testid="go-connect">
+				<IconPhone size={40} aria-hidden="true" />
+				<span class="choice__title">{t('entry.connect')}</span>
+				<span class="choice__hint">{t('entry.connectHint')}</span>
+			</a>
+		</div>
+	</section>
 
 	<!--
 		ДРУГИЙ ВИД ДОШКИ — ЗА ПЕРЕМИКАЧЕМ У НАЛАШТУВАННЯХ.
@@ -237,9 +233,10 @@
 		дошка: у неї немає ні звуку, ні папки, і підключаються до неї окремо.
 	-->
 	{#if settings.showInfoBoards}
-		<section class="second" data-testid="info-section">
-			<h2 class="second__title">{t('info.lead')}</h2>
-			<p class="second__hint">{t('info.leadHint')}</p>
+		<hr class="divider" />
+
+		<section data-testid="info-section">
+			<h2 class="menu__title">{t('info.lead')}</h2>
 
 			<div class="choice">
 				<a
@@ -279,34 +276,19 @@
 		color: var(--warn);
 	}
 
-	.lead {
-		margin-block: var(--gap-lg) var(--gap-sm);
-		font-size: clamp(2rem, 9vw, 3rem);
+	.menu__title {
+		margin-block: 0 var(--gap);
+		font-size: 1.4rem;
 		font-weight: 700;
-		line-height: 1.1;
+		line-height: 1.2;
 		text-align: center;
 		text-wrap: balance;
 	}
 
-	/*
-	 * Другий розділ відбитий зверху, а не обведений карткою: картка навколо двох
-	 * карток читається як помилка розмітки.
-	 */
-	.second {
-		margin-top: var(--gap-lg);
-		padding-top: var(--gap-lg);
+	.divider {
+		margin: var(--gap-sm) 0;
+		border: 0;
 		border-top: 1px solid var(--border);
-	}
-
-	.second__title {
-		font-size: 1.3rem;
-		font-weight: 700;
-	}
-
-	.second__hint {
-		margin-block: var(--gap-xs) var(--gap);
-		color: var(--text-secondary);
-		font-size: 0.9rem;
 	}
 
 	.choice {
@@ -359,11 +341,6 @@
 	.choice__hint {
 		color: var(--text-secondary);
 		font-size: 0.9rem;
-	}
-
-	.mine__title {
-		margin-bottom: var(--gap-sm);
-		font-size: 1rem;
 	}
 
 	.mine {

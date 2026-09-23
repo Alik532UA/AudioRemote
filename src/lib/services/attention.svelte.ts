@@ -48,7 +48,7 @@ const isMode = (value: unknown): value is AttentionMode =>
 	typeof value === 'string' && (ATTENTION_MODES as readonly string[]).includes(value);
 
 class AttentionState {
-	mode = $state<AttentionMode>('min');
+	mode = $state<AttentionMode>('head');
 	/** Слуг заготовки або `null` — «без кольору» (протилежна тема). */
 	color = $state<string | null>(null);
 	/** Що світиться просто зараз. `null` — нічого. */
