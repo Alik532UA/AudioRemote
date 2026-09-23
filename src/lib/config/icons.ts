@@ -18,6 +18,13 @@
 export { default as IconBoard } from '@lucide/svelte/icons/monitor-speaker';
 export { default as IconPhone } from '@lucide/svelte/icons/smartphone';
 export { default as IconTrash } from '@lucide/svelte/icons/trash-2';
+/*
+ * ВІНИК, А НЕ СМІТНИК — для «Очистити журнал». Смітник тут уже означає
+ * «видалити назавжди» (дошку, комірку), а журнал не видаляється: він лише
+ * прибирається з екрана, і нові рядки прийдуть самі. Два різні наслідки під
+ * одним значком читалися б як той самий.
+ */
+export { default as IconBroom } from '@lucide/svelte/icons/broom';
 export { default as IconPlay } from '@lucide/svelte/icons/play';
 export { default as IconPause } from '@lucide/svelte/icons/pause';
 export { default as IconStop } from '@lucide/svelte/icons/square';

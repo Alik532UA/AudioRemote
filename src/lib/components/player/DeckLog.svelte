@@ -3,7 +3,7 @@
 	import type { BoardTrack } from '$lib/board/editor';
 	import { deckLog, type DeckNote } from '$lib/services/deckLog.svelte';
 	import LogWho from '$lib/components/ui/LogWho.svelte';
-	import { IconDown, IconUp } from '$lib/config/icons';
+	import { IconBroom, IconDown, IconUp } from '$lib/config/icons';
 	import { readItem, writeItem } from '$lib/services/storage';
 
 	/**
@@ -89,20 +89,33 @@
 	<div class="head">
 		<h2 class="subtitle">{t('deck.logTitle')}</h2>
 
-		<div class="head__side">
+		<!--
+			ДВІ ДІЇ ШАПКИ — ОДНОГО РОДУ Й В ОДИН РЯД.
+
+			Доти «Очистити» було текстовою кнопкою, а згортання — значком, і стояли
+			вони СТОВПЧИКОМ: кнопка вгорі, стрілка під нею, заголовок посередині між
+			ними. Причина — не тут, а в спільних стилях: у `base.css` є глобальне
+			`.head__side { flex-direction: column }` для картки дошки, а цей блок
+			носив те саме ім'я класу й напрямку не перекривав. Тому ім'я тепер
+			своє, а обидві дії — квадратні значки з підписом у підказці: так само,
+			як відповіді в журналі табла.
+		-->
+		<div class="acts">
 			{#if open && notes.length > 0}
 				<button
-					class="btn btn--sm"
+					class="act"
 					type="button"
+					title={t('deck.logClear')}
+					aria-label={t('deck.logClear')}
 					onclick={() => deckLog.clear()}
 					data-testid="deck-log-clear-btn"
 				>
-					{t('deck.logClear')}
+					<IconBroom size={18} aria-hidden="true" />
 				</button>
 			{/if}
 
 			<button
-				class="fold"
+				class="act"
 				type="button"
 				aria-expanded={open}
 				title={open ? t('deck.logHide') : t('deck.logShow')}
@@ -158,14 +171,14 @@
 		gap: var(--gap-sm);
 	}
 
-	.head__side {
+	.acts {
 		display: flex;
 		align-items: center;
 		gap: var(--gap-xs);
 	}
 
 	/* Стрілка тиха: вона про показ, а не про вміст. */
-	.fold {
+	.act {
 		display: grid;
 		place-items: center;
 		inline-size: var(--tap);
@@ -177,8 +190,8 @@
 		cursor: pointer;
 	}
 
-	.fold:hover,
-	.fold:focus-visible {
+	.act:hover,
+	.act:focus-visible {
 		background: var(--bg-sunken);
 		color: var(--text-primary);
 	}
