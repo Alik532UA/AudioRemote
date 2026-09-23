@@ -4,6 +4,7 @@
 	import { deckLog, type DeckNote } from '$lib/services/deckLog.svelte';
 	import LogWho from '$lib/components/ui/LogWho.svelte';
 	import { IconBroom, IconDown, IconUp } from '$lib/config/icons';
+	import { colorOf } from '$lib/config/trackColors';
 	import { readItem, writeItem } from '$lib/services/storage';
 
 	/**
@@ -145,7 +146,18 @@
 	{:else}
 		<ul class="log" data-testid="deck-log-list">
 			{#each notes as note, index (note.id)}
-				<li class="log__row" data-testid="deck-note-{index}-row">
+				<!--
+					ЗАПИС ПРО ТРЕК — ТОГО Ж КОЛЬОРУ, ЩО Й ТРЕК. Колір у списку ставлять
+					саме для того, щоб трек знаходили оком; у журналі той самий трек
+					без кольору доводилося б читати словами. Рамкою, а не тлом — рівно
+					як у журналі табла: однакові за змістом місця виглядають однаково.
+				-->
+				{@const hex = colorOf(tracks.find((track) => track.id === note.trackId)?.color)}
+				<li
+					class="log__row"
+					style={hex ? `--row-color: ${hex}` : undefined}
+					data-testid="deck-note-{index}-row"
+				>
 					<span class="log__time mono">{clock(note.at)}</span>
 
 					<LogWho
@@ -222,7 +234,7 @@
 		align-items: baseline;
 		gap: var(--gap-sm);
 		padding: var(--gap-xs) var(--gap-sm);
-		border: 1px solid var(--border);
+		border: 1px solid var(--row-color, var(--border));
 		border-radius: var(--radius-sm);
 		background: var(--bg-surface-raised);
 	}

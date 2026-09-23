@@ -4,6 +4,7 @@ import { flushSync, mount, unmount } from 'svelte';
 import DeckLog from './DeckLog.svelte';
 import type { BoardTrack } from '$lib/board/editor';
 import { deckLog } from '$lib/services/deckLog.svelte';
+import { colorOf } from '$lib/config/trackColors';
 
 /**
  * ЗАПИС ПРО ТРЕК — ТОГО Ж КОЛЬОРУ, ЩО Й ТРЕК.
@@ -47,6 +48,37 @@ afterEach(() => {
 	app = null;
 	deckLog.clear();
 	document.body.innerHTML = '';
+});
+
+describe('колір запису в журналі аудіодошки', () => {
+	it('запис про кольоровий трек несе колір треку', () => {
+		const host = open([track('червоний', 'ruby')]);
+		deckLog.started('червоний', 'self');
+		flushSync();
+
+		const row = host.querySelector<HTMLElement>('[data-testid="deck-note-0-row"]');
+		expect(row?.style.getPropertyValue('--row-color')).toBe(colorOf('ruby'));
+	});
+
+	it('запис про трек без кольору лишається нейтральним', () => {
+		const host = open([track('сірий', null)]);
+		deckLog.started('сірий', 'self');
+		flushSync();
+
+		const row = host.querySelector<HTMLElement>('[data-testid="deck-note-0-row"]');
+		expect(row?.style.getPropertyValue('--row-color')).toBe('');
+	});
+
+	it('запис не про трек (пульт прийшов) лишається нейтральним', () => {
+		const host = open([track('червоний', 'ruby')]);
+		deckLog.saw({});
+		deckLog.saw({ 'хтось/1': { role: 'remote', at: 1 } } as never);
+		flushSync();
+
+		for (const row of host.querySelectorAll<HTMLElement>('[data-testid$="-row"]')) {
+			expect(row.style.getPropertyValue('--row-color')).toBe('');
+		}
+	});
 });
 
 describe('шапка журналу', () => {
