@@ -17,15 +17,18 @@
 		value: string | null;
 		/** Основа локаторів: `{testid}-none-btn`, `{testid}-ruby-btn`. */
 		testid: string;
+		/** Інвертувати колір дефолтного кружка (наприклад, для інверсійного спалаху). */
+		invertNone?: boolean;
 		onpick: (slug: string | null) => void;
 	}
 
-	let { value, testid, onpick }: Props = $props();
+	let { value, testid, invertNone = false, onpick }: Props = $props();
 </script>
 
 <div class="palette">
 	<button
 		class="palette__cell palette__cell--none"
+		class:palette__cell--invert={invertNone}
 		type="button"
 		title={t('color.none')}
 		aria-label={t('color.none')}
@@ -88,6 +91,10 @@
 	.palette__cell--none::before {
 		border-color: var(--border-strong);
 		background: var(--bg-sunken);
+	}
+
+	.palette__cell--none.palette__cell--invert::before {
+		background: var(--bg-page-flip);
 	}
 
 	.palette__cell:hover::before,

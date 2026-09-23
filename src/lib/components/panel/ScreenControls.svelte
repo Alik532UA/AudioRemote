@@ -6,6 +6,8 @@
 		attentionState,
 		type AttentionMode
 	} from '$lib/services/attention.svelte';
+	import { colorOf } from '$lib/config/trackColors';
+	import type { Panel } from '$lib/net/panelTypes';
 	import ColorPalette from '$lib/components/ui/ColorPalette.svelte';
 	import Picker from '$lib/components/ui/Picker.svelte';
 	import ViewPicker from '$lib/components/ui/ViewPicker.svelte';
@@ -39,10 +41,37 @@
 		editing: boolean;
 		/** Порожня панель: складати нема чого, і кнопка живе в іншому місці. */
 		empty: boolean;
+		/** Поточна панель: потрібна, щоб знати, чи є органи без власного кольору. */
+		panel?: Panel;
 		onedit: () => void;
 	}
 
-	let { editing, empty, onedit }: Props = $props();
+	let { editing, empty, panel, onedit }: Props = $props();
+
+	/**
+	 * Чи є на панелі хоч один орган без власного кольору.
+	 *
+	 * Коли всі кнопки й віджети мають власні кольори, вибір кольору для
+	 * стандартних кнопок ні на що не впливає: спалах бере власний колір
+	 * органа (`attention.svelte.ts`). Орган, який нічого не міняє на екрані,
+	 * лише заплутує, тому показуємо його тільки за наявності стандартних органів.
+	 */
+	const hasUncolored = $derived.by(() => {
+		if (!panel?.cells) return false;
+		const cells = Object.values(panel.cells);
+		if (cells.length === 0) return false;
+
+		return cells.some((cell) => {
+			const cellColor = cell.color && colorOf(cell.color);
+			if (cell.kind === 'buttons') {
+				if (cellColor) return false;
+				const buttons = cell.buttons ?? [];
+				if (buttons.length === 0) return true;
+				return buttons.some((btn) => !btn.color || !colorOf(btn.color));
+			}
+			return !cellColor;
+		});
+	});
 </script>
 
 <section class="card stack" data-testid="info-screen-section">
@@ -104,15 +133,18 @@
 		/>
 
 		<!--
-			Палітра кольору привертання уваги для всіх режимів:
-			у «min» фарбує кнопку, у «head» — шапку, у «page» — тло.
-			«Без кольору» скидає у дефолт (для кнопки — системний акцент, для шапки й тла — протилежна тема).
+			Палітра кольору для стандартних кнопок. Показується лише тоді, коли
+			такі органи є на панелі: якщо кожен віджет має власний колір, ця
+			палітра не впливатиме на жоден спалах.
 		-->
-		<span class="field__label">{t('panel.attentionColor')}</span>
-		<ColorPalette
-			value={attentionState.color}
-			testid="info-attention-swatch"
-			onpick={(slug) => attentionState.paint(slug)}
-		/>
+		{#if hasUncolored}
+			<span class="field__label">{t('panel.attentionColor')}</span>
+			<ColorPalette
+				value={attentionState.color}
+				testid="info-attention-swatch"
+				invertNone
+				onpick={(slug) => attentionState.paint(slug)}
+			/>
+		{/if}
 	</div>
 </section>

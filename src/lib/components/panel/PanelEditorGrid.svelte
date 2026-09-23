@@ -202,9 +202,7 @@
 		grid-template-rows: repeat(var(--grid-rows, 5), minmax(0, 1fr));
 		gap: var(--gap-xs);
 		block-size: min(60dvh, 30rem);
-		inline-size: 100%;
-		max-inline-size: 26rem;
-		margin-inline: auto;
+		inline-size: min(26rem, 100%);
 	}
 
 	.slot {

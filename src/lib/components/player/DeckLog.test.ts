@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync, mount, unmount } from 'svelte';
 import DeckLog from './DeckLog.svelte';
 import type { BoardTrack } from '$lib/board/editor';
@@ -108,5 +108,39 @@ describe('шапка журналу', () => {
 		const clear = host.querySelector<HTMLElement>('[data-testid="deck-log-clear-btn"]');
 		expect(clear?.getAttribute('aria-label')).toBeTruthy();
 		expect(clear?.title).toBe(clear?.getAttribute('aria-label'));
+	});
+});
+
+describe('формат часу в журналі деки', () => {
+	it('час запису виводиться у 24-годинниковому форматі без AM/PM', () => {
+		const host = open([track('червоний', 'ruby')]);
+		const afternoon = new Date(2026, 8, 23, 15, 42, 5).getTime();
+		const originalNow = Date.now;
+		Date.now = () => afternoon;
+		try {
+			deckLog.started('червоний', 'self');
+			flushSync();
+
+			const time = host.querySelector<HTMLElement>('[data-testid="deck-note-0-row"] .log__time');
+			expect(time?.textContent?.trim()).toMatch(/^15:42:05$/);
+			expect(time?.textContent).not.toMatch(/AM|PM/i);
+		} finally {
+			Date.now = originalNow;
+		}
+	});
+
+	it('toLocaleTimeString викликається з hour12: false', () => {
+		open([track('червоний', 'ruby')]);
+		const spy = vi.spyOn(Date.prototype, 'toLocaleTimeString');
+		try {
+			deckLog.started('червоний', 'self');
+			flushSync();
+
+			expect(spy).toHaveBeenCalled();
+			const options = spy.mock.calls[0]?.[1];
+			expect(options?.hour12).toBe(false);
+		} finally {
+			spy.mockRestore();
+		}
 	});
 });

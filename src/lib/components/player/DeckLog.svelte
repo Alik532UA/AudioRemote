@@ -58,11 +58,16 @@
 	const titleOf = (trackId: string): string =>
 		tracks.find((track) => track.id === trackId)?.title ?? trackId;
 
+	/*
+	 * 24-годинниковий формат без AM/PM (`hour12: false`): час має читатися
+	 * однаково незалежно від мовної локалі браузера чи системи.
+	 */
 	const clock = (at: number) =>
 		new Date(at).toLocaleTimeString(undefined, {
 			hour: '2-digit',
 			minute: '2-digit',
-			second: '2-digit'
+			second: '2-digit',
+			hour12: false
 		});
 
 	/**

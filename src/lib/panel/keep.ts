@@ -119,7 +119,8 @@ function cleanButtons(value: unknown): PanelButton[] | undefined {
 		if (label === undefined) continue;
 
 		const color = slug((item as PanelButton).color);
-		buttons.push({ label, ...(color ? { color } : {}) });
+		const hidden = (item as PanelButton).hidden === true ? true : undefined;
+		buttons.push({ label, ...(color ? { color } : {}), ...(hidden ? { hidden } : {}) });
 	}
 	return buttons.length > 0 ? buttons : undefined;
 }

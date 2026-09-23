@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { IconClose, IconTrash } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
 	import {
@@ -15,63 +14,42 @@
 		type Panel,
 		type PanelCell
 	} from '$lib/net/panelTypes';
-	import { fits, shapeOf, sheetsOf, sizeOf, type Shape } from '$lib/panel/layout';
+	import {
+		expansionFor,
+		fitInPlace,
+		fits,
+		shapeOf,
+		sheetsOf,
+		sizeOf,
+		turned,
+		type Grid,
+		type Shape
+	} from '$lib/panel/layout';
 	import ButtonRows from './ButtonRows.svelte';
 	import CellLook, { type CellLookDraft } from './CellLook.svelte';
 	import CellShape from './CellShape.svelte';
+	import CellFooter from './CellFooter.svelte';
 	import Picker from '$lib/components/ui/Picker.svelte';
 
-	/**
-	 * ЩО ПОСТАВИТИ В КОМІРКУ — одне вікно на всі три роди.
-	 *
-	 * Роди відрізняються двома полями (підписи кнопок, крок повзунка), а решта
-	 * в них спільна: місце, підпис, збереження, спорожнення. Три вікна на три
-	 * роди розійшлися б на першій же правці спільної половини, і розійшлися б
-	 * мовчки.
-	 *
-	 * ## Чернетка, а не правка на місці
-	 *
-	 * Поки вікно відкрите, панель у базі не змінюється. Інакше кожна натиснута
-	 * літера підпису їхала б у мережу — і, що гірше, на екран помічника в залі:
-	 * він читав би «м», «мі», «мік», доки господар набирає.
-	 *
-	 * ## «Порожньо» — теж рід
-	 *
-	 * Очистити комірку можна двома шляхами: кнопкою внизу й вибором
-	 * «Порожньо» серед родів. Другий потрібен тому, що людина, яка передумала
-	 * ставити повзунок, шукає відповідь саме там, де вибирала.
-	 */
 	interface Props {
-		/** Номер комірки, `'0'`…`'14'`. Показується людині як `номер + 1`. */
 		index: string;
 		cell: PanelCell | null;
-		/** Уся панель — щоб знати, чи стане віджет такого розміру на це місце. */
 		panel: Panel;
-		/** `null` — прибрати комірку зовсім. */
+		onresize?: (grid: Grid) => void;
 		onsave: (cell: PanelCell | null) => void;
 		onclose: () => void;
 	}
 
-	let { index, cell, panel, onsave, onclose }: Props = $props();
+	let { index, cell, panel, onresize, onsave, onclose }: Props = $props();
 
 	type Choice = CellKind | 'none';
 	const KINDS: readonly Choice[] = ['none', 'buttons', 'slider', 'check'];
 
-	/*
-	 * `untrack` — БО ЦЕ ЗНІМОК, а не звʼязок, і сказати про це треба прямо.
-	 *
-	 * Поля нижче — чернетка вікна. Вона береться з комірки РАЗ, при відкритті, і
-	 * далі живе сама: панель у цю мить може змінитися (наприклад, прохання з
-	 * зали перемкнуло чекбокс), і підхоплювати це посеред набору тексту означало
-	 * б стирати щойно введене. Без `untrack` компілятор чесно питає, чи не
-	 * забули ми `$derived`.
-	 */
 	const start = untrack(() => shapeOf(cell));
 
 	let node = $state<HTMLDialogElement | null>(null);
 	let kind = $state<Choice>(untrack(() => cell?.kind ?? 'none'));
 	let step = $state(untrack(() => cell?.step ?? 10));
-	/** Вигляд віджета одним об'єктом: його править `CellLook` на місці. */
 	let look = $state<CellLookDraft>(
 		untrack(() => ({
 			caption: cell?.caption ?? '',
@@ -84,15 +62,14 @@
 	let shape = $state<Shape>(start.shape);
 	let rows = $state(start.rows);
 	let cols = $state(start.cols);
-	/*
-	 * Кнопки живуть масивом об'єктів, бо в кожної їх тепер дві властивості —
-	 * підпис і колір. Ключем у `{#each}` іде позиція: двох однакових полів тут
-	 * не відрізнити ніяк, і порожній підпис не відрізнити від порожнього.
-	 */
-	let buttons = $state<{ label: string; color: string | null }[]>(
+	let buttons = $state<{ label: string; color: string | null; hidden?: boolean }[]>(
 		untrack(
 			() =>
-				cell?.buttons?.map((button) => ({ label: button.label, color: button.color ?? null })) ?? [
+				cell?.buttons?.map((b) => ({
+					label: b.label,
+					color: b.color ?? null,
+					hidden: b.hidden === true
+				})) ?? [
 					{ label: '', color: null },
 					{ label: '', color: null },
 					{ label: '', color: null }
@@ -104,36 +81,18 @@
 		node?.showModal();
 	});
 
-	/**
-	 * Чи є що зберігати.
-	 *
-	 * Заважає лише один випадок: група кнопок без жодного підпису. Така комірка
-	 * зайняла б місце в сітці й не робила б нічого — і зрозуміти, чому вона не
-	 * тиснеться, було б нізвідки. Решта родів своїх обов'язкових полів не має,
-	 * а «Порожньо» — це прибирання, і воно законне завжди.
-	 */
-	const ready = $derived(
-		kind !== 'buttons' || buttons.some((button) => button.label.trim().length > 0)
-	);
+	const ready = $derived(kind !== 'buttons' || buttons.some((b) => b.label.trim().length > 0));
 
-	/** Порожні рядки — це не кнопки: людина лишила запасне поле незаповненим. */
 	const kept = () =>
 		buttons
 			.slice(0, MAX_BUTTONS)
-			.map((button) => ({
-				label: button.label.trim().slice(0, MAX_LABEL),
-				...(button.color ? { color: button.color } : {})
+			.map((b) => ({
+				label: b.label.trim().slice(0, MAX_LABEL),
+				...(b.color ? { color: b.color } : {}),
+				...(b.hidden ? { hidden: true } : {})
 			}))
-			.filter((button) => button.label.length > 0);
+			.filter((b) => b.label.length > 0);
 
-	/**
-	 * ЧИ СТАНЕ ВІДЖЕТ НА ЦЕ МІСЦЕ — рахується на льоту, поки його складають.
-	 *
-	 * Кожна дописана кнопка робить віджет на клітинку довшим, і в якийсь момент
-	 * він упирається в край сітки або в сусіда. Сказати про це треба ТУТ, доки
-	 * видно обидва органи — кількість кнопок і поворот, — а не після збереження
-	 * порожнім місцем у залі.
-	 */
 	const draft = $derived<PanelCell>({
 		kind: kind === 'none' ? 'check' : kind,
 		caption: look.caption,
@@ -143,12 +102,36 @@
 		vertical: shape !== 'across'
 	});
 
-	/** Назви, які вже є на панелі: підказка, а не межа. */
 	const sheets = $derived(sheetsOf(panel));
-
 	const size = $derived(sizeOf(draft));
 	const span = $derived(kind === 'none' ? 1 : size.rows * size.cols);
 	const roomy = $derived(kind === 'none' || fits(panel, index, size, index));
+
+	const bestFitting = $derived(!roomy ? fitInPlace(panel, index, size, index) : null);
+	const canShrink = $derived(bestFitting !== null);
+
+	function shrinkFit() {
+		if (!bestFitting) return;
+		const sideways = turned(size);
+		if (
+			bestFitting.rows === sideways.rows &&
+			bestFitting.cols === sideways.cols &&
+			shape !== 'custom'
+		) {
+			shape = shape === 'down' ? 'across' : 'down';
+			return;
+		}
+		shape = 'custom';
+		rows = bestFitting.rows;
+		cols = bestFitting.cols;
+	}
+
+	const expanded = $derived(!roomy ? expansionFor(panel, index, size, index) : null);
+	const canExpandBoard = $derived(onresize !== undefined && expanded !== null);
+
+	function expandBoard() {
+		if (expanded && onresize) onresize(expanded);
+	}
 
 	function save() {
 		if (kind === 'none') {
@@ -178,34 +161,19 @@
 <dialog
 	bind:this={node}
 	class="dialog"
+	class:dialog--empty={kind === 'none'}
 	data-testid="cell-modal"
 	{onclose}
 	onclick={(event) => {
-		// Клік по самому <dialog> — це клік по затемненню: вміст лежить усередині.
 		if (event.target === node) node?.close();
 	}}
 >
+	<header class="dialog__head">
+		<h2 class="dialog__title">{t('panel.cellTitle', { n: Number(index) + 1 })}</h2>
+	</header>
+
 	<div class="dialog__body">
-		<!--
-			ШАПКА ЛИПНЕ ДО ВЕРХУ: у вікні вісім полів, воно прокручується, і назва
-			комірки — єдине, що каже, ЩО саме зараз правлять. Поїхавши вгору, вона
-			лишає людину в діалозі без предмета.
-		-->
-		<header class="dialog__head">
-			<h2 class="dialog__title">{t('panel.cellTitle', { n: Number(index) + 1 })}</h2>
-		</header>
-
-		<!--
-			ТРИ СТОВПЦІ, А НЕ ОДИН НА ВІСІМСОТ ТОЧОК УНИЗ.
-
-			Полів тут вісім, і в один стовпець вони давали вікно, вище за екран:
-			частина органів жила за прокруткою, тоді як обабіч лишалося порожньо.
-			Стовпці зібрані за питаннями, а не за рівними частинами: «що це», «як
-			воно виглядає», «скільки місця займає й що всередині».
-
-			`auto-fit` із межею в 230 точок: на телефоні стовпець один, і розкладка
-			згортається сама.
-		-->
+		<!-- Чотири стовпці: що це, як виглядає, форма, вміст -->
 		<div class="groups">
 			<div class="group">
 				<div class="field">
@@ -230,12 +198,6 @@
 						{cols}
 						{span}
 						onshape={(next) => {
-							/*
-							 * «Свій розмір» починається з ТОГО, що зараз на екрані, а не з
-							 * того, що було при відкритті вікна. Людина, яка щойно додала
-							 * четверту кнопку, побачила б у лічильниках учорашні три — і
-							 * мусила б спершу виправити число, якого не міняла.
-							 */
 							if (next === 'custom' && shape !== 'custom') {
 								rows = size.rows;
 								cols = size.cols;
@@ -247,16 +209,21 @@
 							cols = across;
 						}}
 					/>
+				</div>
 
-					{#if kind === 'buttons'}
+				{#if kind === 'buttons'}
+					<div class="group">
 						<div class="field">
 							<span class="field__label">{t('panel.buttonsTitle')}</span>
 							<ButtonRows
 								rows={buttons}
 								onadd={() => (buttons = [...buttons, { label: '', color: null }])}
+								onremove={(pos) => (buttons = buttons.filter((_, i) => i !== pos))}
 							/>
 						</div>
-					{:else if kind === 'slider'}
+					</div>
+				{:else if kind === 'slider'}
+					<div class="group">
 						<div class="field">
 							<label class="field__label" for="cell-step">{t('panel.step')}</label>
 							<NumberStepper
@@ -269,72 +236,35 @@
 							/>
 							<p class="muted">{t('panel.stepHint')}</p>
 						</div>
-					{/if}
-				</div>
-			{/if}
-		</div>
-
-		{#if !roomy}
-			<p class="error" role="alert" data-testid="cell-no-room-text">{t('panel.noRoom')}</p>
-		{/if}
-
-		<!--
-			ТРИ ДІЇ — В ОДНОМУ РЯДКУ Й ЗАКРІПЛЕНІ.
-
-			Доти вихід був хрестиком у правому верхньому куті, а «Зберегти» й
-			«Очистити» — текстовими кнопками внизу. Тобто три дії над однією
-			коміркою мали три різні вигляди й два різні місця, і на високому
-			вмісті всі три ховалися за прокруткою: вікно прокручується всередині,
-			і низ разом із верхом виїжджав геть.
-
-			Тепер вони поруч, одного роду й липнуть до низу вікна. Порядок —
-			найчастіша дія першою, руйнівна відбита праворуч: «Очистити» стоїть
-			окремо від «Зберегти», щоб їх не плутали пальцем.
-		-->
-		<div class="acts">
-			<button
-				class="btn btn--primary"
-				type="button"
-				disabled={!ready || !roomy}
-				onclick={save}
-				data-testid="cell-save-btn"
-			>
-				{t('panel.save')}
-			</button>
-
-			<button
-				class="btn"
-				type="button"
-				onclick={() => node?.close()}
-				data-testid="cell-modal-close-btn"
-			>
-				<IconClose size={18} aria-hidden="true" />
-				{t('common.close')}
-			</button>
-
-			{#if cell}
-				<button
-					class="btn btn--danger acts__wipe"
-					type="button"
-					onclick={() => {
-						onsave(null);
-						node?.close();
-					}}
-					data-testid="cell-clear-btn"
-				>
-					<IconTrash size={18} aria-hidden="true" />
-					{t('panel.clearCell')}
-				</button>
+					</div>
+				{/if}
 			{/if}
 		</div>
 	</div>
+
+	<CellFooter
+		{ready}
+		{roomy}
+		{canShrink}
+		{canExpandBoard}
+		hasCell={cell !== null}
+		onsave={save}
+		onclose={() => node?.close()}
+		onclear={() => {
+			onsave(null);
+			node?.close();
+		}}
+		onshrink={shrinkFit}
+		onexpand={expandBoard}
+	/>
 </dialog>
 
 <style>
 	.dialog {
-		width: min(880px, calc(100vw - 32px));
+		display: flex;
+		flex-direction: column;
+		width: min(1080px, calc(100vw - 32px));
 		max-height: calc(100dvh - 48px);
-		/* Прокручується ВМІСТ, а не саме вікно — так само, як у решті вікон. */
 		overflow: hidden;
 		padding: 0;
 		border: 1px solid var(--border);
@@ -344,17 +274,12 @@
 		box-shadow: 0 10px 25px var(--shadow-strong);
 	}
 
-	.dialog::backdrop {
-		background: rgb(0 0 0 / 0.55);
+	.dialog--empty {
+		width: min(440px, calc(100vw - 32px));
 	}
 
-	.dialog__body {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap);
-		max-height: inherit;
-		overflow: auto;
-		padding: var(--gap-lg);
+	.dialog::backdrop {
+		background: rgb(0 0 0 / 0.55);
 	}
 
 	.dialog__head {
@@ -362,21 +287,30 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--gap-sm);
+		padding: var(--gap);
+		border-bottom: 1px solid var(--border);
+		background: var(--bg-surface);
+		flex-shrink: 0;
 	}
 
 	.dialog__title {
+		margin: 0;
 		font-size: 1.1rem;
+	}
+
+	.dialog__body {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap);
+		flex: 1 1 auto;
+		overflow-y: auto;
+		padding: var(--gap);
 	}
 
 	.groups {
 		display: grid;
-		/*
-		 * `min(230px, 100%)`, а не голі 230px: гола довжина стає ПІДЛОГОЮ ширини,
-		 * і на вузькому екрані сітка розпирає вікно замість того, щоб згорнутися
-		 * в одну колонку (FLUID-SIZING-v9 § 1.1).
-		 */
-		grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr));
-		gap: var(--gap) var(--gap-lg);
+		grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+		gap: var(--gap);
 		align-items: start;
 	}
 
@@ -385,49 +319,5 @@
 		flex-direction: column;
 		gap: var(--gap);
 		min-width: 0;
-	}
-
-	/*
-	 * ШАПКА Й ДІЇ ЛИПНУТЬ ДО КРАЇВ ВІКНА, бо прокручується саме вміст. Тло
-	 * власне: під ними проїжджають поля, і без нього текст читався б крізь
-	 * текст. Відʼємні відступи — щоб смуги доходили до країв вікна, а не
-	 * лишали по собі щілину кольору сторінки.
-	 */
-	.dialog__head {
-		position: sticky;
-		top: 0;
-		z-index: 1;
-		margin: calc(-1 * var(--gap-lg)) calc(-1 * var(--gap-lg)) 0;
-		padding: var(--gap-lg) var(--gap-lg) var(--gap-sm);
-		background: var(--bg-surface);
-	}
-
-	.acts {
-		position: sticky;
-		bottom: 0;
-		z-index: 1;
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--gap-sm);
-		margin: 0 calc(-1 * var(--gap-lg)) calc(-1 * var(--gap-lg));
-		/* Дії відбиті від полів: інакше «Зберегти» читається як ще одне поле. */
-		padding: var(--gap-sm) var(--gap-lg) var(--gap-lg);
-		border-top: 1px solid var(--border);
-		background: var(--bg-surface);
-	}
-
-	/*
-	 * КНОПКИ НЕ СТИСКАЮТЬСЯ. Типово елемент гнучкого рядка стискається нижче за
-	 * свій вміст, і на вузькому вікні «Закрити» виходило 44 точки при потрібних
-	 * 63 — тобто підпис обрізало. Рядок має переноситися, а не давити підписи.
-	 */
-	.acts > :global(*) {
-		flex: 0 0 auto;
-	}
-
-	/* Руйнівна дія відбита в інший кінець рядка: її не тиснуть мимохідь. */
-	.acts__wipe {
-		margin-inline-start: auto;
 	}
 </style>

@@ -151,6 +151,8 @@ export interface PanelButton {
 	 * («тихіше — червона»). У темряві друге читається швидше за підпис.
 	 */
 	color?: string;
+	/** Прихована на дошці: зберігає своє місце в сітці, але не малюється. */
+	hidden?: boolean;
 }
 
 export interface PanelCell {

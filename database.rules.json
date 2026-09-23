@@ -218,6 +218,7 @@
 									"color": {
 										".validate": "newData.isString() && newData.val().matches(/^[a-z]{2,12}$/)"
 									},
+									"hidden": { ".validate": "newData.isBoolean()" },
 									"$other": { ".validate": false }
 								}
 							},

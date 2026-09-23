@@ -93,11 +93,16 @@
 	const answering = $derived(notices.length > 0 && notices[0].notice ? notices[0] : null);
 	const head = $derived(answering && answering.id !== hushed ? answering.id : null);
 
+	/*
+	 * 24-годинниковий формат без AM/PM (`hour12: false`): час має читатися
+	 * однаково незалежно від мовної локалі браузера чи системи.
+	 */
 	const clock = (at: number) =>
 		new Date(at).toLocaleTimeString(undefined, {
 			hour: '2-digit',
 			minute: '2-digit',
-			second: '2-digit'
+			second: '2-digit',
+			hour12: false
 		});
 
 	/**

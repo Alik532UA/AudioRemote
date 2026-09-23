@@ -486,6 +486,7 @@
 				<ScreenControls
 					{editing}
 					{empty}
+					{panel}
 					onedit={() => {
 						editing = !editing;
 						picked = null;
@@ -569,6 +570,7 @@
 				index={picked}
 				{panel}
 				cell={panel.cells[picked] ?? null}
+				onresize={(grid) => void putPanel({ ...panel, ...grid })}
 				onsave={(cell) => void putCell(picked as string, cell)}
 				onclose={() => (picked = null)}
 			/>

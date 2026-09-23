@@ -8,7 +8,6 @@
 		type Panel
 	} from '$lib/net/panelTypes';
 	import { IconCheck } from '$lib/config/icons';
-	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
 	import PanelEditorGrid from './PanelEditorGrid.svelte';
 	import PanelFile from './PanelFile.svelte';
 
@@ -69,36 +68,62 @@
 		порожніх місць. Комірки, що опинилися за межею зменшеної сітки, НЕ
 		стираються — їх просто не видно, доки сітку не повернуть.
 	-->
-	<div class="top">
-		<div class="pair">
-			<div class="field">
-				<label class="field__label" for="panel-cols">{t('panel.boardCols')}</label>
-				<NumberStepper
-					id="panel-cols"
-					value={grid.cols}
-					min={1}
-					max={MAX_PANEL_COLS}
-					label={t('panel.boardCols')}
-					square
-					onchange={(next) => onresize({ rows: grid.rows, cols: next })}
-				/>
-			</div>
-			<div class="field">
-				<label class="field__label" for="panel-rows">{t('panel.boardRows')}</label>
-				<NumberStepper
-					id="panel-rows"
-					value={grid.rows}
-					min={1}
-					max={MAX_PANEL_ROWS}
-					label={t('panel.boardRows')}
-					square
-					onchange={(next) => onresize({ rows: next, cols: grid.cols })}
-				/>
+	<div class="grid-frame">
+		<div class="grid-frame__corner" aria-hidden="true"></div>
+		<div class="grid-frame__cols">
+			<span class="grid-frame__label" id="panel-cols-label">{t('panel.boardCols')}</span>
+			<div
+				class="grid-frame__strip grid-frame__strip--cols"
+				role="radiogroup"
+				aria-labelledby="panel-cols-label"
+				id="panel-cols"
+			>
+				{#each Array.from({ length: MAX_PANEL_COLS }, (_, i) => i + 1) as col (col)}
+					<button
+						class="grid-frame__btn"
+						class:grid-frame__btn--active={grid.cols === col}
+						type="button"
+						role="radio"
+						aria-checked={grid.cols === col}
+						onclick={() => onresize({ rows: grid.rows, cols: col })}
+						data-testid="panel-cols-{col}-btn"
+					>
+						{col}
+					</button>
+				{/each}
 			</div>
 		</div>
-	</div>
 
-	<PanelEditorGrid {panel} {onpick} {onrotate} {onmove} />
+		<div class="grid-frame__side">
+			<span class="grid-frame__label grid-frame__label--vertical" id="panel-rows-label">
+				{t('panel.boardRows')}
+			</span>
+			<div
+				class="grid-frame__strip grid-frame__strip--rows"
+				role="radiogroup"
+				aria-labelledby="panel-rows-label"
+				id="panel-rows"
+			>
+				{#each Array.from({ length: MAX_PANEL_ROWS }, (_, i) => i + 1) as row (row)}
+					<button
+						class="grid-frame__btn"
+						class:grid-frame__btn--active={grid.rows === row}
+						type="button"
+						role="radio"
+						aria-checked={grid.rows === row}
+						onclick={() => onresize({ rows: row, cols: grid.cols })}
+						data-testid="panel-rows-{row}-btn"
+					>
+						{row}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<div class="grid-frame__content">
+			<PanelEditorGrid {panel} {onpick} {onrotate} {onmove} />
+		</div>
+	</div>
 
 	<!--
 		ОДИН ВИХІД ДЛЯ ПОРОЖНЬОЇ ДОШКИ. Типова панель пропонується лише тоді,
@@ -146,19 +171,100 @@
 </section>
 
 <style>
-	/*
-	 * Верх складальника має бути низьким: кожен його зайвий рядок — це рядок,
-	 * на який сітка з'їжджає вниз.
-	 */
-	.top {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: end;
-		gap: var(--gap-sm) var(--gap);
+	.grid-frame {
+		display: grid;
+		grid-template-columns: auto auto;
+		gap: var(--gap-sm);
+		margin-inline: auto;
+		inline-size: fit-content;
+		max-inline-size: 100%;
+		align-items: start;
 	}
 
-	.top > .pair {
-		flex: 1 1 16rem;
+	.grid-frame__corner {
+		inline-size: 100%;
+	}
+
+	.grid-frame__cols {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--gap-xs);
+		justify-self: center;
+	}
+
+	.grid-frame__side {
+		display: flex;
+		align-items: start;
+		gap: var(--gap-xs);
+	}
+
+	.grid-frame__label {
+		font-size: 0.85rem;
+		font-weight: 500;
+		color: var(--text-secondary);
+	}
+
+	.grid-frame__label--vertical {
+		writing-mode: vertical-rl;
+		transform: rotate(180deg);
+		align-self: center;
+		white-space: nowrap;
+		letter-spacing: 0.02em;
+	}
+
+	.grid-frame__strip {
+		display: flex;
+		gap: var(--gap-xs);
+	}
+
+	.grid-frame__strip--cols {
+		flex-wrap: wrap;
+		justify-content: center;
+	}
+
+	.grid-frame__strip--rows {
+		flex-direction: column;
+	}
+
+	.grid-frame__content {
+		min-inline-size: 0;
+	}
+
+	.grid-frame__btn {
+		display: grid;
+		place-items: center;
+		inline-size: 32px;
+		block-size: 32px;
+		padding: 0;
+		border: 1px solid var(--border-strong);
+		border-radius: var(--radius-sm);
+		background: var(--bg-surface-raised);
+		color: var(--text-primary);
+		font-size: 0.875rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition:
+			background-color var(--transition-fast),
+			border-color var(--transition-fast),
+			color var(--transition-fast);
+	}
+
+	.grid-frame__btn:hover {
+		border-color: var(--border-hover);
+		background: var(--bg-header-btn-hover);
+	}
+
+	.grid-frame__btn--active {
+		border-color: var(--accent);
+		background: var(--accent);
+		color: var(--bg-surface);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.grid-frame__btn {
+			transition: none;
+		}
 	}
 
 	/*
@@ -179,17 +285,5 @@
 		padding: var(--gap-sm) var(--gap) var(--gap);
 		border-radius: 0 0 var(--radius) var(--radius);
 		background: var(--bg-surface);
-	}
-
-	/* Стовпці й ряди — поруч: це одна відповідь, розбита на два числа. */
-	.pair {
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--gap-sm);
-	}
-
-	.pair .field {
-		flex: 1;
-		min-inline-size: 0;
 	}
 </style>

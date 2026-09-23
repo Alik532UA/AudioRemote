@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { controlOf, fits, layoutPanel, moveTo, shapeOf, sheetsOf, sizeOf, spanOf } from './layout';
+import {
+	controlOf,
+	expansionFor,
+	fitInPlace,
+	fits,
+	layoutPanel,
+	moveTo,
+	shapeOf,
+	sheetsOf,
+	sizeOf,
+	spanOf
+} from './layout';
 import type { Panel, PanelCell } from '$lib/net/panelTypes';
 
 /**
@@ -280,5 +291,30 @@ describe('пульти в залі', () => {
 	it('назви пультів беруться з віджетів, без повторів і за абеткою', () => {
 		expect(sheetsOf(many)).toEqual(['завіса', 'світло']);
 		expect(sheetsOf(panelOf({ '0': buttons(1) }))).toEqual([]);
+	});
+});
+
+describe('порятунок від тісноти (fitInPlace, expansionFor)', () => {
+	it('fitInPlace повертає поворот, якщо він влазить', () => {
+		// Комірка 12 (останній ряд 4, стовпець 0 при сітці 5×3): 3 рядки вниз не влазять, але 3 стовпці вправо — так.
+		const panel = panelOf({});
+		expect(fitInPlace(panel, '12', { rows: 3, cols: 1 })).toEqual({ rows: 1, cols: 3 });
+	});
+
+	it('fitInPlace зменшує розмір, якщо поворот теж не влазить', () => {
+		// Комірка 14 (останній ряд, останній стовпець): 2×2 не влізе, зменшується до 1×1.
+		const panel = panelOf({});
+		expect(fitInPlace(panel, '14', { rows: 2, cols: 2 })).toEqual({ rows: 1, cols: 1 });
+	});
+
+	it('expansionFor пропонує розширення дошки, коли віджет виходить за край', () => {
+		// Сітка 5×3. Комірка 2 (ряд 0, стовпець 2): віджет 1×2 випирає в 4-й стовпець.
+		const panel = panelOf({});
+		expect(expansionFor(panel, '2', { rows: 1, cols: 2 })).toEqual({ rows: 5, cols: 4 });
+	});
+
+	it('expansionFor повертає null, якщо віджет уже влазить або не може вміститися', () => {
+		const panel = panelOf({});
+		expect(expansionFor(panel, '0', { rows: 1, cols: 1 })).toBeNull();
 	});
 });

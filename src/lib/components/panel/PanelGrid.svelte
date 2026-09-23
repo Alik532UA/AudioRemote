@@ -101,9 +101,10 @@
 	const paint = (hex: string | null) => (hex ? `; --widget-color: ${hex}` : '');
 
 	/** Стиль для кнопки: власний колір та колір світіння за каскадом. */
-	const keyStyle = (own: string | null, glow: string | null) =>
-		[own && `--widget-color: ${own}`, glow && `--key-glow: ${glow}`].filter(Boolean).join('; ') ||
-		undefined;
+	const keyStyle = (own: string | null, glow: string | null, hidden?: boolean) =>
+		hidden
+			? 'visibility: hidden; pointer-events: none;'
+			: (own ? `--widget-color: ${own}` : '') + (glow ? `; --key-glow: ${glow}` : '') || undefined;
 
 	/**
 	 * Чи цей орган щойно натиснули — і яким саме натисканням.
@@ -210,8 +211,8 @@
 								class:key--tinted={own !== null}
 								class:key--hot={mark !== ''}
 								type="button"
-								disabled={busy}
-								style={keyStyle(own, glowHex)}
+								disabled={busy || button.hidden}
+								style={keyStyle(own, glowHex, button.hidden)}
 								use:glow={mark}
 								onclick={() => press(key, 'press', index)}
 								data-testid="panel-press-{key}-{index}-btn">{button.label}</button

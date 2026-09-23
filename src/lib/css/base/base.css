@@ -460,24 +460,24 @@ svg {
 		color 0.25s ease;
 }
 
-[data-testid$='-close-btn']:hover,
-[data-testid$='-close-btn']:focus-visible {
+[data-testid$='-close-btn']:not(.btn):hover,
+[data-testid$='-close-btn']:not(.btn):focus-visible {
 	background: var(--bg-sunken);
 	color: var(--text-primary);
 }
 
-[data-testid$='-close-btn']:has(svg):hover {
+[data-testid$='-close-btn']:not(.btn):has(svg):hover {
 	transform: rotate(90deg) scale(1.08);
 }
 
-[data-testid$='-close-btn']:has(svg):active {
+[data-testid$='-close-btn']:not(.btn):has(svg):active {
 	transform: rotate(90deg) scale(0.92);
 }
 
 @media (prefers-reduced-motion: reduce) {
 	[data-testid$='-close-btn']:not(.btn),
-	[data-testid$='-close-btn']:has(svg):hover,
-	[data-testid$='-close-btn']:has(svg):active {
+	[data-testid$='-close-btn']:not(.btn):has(svg):hover,
+	[data-testid$='-close-btn']:not(.btn):has(svg):active {
 		transition: none;
 		transform: none;
 	}

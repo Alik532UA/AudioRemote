@@ -9,6 +9,8 @@ import {
 	type PanelCommandType
 } from '$lib/net/panelTypes';
 
+export type { Grid };
+
 /**
  * ІМ'Я ОРГАНА — не комірки, а того, у що саме тиснуть.
  *
@@ -313,4 +315,42 @@ export function shapeOf(cell: PanelCell | null): { shape: Shape; rows: number; c
 	if (size.rows === span && size.cols === 1) return { shape: 'down', ...size };
 	if (size.cols === span && size.rows === 1) return { shape: 'across', ...size };
 	return { shape: 'custom', ...size };
+}
+
+/**
+ * ЗНАЙТИ РОЗМІР, ЯКИЙ ВЛАЗИТЬ НА ЦЕ МІСЦЕ.
+ *
+ * Спочатку пробується поворот набік; якщо не стає — шукаємо найбільший прямокутник
+ * у межах поточного розміру або 1×1. `null` — навіть 1×1 зайнято сусідом.
+ */
+export function fitInPlace(panel: Panel, at: string, size: Size, ignore?: string): Size | null {
+	const sideways = turned(size);
+	if (fits(panel, at, sideways, ignore)) return sideways;
+	for (let r = size.rows; r >= 1; r -= 1) {
+		for (let c = size.cols; c >= 1; c -= 1) {
+			if (r === size.rows && c === size.cols) continue;
+			if (fits(panel, at, { rows: r, cols: c }, ignore)) return { rows: r, cols: c };
+		}
+	}
+	if (fits(panel, at, { rows: 1, cols: 1 }, ignore)) return { rows: 1, cols: 1 };
+	return null;
+}
+
+/**
+ * ЦІЛЬОВИЙ РОЗМІР ДОШКИ, якщо віджет випирає за край і її можна розширити.
+ *
+ * `null` — розширення не потрібне, неможливе (перевищує 9×9) або не розв'язує проблему.
+ */
+export function expansionFor(panel: Panel, at: string, size: Size, ignore?: string): Grid | null {
+	const grid = gridOf(panel);
+	const start = Number(at);
+	const row = Math.floor(start / grid.cols);
+	const col = start % grid.cols;
+	const neededRows = row + size.rows;
+	const neededCols = col + size.cols;
+	const targetRows = Math.min(MAX_PANEL_ROWS, Math.max(grid.rows, neededRows));
+	const targetCols = Math.min(MAX_PANEL_COLS, Math.max(grid.cols, neededCols));
+	if (targetRows <= grid.rows && targetCols <= grid.cols) return null;
+	const expanded: Panel = { ...panel, rows: targetRows, cols: targetCols };
+	return fits(expanded, at, size, ignore) ? { rows: targetRows, cols: targetCols } : null;
 }
