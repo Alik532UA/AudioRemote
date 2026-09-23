@@ -23,6 +23,7 @@
 	import SettingsDialog from '$lib/components/settings/SettingsDialog.svelte';
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
+	import { panelLog } from '$lib/services/panelLog.svelte';
 
 	let { children } = $props();
 
@@ -131,7 +132,7 @@
 		if (path === `${root}/player`) return t('player.title');
 		if (path === `${root}/remote`) return t('remote.title');
 		// Другий вид дошки зве ті самі ролі інакше — див. докблок до `BoardKind`.
-		if (path === `${root}/info`) return t('info.boardTitle');
+		if (path === `${root}/info`) return panelLog.recentAction ?? t('info.boardTitle');
 		if (path === `${root}/info-remote`) return t('info.remoteTitle');
 		return '';
 	});
@@ -291,7 +292,9 @@
 		</div>
 
 		{#if ready && roleLabel}
-			<p class="shell__role" data-testid="shell-role-text">{roleLabel}</p>
+			<p class="shell__role" data-testid="shell-role-text">
+				{#key roleLabel}<span class="shell__role-text">{roleLabel}</span>{/key}
+			</p>
 		{/if}
 
 		{#if ready}
@@ -516,6 +519,15 @@
 		white-space: nowrap;
 	}
 
+	.shell__role-text {
+		display: inline-block;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		animation: role-fade 250ms ease-out;
+	}
+
 	.shell__back:hover,
 	.shell__back:focus-visible {
 		color: var(--accent);
@@ -604,6 +616,10 @@
 		.shell__back,
 		.shell__settings {
 			transition: none;
+		}
+
+		.shell__role-text {
+			animation: none;
 		}
 	}
 </style>

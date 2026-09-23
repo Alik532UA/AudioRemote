@@ -1,10 +1,7 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { IconPhone } from '$lib/config/icons';
 	import SeatTags from '$lib/components/ui/SeatTags.svelte';
-	import { panelLog } from '$lib/services/panelLog.svelte';
-	import type { PanelNotice } from '$lib/panel/apply';
 
 	/**
 	 * КАРТКА ТАБЛА — що ця дошка про себе каже.
@@ -28,51 +25,11 @@
 	}
 
 	let { name, id, helpers, names, onconnect }: Props = $props();
-
-	let action = $state<string | null>(null);
-	let timer: ReturnType<typeof setTimeout> | null = null;
-	let lastSeenId: string | null = panelLog.entries[0]?.id ?? null;
-
-	const moveWord = (move: PanelNotice['move']) => {
-		if (move === 'up') return t('panel.wentUp');
-		if (move === 'down') return t('panel.wentDown');
-		if (move === 'on') return t('panel.turnedOn');
-		if (move === 'off') return t('panel.turnedOff');
-		return '';
-	};
-
-	$effect(() => {
-		const top = panelLog.entries[0];
-		if (!top || !top.notice) return;
-		if (top.id === lastSeenId) return;
-		lastSeenId = top.id;
-
-		const asked = top.notice;
-		const what = asked.label ?? moveWord(asked.move);
-		const parts: string[] = [];
-		if (top.who) parts.push(top.who);
-		if (asked.caption && what) parts.push(`${asked.caption} — ${what}`);
-		else if (asked.caption) parts.push(asked.caption);
-		else if (what) parts.push(what);
-		if (asked.from !== null && asked.to !== null) {
-			parts.push(t('panel.change', { from: `${asked.from}`, to: `${asked.to}` }));
-		}
-
-		action = parts.join(' · ') || null;
-		if (timer) clearTimeout(timer);
-		timer = setTimeout(() => {
-			action = null;
-		}, 3000);
-	});
-
-	onDestroy(() => {
-		if (timer) clearTimeout(timer);
-	});
 </script>
 
 <header class="head card desk__who" data-testid="board-head">
 	<div class="head__who">
-		<h1 class="head__role" data-testid="board-role-title">{action ?? t('info.boardTitle')}</h1>
+		<h1 class="head__role" data-testid="board-role-title">{t('info.boardTitle')}</h1>
 		{#if name}
 			<p class="head__title">{name}</p>
 		{/if}

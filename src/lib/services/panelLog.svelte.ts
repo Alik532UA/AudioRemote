@@ -1,4 +1,5 @@
 import type { PanelNotice } from '$lib/panel/apply';
+import { t } from '$lib/i18n/i18n.svelte';
 import { countRemotes, type PresenceMap } from '$lib/net/presence';
 import { PresenceEvents, type PresenceEventKind } from './presenceLog';
 
@@ -47,13 +48,40 @@ export interface LogEntry {
 	notice?: PanelNotice;
 }
 
+/**
+ * Скласти короткий підпис останньої дії для шапки.
+ */
+export function formatNotice(notice: PanelNotice, who?: string): string {
+	const moveWord = (move: PanelNotice['move']) => {
+		if (move === 'up') return t('panel.wentUp');
+		if (move === 'down') return t('panel.wentDown');
+		if (move === 'on') return t('panel.turnedOn');
+		if (move === 'off') return t('panel.turnedOff');
+		return '';
+	};
+
+	const what = notice.label ?? moveWord(notice.move);
+	const parts: string[] = [];
+	if (who) parts.push(who);
+	if (notice.caption && what) parts.push(`${notice.caption} — ${what}`);
+	else if (notice.caption) parts.push(notice.caption);
+	else if (what) parts.push(what);
+	if (notice.from !== null && notice.to !== null) {
+		parts.push(t('panel.change', { from: `${notice.from}`, to: `${notice.to}` }));
+	}
+	return parts.join(' · ');
+}
+
 /** Скільки рядків тримати. Далі найстаріші випадають — як і в аудіодошці. */
 const KEPT = 40;
 
 class PanelLogState {
 	entries = $state<LogEntry[]>([]);
+	/** Остання дія для шапки (тримається 3 секунди). `null` — спокій. */
+	recentAction = $state<string | null>(null);
 
 	private beat = 0;
+	private recentTimer: ReturnType<typeof setTimeout> | null = null;
 
 	private readonly comings = new PresenceEvents('remote', ({ kind, who }) =>
 		this.add({ own: false, desk: false, who, join: kind })
@@ -68,6 +96,11 @@ class PanelLogState {
 	 */
 	asked(notice: PanelNotice, id: string, own: boolean, who: string, desk = own): void {
 		this.entries = [{ notice, id, at: Date.now(), own, who, desk }, ...this.entries].slice(0, KEPT);
+		this.recentAction = formatNotice(notice, who) || null;
+		if (this.recentTimer) clearTimeout(this.recentTimer);
+		this.recentTimer = setTimeout(() => {
+			this.recentAction = null;
+		}, 3000);
 	}
 
 	/**
@@ -90,6 +123,8 @@ class PanelLogState {
 	forget(): void {
 		this.comings.stop();
 		this.entries = [];
+		if (this.recentTimer) clearTimeout(this.recentTimer);
+		this.recentAction = null;
 	}
 
 	private add(note: Omit<LogEntry, 'id' | 'at'>): void {

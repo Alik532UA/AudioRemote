@@ -41,8 +41,8 @@ export type AttentionLit = 'head' | 'page' | 'flip' | 'head-flip';
 const MODE_KEY = 'attention.mode';
 const COLOR_KEY = 'attention.color';
 
-/** Скільки триває спалах. Секунда — щоб упіймати боковим зором і не дратувати. */
-const FLASH_MS = 1000;
+/** Скільки триває спалах. Три секунди — синхронно з показом останньої дії в шапці. */
+const FLASH_MS = 3000;
 
 const isMode = (value: unknown): value is AttentionMode =>
 	typeof value === 'string' && (ATTENTION_MODES as readonly string[]).includes(value);

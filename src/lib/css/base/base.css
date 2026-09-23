@@ -941,3 +941,12 @@ svg {
 	white-space: nowrap;
 	border: 0;
 }
+
+@keyframes role-fade {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}

@@ -37,7 +37,7 @@ describe('InfoHead — шапка табла', () => {
 		unmount(app);
 	});
 
-	it('при появі нової дії міняється на опис дії та повертається до «Табло» через 3 секунди', () => {
+	it('завжди показує «Табло» і не змінюється від дій у журналі', () => {
 		const { app, title } = renderHead();
 		expect(title().textContent).toBe('Табло');
 
@@ -51,12 +51,6 @@ describe('InfoHead — шапка табла', () => {
 		};
 
 		panelLog.asked(notice, 'cmd-1', false, 'Марія');
-		flushSync();
-
-		expect(title().textContent).toBe('Марія · Світло — Зал');
-
-		// Через 3 секунди повертається назад
-		vi.advanceTimersByTime(3000);
 		flushSync();
 
 		expect(title().textContent).toBe('Табло');

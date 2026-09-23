@@ -120,12 +120,12 @@ describe('attentionState — привертання уваги', () => {
 		expect(attentionState.activeHex).toBeNull();
 	});
 
-	it('спалах гасне через 1000 мс', () => {
+	it('спалах гасне через 3000 мс', () => {
 		attentionState.choose('head');
 		attentionState.ask('coral');
 		expect(attentionState.lit).toBe('head');
 
-		vi.advanceTimersByTime(999);
+		vi.advanceTimersByTime(2999);
 		expect(attentionState.lit).toBe('head');
 
 		vi.advanceTimersByTime(1);
@@ -138,16 +138,16 @@ describe('attentionState — привертання уваги', () => {
 		attentionState.ask('coral');
 		expect(attentionState.lit).toBe('head');
 
-		vi.advanceTimersByTime(600);
+		vi.advanceTimersByTime(1500);
 		expect(attentionState.lit).toBe('head');
 
-		// Повторне прохання на 600 мс — продовжує ще на 1000 мс від цього моменту
+		// Повторне прохання на 1500 мс — продовжує ще на 3000 мс від цього моменту
 		attentionState.ask('coral');
 
-		vi.advanceTimersByTime(600);
+		vi.advanceTimersByTime(1500);
 		expect(attentionState.lit).toBe('head');
 
-		vi.advanceTimersByTime(400);
+		vi.advanceTimersByTime(1500);
 		expect(attentionState.lit).toBeNull();
 	});
 });
