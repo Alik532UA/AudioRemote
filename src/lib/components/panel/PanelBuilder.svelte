@@ -195,7 +195,8 @@
 
 	.grid-frame__side {
 		display: flex;
-		align-items: start;
+		align-items: center;
+		align-self: center;
 		gap: var(--gap-xs);
 	}
 
