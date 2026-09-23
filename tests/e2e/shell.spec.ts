@@ -207,3 +207,42 @@ test('«назад» показується лише там, звідки спр
 	await expect(page.getByTestId('go-create'), 'кнопка «назад» нікуди не повернула').toBeVisible();
 	await expect(page.getByTestId('back'), 'повернулися на початок, а кнопка лишилася').toBeHidden();
 });
+
+test('без мережі застосунок відкривається — оболонку віддає воркер', async ({ page, context }) => {
+	/*
+	 * ВОРКЕР ІСНУЄ САМЕ ДЛЯ ЦЬОГО — і цього якраз і не робив.
+	 *
+	 * Навігаційний маршрут воркера мав віддавати `404.html` (ту саму оболонку,
+	 * що й GitHub Pages) на будь-яку сторінку без мережі. Але `404.html` не
+	 * потрапляв у передкеш — його пише адаптер уже після того, як плагін зібрав
+	 * перелік, — і `createHandlerBoundToURL` падав на старті воркера. Онлайн
+	 * цього не видно зовсім: сторінки приходять із мережі. Без мережі —
+	 * сторінка браузера «немає інтернету» замість застосунку.
+	 *
+	 * Опис «на жодній сторінці немає помилок у консолі» цього не впіймав: помилка
+	 * летіла в консоль ВОРКЕРА, а не сторінки. Тому тут питається не консоль, а
+	 * наслідок — чи відкривається застосунок, коли мережі немає.
+	 */
+	await page.goto('./menu');
+	await expect(page.getByTestId('go-create')).toBeVisible(RENDERED);
+
+	// Воркер ставиться, але першою сторінкою не керує — керує з наступного завантаження.
+	await page.evaluate(async () => {
+		await navigator.serviceWorker.ready;
+	});
+	await page.reload();
+	await expect
+		.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null), RENDERED)
+		.toBe(true);
+
+	await context.setOffline(true);
+	try {
+		// Сторінка, на якій у цьому прогоні ще не були: її html у мережі не брали.
+		await page.goto('./settings');
+		await expect(page.getByTestId('brand'), 'без мережі застосунок не відкрився').toBeVisible(
+			RENDERED
+		);
+	} finally {
+		await context.setOffline(false);
+	}
+});
