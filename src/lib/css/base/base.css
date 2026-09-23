@@ -950,3 +950,26 @@ svg {
 		opacity: 1;
 	}
 }
+
+/*
+ * ПІДСВІЧУВАННЯ Й ПРИТІНЕННЯ ВІДЖЕТІВ НА ІНФОДОШЦІ.
+ *
+ * Коли віджет або кнопку натиснуто, інші віджети та кнопки стають на 50%
+ * прозорими на час дії підсвітки й плавно повертаються до базової прозорості.
+ */
+.grid .cell,
+.grid .key {
+	transition: opacity 300ms ease;
+}
+
+.grid:has(.cell--recent) .cell:not(.cell--recent),
+.cell--recent:has(.key--hot) .key:not(.key--hot) {
+	opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.grid .cell,
+	.grid .key {
+		transition: none;
+	}
+}
