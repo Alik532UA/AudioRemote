@@ -1,0 +1,2 @@
+import"./Dof2PsIB.js";import{t as i,o as r,x as p}from"./ifDiJlW3.js";import{a as l}from"./BA-jcZnq.js";import{p as o}from"./qcsECFt2.js";var d=p('<span class="eq svelte-13dd6gv" aria-hidden="true" data-testid="equalizer"><i class="svelte-13dd6gv"></i><i class="svelte-13dd6gv"></i><i class="svelte-13dd6gv"></i></span>');function c(s,a){let t=o(a,"size",3,16);var e=d();i(()=>l(e,`--eq-size: ${t()??""}px`)),r(s,e)}export{c as E};
+//# sourceMappingURL=Bc4A0yP7.js.map
