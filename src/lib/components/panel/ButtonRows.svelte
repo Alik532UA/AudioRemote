@@ -204,12 +204,21 @@
 		border-color: var(--accent);
 	}
 
+	/*
+	 * ЦІЛЬ ПІД ПАЛЕЦЬ — 44, як і квадратик кольору в тому самому рядку.
+	 *
+	 * Кнопки «сховати» й «видалити» з'явилися на 32×32, і гейт вікон
+	 * (`db/dialogs.spec.ts`) у CI одразу впіймав це як «ціль замала:
+	 * cell-toggle-hide-0-btn: 32×32» — і відтоді не пропускав жодної публікації.
+	 * Тут, на відміну від кружечків палітри, рамка — це сама кнопка, тож
+	 * розширювати доводиться її, а не невидиме поле довкола значка.
+	 */
 	.row-act {
 		display: grid;
 		flex: none;
 		place-items: center;
-		inline-size: 32px;
-		block-size: 32px;
+		inline-size: var(--tap);
+		block-size: var(--tap);
 		padding: 0;
 		border: 1px solid var(--border);
 		border-radius: var(--radius-sm);
