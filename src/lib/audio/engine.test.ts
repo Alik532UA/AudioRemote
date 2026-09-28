@@ -317,3 +317,76 @@ describe('«стоп» і позиція (engine.svelte.ts)', () => {
 		expect(engine.positionMs, 'після запуску позиція лишилася прибитою до нуля').toBe(3000);
 	});
 });
+
+/**
+ * ЗГАСАННЯ Й НАРОСТАННЯ МУСЯТЬ ДОБІГАТИ КІНЦЯ І ТОДІ, КОЛИ ВКЛАДКУ НЕ ВИДНО.
+ *
+ * Приймач майже завжди у фоні: звукорежисер тримає поверх нього інше вікно, а
+ * плеєр стоїть на другому моніторі чи за ним. У прихованій (і закритій іншим
+ * вікном — Chrome на Windows це відстежує) вкладці `requestAnimationFrame` не
+ * приходить зовсім — заміряно в цьому ж проєкті: кадр за 800 мс не прийшов
+ * жодного разу.
+ *
+ * А згасання тягнулися саме кадрами. Наслідки — усі тихі й усі в залі:
+ *
+ *  * «Стоп» і «Пауза» з пульта зупиняли звук лише В КІНЦІ згасання — тобто не
+ *    зупиняли зовсім, поки вкладка у фоні. Прапорець `playing` при цьому
+ *    падав одразу, тож і плеєр, і пульт показували «зупинено» під музику;
+ *  * повтор стартував з гучністю 0 і мав нарости — і лишався німим;
+ *  * тиша не глушила.
+ *
+ * Тут прихована вкладка змодельована рівно тим, що в ній відбувається: кадри
+ * не приходять ніколи.
+ */
+describe('згасання в прихованій вкладці', () => {
+	function hidden() {
+		vi.stubGlobal('requestAnimationFrame', () => 0);
+		vi.stubGlobal('cancelAnimationFrame', () => undefined);
+	}
+
+	it('«стоп» справді зупиняє звук, навіть коли кадрів немає', async () => {
+		hidden();
+		const { engine, source } = build();
+		const started = engine.play('a');
+		source.release('a.mp3');
+		await started;
+
+		const pause = vi.mocked(HTMLMediaElement.prototype.pause);
+		pause.mockClear();
+		engine.stop();
+
+		await vi.waitFor(() => expect(pause, 'після «стоп» звук грає далі').toHaveBeenCalled(), {
+			timeout: 3000
+		});
+	});
+
+	it('«пауза» справді зупиняє звук, навіть коли кадрів немає', async () => {
+		hidden();
+		const { engine, source } = build();
+		const started = engine.play('a');
+		source.release('a.mp3');
+		await started;
+
+		const pause = vi.mocked(HTMLMediaElement.prototype.pause);
+		pause.mockClear();
+		engine.pause();
+
+		await vi.waitFor(() => expect(pause, 'після «пауза» звук грає далі').toHaveBeenCalled(), {
+			timeout: 3000
+		});
+	});
+
+	it('наростання доходить до виставленої гучності, навіть коли кадрів немає', async () => {
+		hidden();
+		const { engine, source } = build();
+		const started = engine.play('a');
+		source.release('a.mp3');
+		await started;
+
+		const element = elements.at(-1) as HTMLAudioElement;
+		await vi.waitFor(
+			() => expect(element.volume, 'трек лишився німим').toBeCloseTo(engine.volume, 2),
+			{ timeout: 3000 }
+		);
+	});
+});

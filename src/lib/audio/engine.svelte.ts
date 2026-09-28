@@ -1,4 +1,5 @@
 import { queueSpot, queueTotal } from './queue';
+import { fade } from './fade';
 import { TrackMissingError, type AudioSource, type SourceTrack } from './source';
 
 /**
@@ -30,15 +31,6 @@ import { TrackMissingError, type AudioSource, type SourceTrack } from './source'
  * браузер тримає весь файл. За зміну сотні треків це сотня утримуваних файлів,
  * і на концертній добірці по 40 МБ вкладка з'їдає пам'ять, не роблячи нічого.
  */
-
-/**
- * Скільки триває згасання й наростання.
- *
- * Секунда: достатньо, щоб перехід читався як рішення, і мало, щоб «стоп»
- * лишався стопом. Число тут одне на всі переходи навмисно — різна тривалість
- * для паузи й стопа звучала б як несправність.
- */
-const FADE_MS = 1000;
 
 /**
  * Як часто рухати позицію під час паузи між повторами.
@@ -228,8 +220,8 @@ export class AudioEngine {
 	private order: SourceTrack[] = [];
 	/** Гучність до тиші. `null` — тиші немає. */
 	private mutedFrom = $state<number | null>(null);
-	/** Кадр поточного згасання. `null` — нічого не згасає. */
-	private fadeFrame: number | null = null;
+	/** Скасування поточного переходу гучності. `null` — нічого не згасає. */
+	private stopFade: (() => void) | null = null;
 
 	constructor(private readonly source: AudioSource) {}
 
@@ -291,52 +283,26 @@ export class AudioEngine {
 		}
 	}
 
-	/**
-	 * ПЛАВНЕ ЗГАСАННЯ Й НАРОСТАННЯ — секунда.
-	 *
-	 * Різкий обрив звуку в залі чути як аварію: люди озираються на колонки. Те
-	 * саме з різким початком. Секунда — це достатньо, щоб перехід читався як
-	 * рішення, і мало, щоб «стоп» лишався стопом.
-	 *
-	 * Гучність міняється на САМОМУ елементі, а не в `this.volume`: остання —
-	 * те, що людина виставила, і згасання не має права її переписати. Інакше
-	 * після паузи повзунок опинявся б на нулі.
-	 */
+	/** Плавний перехід гучності — чому саме так і чому таймером, у `fade.ts`. */
 	private fadeTo(target: number, done?: () => void): void {
 		this.cancelFade();
-		const element = this.element;
-		if (!element) {
+		if (!this.element) {
 			done?.();
 			return;
 		}
-
-		const from = element.volume;
-		const started = performance.now();
-
-		const tick = (now: number) => {
-			const share = Math.min(1, (now - started) / FADE_MS);
-			element.volume = Math.max(0, Math.min(1, from + (target - from) * share));
-			if (share < 1) {
-				this.fadeFrame = requestAnimationFrame(tick);
-			} else {
-				this.fadeFrame = null;
-				done?.();
-			}
-		};
-
-		this.fadeFrame = requestAnimationFrame(tick);
+		this.stopFade = fade(this.element, target, done);
 	}
 
 	/**
-	 * Обірвати згасання, яке ще йде.
+	 * Обірвати перехід, який ще йде.
 	 *
 	 * Без цього два натискання поспіль («стоп», одразу «грати») лишали б два
-	 * кадрові цикли, які тягнуть гучність у різні боки — і перемагав би той, що
+	 * переходи, які тягнуть гучність у різні боки — і перемагав би той, що
 	 * закінчився пізніше.
 	 */
 	private cancelFade(): void {
-		if (this.fadeFrame !== null) cancelAnimationFrame(this.fadeFrame);
-		this.fadeFrame = null;
+		this.stopFade?.();
+		this.stopFade = null;
 	}
 
 	/** Зняти паузу між повторами, якщо вона зараз іде. */
