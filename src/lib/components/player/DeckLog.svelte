@@ -91,7 +91,7 @@
 	}
 </script>
 
-<section class="card stack" data-testid="deck-log-section">
+<section class="card stack deck-log" data-testid="deck-log-section">
 	<div class="head">
 		<h2 class="subtitle">{t('deck.logTitle')}</h2>
 
@@ -217,17 +217,27 @@
 		font-size: 1.05rem;
 	}
 
+	/*
+	 * ЖУРНАЛ ЗАПОВНЮЄ РЕШТУ КОЛОНКИ, А НЕ ВЛАСНУ СТЕЛЮ.
+	 *
+	 * Сорок рядків не мусять виштовхнути керування за край — це правда й досі.
+	 * Але доти межею було `max-block-size: 14rem`, тобто 224 точки незалежно
+	 * від екрана: журнал прокручувався після трьох записів, хоч під ним лишалося
+	 * пів вікна. Тепер межу тримає дошка (`board--fit` у `base.css`): картка
+	 * стискається разом із колонкою, а список у ній бере решту й прокручується
+	 * лише тоді, коли дійшов до краю вікна — або до керування під собою.
+	 */
+	.deck-log {
+		min-block-size: 0;
+	}
+
 	.log {
 		display: flex;
+		flex: 1 1 auto;
 		flex-direction: column;
 		gap: var(--gap-xs);
+		min-block-size: 0;
 		margin: 0;
-		/*
-		 * Журнал не росте без межі: дека стоїть над ним, а список треків поруч,
-		 * і сорок рядків виштовхнули б обидва за край екрана. Прокрутка саме
-		 * тут — у частини, яку читають очима, а не тиснуть наосліп.
-		 */
-		max-block-size: 14rem;
 		overflow: auto;
 		padding: 0;
 		list-style: none;

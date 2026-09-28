@@ -40,6 +40,11 @@
 	 * Висота не стала: смуга переносить кнопки на вузькому екрані. Тому не
 	 * число в CSS, а заміряне: `--bar-h` їде звідси на весь застосунок, і
 	 * сторінка, якій треба стати під смугою, бере його замість здогаду.
+	 *
+	 * `offsetHeight`, а не `clientHeight`: у смуги є нижня межа в 1 піксель, і
+	 * `clientHeight` її не рахує. Доти дошка, обмежена висотою вікна, виходила
+	 * на піксель вищою за місце під смугою — і сторінка мала прокрутку рівно в
+	 * один піксель, тобто смугу прокрутки, якою нічого не прокрутиш.
 	 */
 	let barH = $state(0);
 
@@ -256,7 +261,7 @@
 	-->
 	<header
 		class="shell__top"
-		bind:clientHeight={barH}
+		bind:offsetHeight={barH}
 		style:background={attentionState.lit === 'head' ? attentionState.hex : null}
 		style:backdrop-filter={attentionState.lit === 'head' ? 'none' : null}
 	>

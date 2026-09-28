@@ -688,7 +688,12 @@
 	.log {
 		flex: 0 1 26rem;
 		min-inline-size: min(100%, 260px);
-		max-block-size: min(80dvh, 46rem);
+		/*
+		 * Межа — край вікна під смугою застосунку, а не частка його висоти.
+		 * Доти стояло `min(80dvh, 46rem)`: на моніторі вище за 736 точок журнал
+		 * прокручувався, не дійшовши до низу, бо впирався в 46rem.
+		 */
+		max-block-size: var(--board-room);
 		overflow: auto;
 	}
 </style>

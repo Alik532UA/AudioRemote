@@ -327,3 +327,57 @@ test('журнал аудіодошки згортається, і вибір п
 
 	await ctx.close();
 });
+
+test('журнал аудіодошки прокручується на краю вікна, а не заздалегідь', async ({ browser }) => {
+	/*
+	 * СТЕЛЯ БУЛА ВИГАДАНА, А НЕ ЗАМІРЯНА. Журнал мав `max-block-size: 14rem`,
+	 * список треків — `max-height: 60dvh`: обидва прокручувалися, коли під ними
+	 * лишалося ще пів вікна. Заміряно на 2000×893: журнал — 224 точки, список —
+	 * 536, а до низу вікна під кожним було ще ~250 вільних.
+	 *
+	 * Тепер межу тримає сама дошка, і правило тут рівно одне: поки місце є,
+	 * прокрутки немає; коли місця немає, список доходить до краю вікна — і лише
+	 * тоді прокручується, а сторінка не прокручується зовсім.
+	 *
+	 * Записи додаються тим самим модулем журналу, що й у застосунку (dev-сервер
+	 * віддає джерела за шляхом): сорок команд із пульта йшли б сорок квитанцій, а
+	 * питання тут не про квитанції, а про висоту.
+	 */
+	const board = await browser.newContext({ viewport: { width: 2000, height: 893 } });
+	const player = await board.newPage();
+	await createBoard(player);
+	await expect(player.getByTestId('deck-log-section')).toBeVisible(ACROSS);
+
+	const note = (count: number) =>
+		player.evaluate(async (many) => {
+			// Каталог поточної адреси — це база застосунку: `/AudioRemote/player` → `/AudioRemote/`.
+			const base = new URL('./', location.href).pathname;
+			const { deckLog } = await import(
+				/* @vite-ignore */ `${base}src/lib/services/deckLog.svelte.ts`
+			);
+			deckLog.clear();
+			for (let i = 0; i < many; i += 1) deckLog.started(`t-${i}`, 'self');
+		}, count);
+
+	const state = () =>
+		player.getByTestId('deck-log-list').evaluate((list) => ({
+			scrolls: list.scrollHeight > list.clientHeight,
+			gapBelow: Math.round(window.innerHeight - list.getBoundingClientRect().bottom),
+			page: document.documentElement.scrollHeight - document.documentElement.clientHeight
+		}));
+
+	await note(3);
+	await expect(player.getByTestId('deck-note-2-row')).toBeVisible();
+	const few = await state();
+	expect(few.scrolls, 'три записи вже прокручуються — стеля нижча за вміст').toBe(false);
+
+	await note(40);
+	await expect(player.getByTestId('deck-note-39-row')).toBeAttached();
+	const many = await state();
+	expect(many.scrolls, 'сорок записів не прокручуються').toBe(true);
+	// Список дійшов до низу: під ним лише падінг картки й відступ сторінки.
+	expect(many.gapBelow, `під журналом ще ${many.gapBelow} точок вільних`).toBeLessThan(60);
+	expect(many.page, 'сторінка прокручується разом зі списком').toBeLessThanOrEqual(0);
+
+	await board.close();
+});
