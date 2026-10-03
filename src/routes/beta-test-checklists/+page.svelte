@@ -4,7 +4,8 @@
 	import { i18n } from '$lib/i18n/i18n.svelte';
 	import { themeState } from '$lib/services/theme.svelte';
 	import { BETA_TABS, LEVELS, tidOf, type BetaTab, type Coverage } from '$lib/beta/checks';
-	import { betaMarks, byLevel, reportText, VERSION, type Vote } from '$lib/beta/marks.svelte';
+	import { betaMarks, byLevel, reportText, VERSION } from '$lib/beta/marks.svelte';
+	import BetaCheckRow from '$lib/components/beta/BetaCheckRow.svelte';
 
 	/**
 	 * СТОРІНКА ЧЕКЛИСТА БЕТА-ТЕСТУ (BETA-CHECKLIST-v9 § 8).
@@ -98,14 +99,6 @@
 			testable: say('Можна покрити тестом', 'Could be tested'),
 			covered: say('Покрито тестом', 'Covered by a test')
 		})[level];
-
-	const voteName = (vote: Vote) =>
-		({
-			ok: say('Працює', 'Works'),
-			fail: say('Не працює', 'Broken'),
-			unclear: say('Не зрозуміло', 'Unclear'),
-			skip: say('Пропустити', 'Skip')
-		})[vote];
 
 	async function copyReport() {
 		/*
@@ -212,49 +205,7 @@
 
 				<ul class="beta__list">
 					{#each checks as check, index (check.id)}
-						{@const tid = tidOf(check.id)}
-						{@const mark = betaMarks.fresh(check.id)}
-						<li
-							class="beta__item"
-							class:beta__item--marked={mark !== null}
-							class:beta__item--ok={mark?.vote === 'ok'}
-							class:beta__item--fail={mark?.vote === 'fail'}
-							class:beta__item--unclear={mark?.vote === 'unclear'}
-							class:beta__item--skip={mark?.vote === 'skip'}
-							data-testid="beta-check-{tid}-item"
-						>
-							<p class="beta__text" data-testid="beta-check-{tid}-text">
-								<span class="beta__no">{offsetOf(level) + index + 1}.</span>
-								<span class="beta__cat" data-testid="beta-check-{tid}-category-text"
-									>{check.category[lang]}</span
-								>
-								{check.text[lang]}
-							</p>
-
-							{#if check.test}
-								<p class="beta__test mono">{check.test}</p>
-							{/if}
-							{#if betaMarks.stale(check.id)}
-								<p class="beta__stale" data-testid="beta-check-{tid}-stale-hint">
-									{say('Позначено на іншій версії', 'Marked on another version')}
-								</p>
-							{/if}
-
-							<div class="beta__votes">
-								{#each ['ok', 'fail', 'unclear', 'skip'] as const as vote (vote)}
-									<button
-										type="button"
-										class="beta__vote beta__vote--{vote}"
-										class:beta__vote--on={mark?.vote === vote}
-										aria-pressed={mark?.vote === vote}
-										onclick={() => betaMarks.vote(check.id, vote)}
-										data-testid="beta-vote-{tid}-{vote}-btn"
-									>
-										{voteName(vote)}
-									</button>
-								{/each}
-							</div>
-						</li>
+						<BetaCheckRow {check} number={offsetOf(level) + index + 1} {lang} />
 					{/each}
 				</ul>
 			</section>
@@ -440,113 +391,10 @@
 		list-style: none;
 	}
 
-	/*
-	 * Позначений пункт видно З ВІДСТАНІ, і не самим лише кольором кнопки:
-	 * повернувшись до списку, людина шукає, де зупинилася, а не перечитує.
-	 */
-	.beta__item {
-		padding: var(--gap-sm);
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		background: var(--bg-surface-raised);
-	}
-	.beta__item--marked {
-		border-width: 2px;
-	}
-	.beta__item--ok {
-		border-color: var(--vote-ok);
-	}
-	.beta__item--fail {
-		border-color: var(--vote-fail);
-	}
-	.beta__item--unclear {
-		border-color: var(--vote-unclear);
-	}
-	.beta__item--skip {
-		border-color: var(--vote-skip);
-	}
-
-	.beta__text {
-		margin: 0 0 var(--gap-xs);
-	}
-
-	.beta__no {
-		color: var(--text-secondary);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.beta__cat {
-		margin-inline-end: var(--gap-xs);
-		font-weight: 600;
-	}
-
-	.beta__test,
-	.beta__stale {
-		margin: 0 0 var(--gap-xs);
-		color: var(--text-secondary);
-		font-size: 0.8rem;
-	}
-
-	.beta__votes,
 	.beta__actions {
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--gap-sm);
-	}
-
-	/*
-	 * Стан несе не лише колір: рамка, товщина й накреслення. Інакше він
-	 * недоступний тому, хто кольори не розрізняє.
-	 */
-	.beta__vote {
-		min-height: var(--tap);
-		padding: 0 var(--gap);
-		border: 1px solid var(--border-strong);
-		border-radius: var(--radius-sm);
-		background: var(--bg-surface);
-		color: var(--text-secondary);
-		cursor: pointer;
-		font: inherit;
-	}
-	.beta__vote--ok {
-		background: color-mix(in srgb, var(--bg-surface), var(--vote-ok) 8%);
-		border-color: color-mix(in srgb, var(--border-strong), var(--vote-ok) 35%);
-	}
-	.beta__vote--fail {
-		background: color-mix(in srgb, var(--bg-surface), var(--vote-fail) 8%);
-		border-color: color-mix(in srgb, var(--border-strong), var(--vote-fail) 35%);
-	}
-	.beta__vote--unclear {
-		background: color-mix(in srgb, var(--bg-surface), var(--vote-unclear) 8%);
-		border-color: color-mix(in srgb, var(--border-strong), var(--vote-unclear) 35%);
-	}
-	.beta__vote--skip {
-		background: color-mix(in srgb, var(--bg-surface), var(--vote-skip) 8%);
-		border-color: color-mix(in srgb, var(--border-strong), var(--vote-skip) 35%);
-	}
-	.beta__vote--on {
-		border-width: 4px;
-		font-weight: 700;
-	}
-	.beta__vote--ok.beta__vote--on {
-		border-color: var(--vote-ok);
-		color: var(--vote-ok);
-		background: color-mix(in srgb, var(--bg-surface), var(--vote-ok) 18%);
-	}
-	.beta__vote--fail.beta__vote--on {
-		border-color: var(--vote-fail);
-		color: var(--vote-fail);
-		background: color-mix(in srgb, var(--bg-surface), var(--vote-fail) 18%);
-	}
-	.beta__vote--unclear.beta__vote--on {
-		border-color: var(--vote-unclear);
-		color: var(--vote-unclear);
-		background: color-mix(in srgb, var(--bg-surface), var(--vote-unclear) 18%);
-	}
-	.beta__vote--skip.beta__vote--on {
-		border-color: var(--vote-skip);
-		color: var(--vote-skip);
-		background: color-mix(in srgb, var(--bg-surface), var(--vote-skip) 18%);
 	}
 
 	.beta__ok {
