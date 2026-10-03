@@ -35,6 +35,25 @@
 	const lang = $derived(i18n.locale);
 	const say = (uk: string, en: string) => (lang === 'uk' ? uk : en);
 
+	function selectTab(item: BetaTab) {
+		tab = item;
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			url.searchParams.set('tab', item.id);
+			window.history.replaceState(window.history.state, '', url.href);
+		}
+	}
+
+	$effect(() => {
+		if (typeof window !== 'undefined') {
+			const param = new URL(window.location.href).searchParams.get('tab');
+			if (param) {
+				const found = BETA_TABS.find((t) => t.id === param);
+				if (found) tab = found;
+			}
+		}
+	});
+
 	/**
 	 * Читання зі сховища — ПІСЛЯ монтування, а не в оголошенні.
 	 *
@@ -82,9 +101,10 @@
 
 	const voteName = (vote: Vote) =>
 		({
+			ok: say('Працює', 'Works'),
 			fail: say('Не працює', 'Broken'),
-			weird: say('Дивно', 'Odd'),
-			ok: say('Працює', 'Works')
+			unclear: say('Не зрозуміло', 'Unclear'),
+			skip: say('Пропустити', 'Skip')
 		})[vote];
 
 	async function copyReport() {
@@ -162,7 +182,7 @@
 				class="beta__tab"
 				class:beta__tab--on={item.id === tab.id}
 				aria-pressed={item.id === tab.id}
-				onclick={() => (tab = item)}
+				onclick={() => selectTab(item)}
 				data-testid="beta-tab-{item.id}-btn"
 			>
 				{item.title[lang]}
@@ -173,7 +193,7 @@
 		{/each}
 	</nav>
 
-	<p class="beta__screens">
+	<p class="beta__screens" data-sveltekit-preload-data="off">
 		<span class="muted">{say('Де це дивитися:', 'Where to look:')}</span>
 		{#each tab.routes as route (route)}
 			<a
@@ -197,6 +217,10 @@
 						<li
 							class="beta__item"
 							class:beta__item--marked={mark !== null}
+							class:beta__item--ok={mark?.vote === 'ok'}
+							class:beta__item--fail={mark?.vote === 'fail'}
+							class:beta__item--unclear={mark?.vote === 'unclear'}
+							class:beta__item--skip={mark?.vote === 'skip'}
 							data-testid="beta-check-{tid}-item"
 						>
 							<p class="beta__text" data-testid="beta-check-{tid}-text">
@@ -217,7 +241,7 @@
 							{/if}
 
 							<div class="beta__votes">
-								{#each ['fail', 'weird', 'ok'] as const as vote (vote)}
+								{#each ['ok', 'fail', 'unclear', 'skip'] as const as vote (vote)}
 									<button
 										type="button"
 										class="beta__vote beta__vote--{vote}"
@@ -308,6 +332,10 @@
 	 * різні межі.
 	 */
 	.beta {
+		--vote-ok: light-dark(#047857, #10b981);
+		--vote-fail: light-dark(#b01818, #fb8a8a);
+		--vote-unclear: light-dark(#a34d08, #f59e0b);
+		--vote-skip: light-dark(#0284c7, #38bdf8);
 		margin-inline: auto;
 	}
 
@@ -422,11 +450,11 @@
 		border-radius: var(--radius-sm);
 		background: var(--bg-surface-raised);
 	}
-
-	.beta__item--marked {
-		border-color: var(--accent);
-		border-inline-start-width: 4px;
-	}
+	.beta__item--marked { border-width: 2px; }
+	.beta__item--ok { border-color: var(--vote-ok); }
+	.beta__item--fail { border-color: var(--vote-fail); }
+	.beta__item--unclear { border-color: var(--vote-unclear); }
+	.beta__item--skip { border-color: var(--vote-skip); }
 
 	.beta__text {
 		margin: 0 0 var(--gap-xs);
@@ -470,25 +498,42 @@
 		cursor: pointer;
 		font: inherit;
 	}
-
-	.beta__vote--on {
-		border-width: 2px;
-		font-weight: 700;
+	.beta__vote--ok {
+		background: color-mix(in srgb, var(--bg-surface), var(--vote-ok) 8%);
+		border-color: color-mix(in srgb, var(--border-strong), var(--vote-ok) 35%);
 	}
-
-	.beta__vote--fail.beta__vote--on {
-		border-color: var(--danger);
-		color: var(--danger);
+	.beta__vote--fail {
+		background: color-mix(in srgb, var(--bg-surface), var(--vote-fail) 8%);
+		border-color: color-mix(in srgb, var(--border-strong), var(--vote-fail) 35%);
 	}
-
-	.beta__vote--weird.beta__vote--on {
-		border-color: var(--warn);
-		color: var(--warn);
+	.beta__vote--unclear {
+		background: color-mix(in srgb, var(--bg-surface), var(--vote-unclear) 8%);
+		border-color: color-mix(in srgb, var(--border-strong), var(--vote-unclear) 35%);
 	}
-
+	.beta__vote--skip {
+		background: color-mix(in srgb, var(--bg-surface), var(--vote-skip) 8%);
+		border-color: color-mix(in srgb, var(--border-strong), var(--vote-skip) 35%);
+	}
+	.beta__vote--on { border-width: 4px; font-weight: 700; }
 	.beta__vote--ok.beta__vote--on {
-		border-color: var(--ok);
-		color: var(--ok);
+		border-color: var(--vote-ok);
+		color: var(--vote-ok);
+		background: color-mix(in srgb, var(--bg-surface), var(--vote-ok) 18%);
+	}
+	.beta__vote--fail.beta__vote--on {
+		border-color: var(--vote-fail);
+		color: var(--vote-fail);
+		background: color-mix(in srgb, var(--bg-surface), var(--vote-fail) 18%);
+	}
+	.beta__vote--unclear.beta__vote--on {
+		border-color: var(--vote-unclear);
+		color: var(--vote-unclear);
+		background: color-mix(in srgb, var(--bg-surface), var(--vote-unclear) 18%);
+	}
+	.beta__vote--skip.beta__vote--on {
+		border-color: var(--vote-skip);
+		color: var(--vote-skip);
+		background: color-mix(in srgb, var(--bg-surface), var(--vote-skip) 18%);
 	}
 
 	.beta__ok {

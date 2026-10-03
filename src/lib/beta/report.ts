@@ -12,7 +12,7 @@ import { ALL_CHECKS, BETA_TABS, type BetaCheck, type BetaTab } from './checks';
  * в рядок.
  */
 
-export type Vote = 'fail' | 'weird' | 'ok';
+export type Vote = 'ok' | 'fail' | 'unclear' | 'skip';
 
 export interface Mark {
 	vote: Vote;
@@ -30,13 +30,7 @@ export type Marks = Record<string, Mark>;
  */
 export const VERSION: string = __APP_VERSION__;
 
-const VOTES: readonly string[] = ['fail', 'weird', 'ok'];
-
-const isMark = (value: unknown): value is Mark => {
-	if (typeof value !== 'object' || value === null) return false;
-	const mark = value as Record<string, unknown>;
-	return VOTES.includes(mark.vote as string) && typeof mark.version === 'string';
-};
+const VOTES: readonly string[] = ['ok', 'fail', 'unclear', 'skip'];
 
 const KNOWN: ReadonlySet<string> = new Set(ALL_CHECKS.map((check) => check.id));
 
@@ -53,7 +47,14 @@ export function trusted(raw: unknown, known: ReadonlySet<string> = KNOWN): Marks
 	if (typeof raw !== 'object' || raw === null) return {};
 	const out: Marks = {};
 	for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
-		if (known.has(id) && isMark(value)) out[id] = value;
+		if (!known.has(id)) continue;
+		if (typeof value === 'object' && value !== null) {
+			const mark = value as Record<string, unknown>;
+			const vote = mark.vote === 'weird' ? 'unclear' : mark.vote;
+			if (VOTES.includes(vote as string) && typeof mark.version === 'string') {
+				out[id] = { vote: vote as Vote, version: mark.version };
+			}
+		}
 	}
 	return out;
 }
@@ -71,10 +72,11 @@ export const byLevel = (tab: BetaTab, level: BetaCheck['coverage']): BetaCheck[]
  * новина гірша за звичайний баг, бо знецінює всі зелені прогони.
  */
 export function reportText(marks: Marks, lang: 'uk' | 'en', extra: string[] = []): string {
-	const order: Record<Vote, number> = { fail: 0, weird: 1, ok: 2 };
+	const order: Record<Vote, number> = { fail: 0, unclear: 1, skip: 2, ok: 3 };
 	const label: Record<Vote, string> = {
 		fail: lang === 'uk' ? 'НЕ ПРАЦЮЄ' : 'BROKEN',
-		weird: lang === 'uk' ? 'ПРАЦЮЄ, АЛЕ ДИВНО' : 'WORKS, BUT ODD',
+		unclear: lang === 'uk' ? 'НЕ ЗРОЗУМІЛО' : 'UNCLEAR',
+		skip: lang === 'uk' ? 'ПРОПУЩЕНО' : 'SKIPPED',
 		ok: lang === 'uk' ? 'ПРАЦЮЄ' : 'WORKS'
 	};
 	const stale = lang === 'uk' ? 'позначено на версії' : 'marked on version';

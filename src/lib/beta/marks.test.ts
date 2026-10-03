@@ -67,10 +67,15 @@ describe('позначки чеклиста', () => {
 	});
 
 	it('позначка переживає перезавантаження', () => {
-		betaMarks.vote(first, 'weird');
+		betaMarks.vote(first, 'unclear');
 		betaMarks.marks = {};
 		betaMarks.load();
-		expect(betaMarks.fresh(first)?.vote).toBe('weird');
+		expect(betaMarks.fresh(first)?.vote).toBe('unclear');
+	});
+
+	it('нормалізує застарілий стан weird у unclear', () => {
+		const out = trusted({ [first]: { vote: 'weird', version: VERSION } }, known);
+		expect(out[first]?.vote).toBe('unclear');
 	});
 });
 
