@@ -450,11 +450,21 @@
 		border-radius: var(--radius-sm);
 		background: var(--bg-surface-raised);
 	}
-	.beta__item--marked { border-width: 2px; }
-	.beta__item--ok { border-color: var(--vote-ok); }
-	.beta__item--fail { border-color: var(--vote-fail); }
-	.beta__item--unclear { border-color: var(--vote-unclear); }
-	.beta__item--skip { border-color: var(--vote-skip); }
+	.beta__item--marked {
+		border-width: 2px;
+	}
+	.beta__item--ok {
+		border-color: var(--vote-ok);
+	}
+	.beta__item--fail {
+		border-color: var(--vote-fail);
+	}
+	.beta__item--unclear {
+		border-color: var(--vote-unclear);
+	}
+	.beta__item--skip {
+		border-color: var(--vote-skip);
+	}
 
 	.beta__text {
 		margin: 0 0 var(--gap-xs);
@@ -514,7 +524,10 @@
 		background: color-mix(in srgb, var(--bg-surface), var(--vote-skip) 8%);
 		border-color: color-mix(in srgb, var(--border-strong), var(--vote-skip) 35%);
 	}
-	.beta__vote--on { border-width: 4px; font-weight: 700; }
+	.beta__vote--on {
+		border-width: 4px;
+		font-weight: 700;
+	}
 	.beta__vote--ok.beta__vote--on {
 		border-color: var(--vote-ok);
 		color: var(--vote-ok);
