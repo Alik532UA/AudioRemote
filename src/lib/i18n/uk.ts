@@ -307,6 +307,7 @@ export const uk = {
 	'schedule.addTime': 'Додати час',
 	'schedule.noTimes': 'Ще немає доданих точок часу',
 	'schedule.nextRun': 'Наступний запуск',
+	'schedule.disabled': 'Розклад вимкнено',
 	'schedule.nextNever': 'Не заплановано',
 	'schedule.nextToday': 'Сьогодні о {time}',
 	'schedule.nextTomorrow': 'Завтра о {time}',

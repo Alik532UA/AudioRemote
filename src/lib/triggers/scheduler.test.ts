@@ -87,4 +87,38 @@ describe('SchedulerWatcher', () => {
 		expect(fired).toEqual([]);
 		expect(missed).toEqual(['t1:09:00']);
 	});
+
+	it('спрацьовує коли такт потрапляє на будь-яку секунду хвилини (дрейф таймера)', () => {
+		const watcher = new SchedulerWatcher();
+		const fired: string[] = [];
+		watcher.onFire((id) => fired.push(id));
+
+		watcher.sync([{ id: 't1', trigger: scheduleTrigger([0], ['09:00']) }]);
+
+		// Такт о 09:00:25 (секунда не :00)
+		const now = new Date(2026, 8, 21, 9, 0, 25);
+		watcher.tick(now);
+
+		expect(fired).toEqual(['t1']);
+	});
+
+	it('очищує історію для треку при зміні його блоків у sync', () => {
+		const watcher = new SchedulerWatcher();
+		const fired: string[] = [];
+		watcher.onFire((id) => fired.push(id));
+
+		watcher.sync([{ id: 't1', trigger: scheduleTrigger([0], ['09:00']) }]);
+
+		const now1 = new Date(2026, 8, 21, 9, 0, 0);
+		watcher.tick(now1);
+		expect(fired).toEqual(['t1']);
+
+		// Оновлюємо розклад для t1
+		watcher.sync([{ id: 't1', trigger: scheduleTrigger([0], ['09:00', '10:00']) }]);
+
+		// Тепер о 09:00:10 після оновлення розкладу дозволено повторне спрацювання
+		const now2 = new Date(2026, 8, 21, 9, 0, 10);
+		watcher.tick(now2);
+		expect(fired).toEqual(['t1', 't1']);
+	});
 });

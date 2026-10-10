@@ -290,6 +290,19 @@ export class PlayerController implements BoardEditor {
 		});
 
 		/*
+		 * Опитувач тригерів і планувальник розкладу — місцеві: слухачі ставляться
+		 * ДО перечитування папки, інакше `rescan()` вмикає таймер до того, як
+		 * контролер підписався на спрацювання, і перший такт іде в `null`.
+		 */
+		triggerWatcher.onFire((trackId) => void this.playLocal(trackId, 'api'));
+		this.track(() => triggerWatcher.stop());
+
+		schedulerWatcher.onFire((trackId) => this.handleSchedule(trackId));
+		schedulerWatcher.onMissed((trackId, time) => deckLog.scheduleMissed(trackId, time));
+		this.track(() => schedulerWatcher.stop());
+		this.track(this.scheduleQueue.start());
+
+		/*
 		 * ПАПКА ЧИТАЄТЬСЯ ДО БАЗИ, І ЦЕ НЕ ПРО ШВИДКІСТЬ.
 		 *
 		 * Доти першим стояло звернення до бази, і все місцеве — папка, треки,
@@ -320,19 +333,6 @@ export class PlayerController implements BoardEditor {
 		 * поверне `false`, і кнопка лишиться на своєму місці.
 		 */
 		if (!this.engine.armed) await this.engine.arm();
-
-		/*
-		 * Опитувач тригерів — теж місцевий: він ходить у ЧУЖІ API, а не в нашу
-		 * базу. Трек за повітряною тривогою мусить заграти й тоді, коли дошка
-		 * недосяжна, — інакше сирена мовчала б саме тоді, коли потрібна.
-		 */
-		triggerWatcher.onFire((trackId) => void this.playLocal(trackId, 'api'));
-		this.track(() => triggerWatcher.stop());
-
-		schedulerWatcher.onFire((trackId) => this.handleSchedule(trackId));
-		schedulerWatcher.onMissed((trackId, time) => deckLog.scheduleMissed(trackId, time));
-		this.track(() => schedulerWatcher.stop());
-		this.track(this.scheduleQueue.start());
 
 		const info: BoardInfo = await ensureBoard(this.board.key, this.board.name);
 		const { uid } = await import('$lib/net/firebase').then((module) => module.connect());

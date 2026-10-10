@@ -17,9 +17,10 @@
 
 	interface Props {
 		blocks: ScheduleBlock[];
+		onpreset?: (type: SchoolPresetType) => void;
 	}
 
-	let { blocks = $bindable() }: Props = $props();
+	let { blocks = $bindable(), onpreset }: Props = $props();
 
 	if (!blocks || blocks.length === 0) {
 		blocks = [emptyBlock()];
@@ -27,6 +28,7 @@
 
 	function applyPreset(type: SchoolPresetType) {
 		blocks = createSchoolPreset(type);
+		onpreset?.(type);
 	}
 
 	function updateBlock(updated: ScheduleBlock) {

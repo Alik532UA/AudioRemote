@@ -33,12 +33,29 @@ export class SchedulerWatcher {
 		this.missed = callback;
 	}
 
+	clearHistoryFor(trackId: string): void {
+		for (const key of Object.keys(this.firedToday)) {
+			if (key.startsWith(`${trackId}|`)) {
+				delete this.firedToday[key];
+			}
+		}
+	}
+
 	sync(entries: readonly { id: string; trigger?: TrackTrigger | null }[]): void {
-		this.tracks = entries
+		const nextTracks = entries
 			.filter((entry): entry is { id: string; trigger: TrackTrigger } =>
 				Boolean(entry.trigger && scheduleReady(entry.trigger))
 			)
 			.map((entry) => ({ id: entry.id, trigger: entry.trigger }));
+
+		for (const track of nextTracks) {
+			const old = this.tracks.find((t) => t.id === track.id);
+			if (old && JSON.stringify(old.trigger.blocks) !== JSON.stringify(track.trigger.blocks)) {
+				this.clearHistoryFor(track.id);
+			}
+		}
+
+		this.tracks = nextTracks;
 
 		if (this.tracks.length > 0 && !this.timer) {
 			this.start();
@@ -65,9 +82,6 @@ export class SchedulerWatcher {
 		const todayDateStr = now.toDateString();
 		const currentMinutes = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-		// Стрибок часу (комп'ютер спав або вкладка була заморожена понад 5 с).
-		const jumped = this.lastTickMs > 0 && nowMs - this.lastTickMs > 5000;
-
 		for (const track of this.tracks) {
 			const blocks = track.trigger.blocks ?? [];
 			for (const block of blocks) {
@@ -82,20 +96,24 @@ export class SchedulerWatcher {
 					scheduledDate.setHours(hours, minutes, 0, 0);
 					const scheduledMs = scheduledDate.getTime();
 
-					if (jumped) {
-						// Подія припала на період сну.
-						if (scheduledMs >= this.lastTickMs && scheduledMs <= nowMs) {
-							this.firedToday[key] = true;
-							if (nowMs - scheduledMs <= 120_000) {
-								this.fire?.(track.id);
-							} else {
-								this.missed?.(track.id, time);
-							}
-						}
-					} else if (time === currentMinutes && now.getSeconds() === 0) {
-						// Звичайний такт на початку хвилини (:00 секунд).
+					if (nowMs < scheduledMs) continue;
+
+					// Час настав у цьому такті: або поточна хвилина (будь-яка секунда :00..:59),
+					// або момент перетнуто між тактами (після сну / тротлінгу вкладки).
+					const isDueNow =
+						time === currentMinutes ||
+						(this.lastTickMs > 0 && scheduledMs >= this.lastTickMs && scheduledMs <= nowMs);
+
+					if (isDueNow) {
 						this.firedToday[key] = true;
-						this.fire?.(track.id);
+						if (nowMs - scheduledMs <= 120_000) {
+							this.fire?.(track.id);
+						} else {
+							this.missed?.(track.id, time);
+						}
+					} else if (this.lastTickMs === 0 || scheduledMs < this.lastTickMs) {
+						// Подія була задовго до запуску планувальника сьогодні.
+						this.firedToday[key] = true;
 					}
 				}
 			}

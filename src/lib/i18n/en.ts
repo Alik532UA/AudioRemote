@@ -281,6 +281,7 @@ export const en: Record<TranslationKey, string> = {
 	'schedule.addTime': 'Add time',
 	'schedule.noTimes': 'No time points added yet',
 	'schedule.nextRun': 'Next run',
+	'schedule.disabled': 'Schedule disabled',
 	'schedule.nextNever': 'Not scheduled',
 	'schedule.nextToday': 'Today at {time}',
 	'schedule.nextTomorrow': 'Tomorrow at {time}',

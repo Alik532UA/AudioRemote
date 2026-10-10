@@ -57,4 +57,45 @@ describe('TriggerEditor', () => {
 			flushSync();
 		}).not.toThrow();
 	});
+
+	it('показує "Розклад вимкнено" якщо розклад не активовано тумблером', () => {
+		const host = document.createElement('div');
+		document.body.append(host);
+		const trigger: TrackTrigger = {
+			...emptyTrigger('schedule'),
+			on: false,
+			blocks: [{ id: 'b1', days: [0], times: ['09:00'] }]
+		};
+		const controller = createMockController(trigger);
+		app = mount(TriggerEditor, {
+			target: host,
+			props: { trackId: 't1', controller, initialMode: 'schedule' }
+		});
+		flushSync();
+
+		const status = host.querySelector('[data-testid="schedule-next-status"]');
+		expect(status?.textContent).toContain('Розклад вимкнено');
+	});
+
+	it('активує розклад при виборі шкільного пресету', () => {
+		const host = document.createElement('div');
+		document.body.append(host);
+		const controller = createMockController(emptyTrigger('schedule'));
+		app = mount(TriggerEditor, {
+			target: host,
+			props: { trackId: 't1', controller, initialMode: 'schedule' }
+		});
+		flushSync();
+
+		const presetBtn = host.querySelector<HTMLButtonElement>(
+			'[data-testid="schedule-preset-start-btn"]'
+		);
+		presetBtn?.click();
+		flushSync();
+
+		const toggle = host.querySelector<HTMLButtonElement>(
+			'[data-testid="trigger-schedule-on-toggle"]'
+		);
+		expect(toggle?.getAttribute('aria-checked')).toBe('true');
+	});
 });

@@ -69,8 +69,8 @@
 	let headersText = $state(
 		untrack(() =>
 			Object.entries(controller.triggerFor(trackId)?.headers ?? {})
-				.map(([name, value]) => `${name}: ${value}`)
-				.join(String.fromCharCode(10))
+				.map(([n, v]) => `${n}: ${v}`)
+				.join('\n')
 		)
 	);
 
@@ -83,8 +83,15 @@
 	 * Сім рядків із годинами на кожному тригері перетворили б вікно на таблицю,
 	 * у якій головне — адреса й умова — губиться.
 	 */
-	const nextInfo = $derived(draft.mode === 'schedule' ? describeNextDue(draft.blocks ?? []) : null);
+	$effect(() => {
+		if (initialMode && draft.mode !== initialMode) draft.mode = initialMode;
+	});
+
+	const nextInfo = $derived(
+		draft.mode === 'schedule' && draft.on ? describeNextDue(draft.blocks ?? []) : null
+	);
 	const nextRunText = $derived.by(() => {
+		if (draft.mode === 'schedule' && !draft.on) return t('schedule.disabled');
 		if (!nextInfo || nextInfo.kind === 'never') return t('schedule.nextNever');
 		if (nextInfo.kind === 'today') return t('schedule.nextToday', { time: nextInfo.time });
 		if (nextInfo.kind === 'tomorrow') return t('schedule.nextTomorrow', { time: nextInfo.time });
@@ -92,21 +99,17 @@
 	});
 
 	function save() {
-		if (draft.mode === 'schedule') {
-			controller.setTrigger(trackId, {
-				...draft,
-				mode: 'schedule',
-				blocks: draft.blocks ?? []
-			});
-		} else {
-			controller.setTrigger(trackId, {
-				...draft,
-				mode: 'api',
-				url: draft.url.trim(),
-				everySec: Math.max(MIN_INTERVAL_SEC, Math.round(draft.everySec) || MIN_INTERVAL_SEC),
-				headers: parseHeaders(headersText)
-			});
-		}
+		const patch =
+			draft.mode === 'schedule'
+				? { ...draft, mode: 'schedule' as const, blocks: draft.blocks ?? [] }
+				: {
+						...draft,
+						mode: 'api' as const,
+						url: draft.url.trim(),
+						everySec: Math.max(MIN_INTERVAL_SEC, Math.round(draft.everySec) || MIN_INTERVAL_SEC),
+						headers: parseHeaders(headersText)
+					};
+		controller.setTrigger(trackId, patch);
 		saved.show();
 	}
 </script>
@@ -200,7 +203,7 @@
 		</h3>
 
 		{#if draft.mode === 'schedule'}
-			<ScheduleEditor bind:blocks={draft.blocks!} />
+			<ScheduleEditor bind:blocks={draft.blocks!} onpreset={() => (draft.on = true)} />
 		{:else}
 			<Switch
 				checked={draft.on}
@@ -274,7 +277,7 @@
 	<footer class="foot">
 		<div class="foot__text">
 			{#if draft.mode === 'schedule'}
-				<p class="note" data-testid="schedule-next-status">
+				<p class="note" class:note--warn={!draft.on} data-testid="schedule-next-status">
 					<IconLater size={18} aria-hidden="true" />
 					<span>{nextRunText}</span>
 				</p>

@@ -94,4 +94,28 @@ describe('TrackDialog', () => {
 		const urlInput = host.querySelector('[data-testid="trigger-url"]');
 		expect(urlInput).not.toBeNull();
 	});
+
+	it('перемикає режим між розкладом і API через кнопки шапки', () => {
+		const host = document.createElement('div');
+		document.body.append(host);
+		const track = createMockTrack();
+		const controller = createMockController();
+
+		app = mount(TrackDialog, {
+			target: host,
+			props: { track, controller, onclose: () => {} }
+		});
+		flushSync();
+
+		const scheduleBtn = host.querySelector<HTMLButtonElement>('[data-testid="open-schedule-btn"]');
+		const apiBtn = host.querySelector<HTMLButtonElement>('[data-testid="open-trigger-btn"]');
+
+		scheduleBtn?.click();
+		flushSync();
+		expect(host.querySelector('[data-testid="schedule-next-status"]')).not.toBeNull();
+
+		apiBtn?.click();
+		flushSync();
+		expect(host.querySelector('[data-testid="trigger-url"]')).not.toBeNull();
+	});
 });
