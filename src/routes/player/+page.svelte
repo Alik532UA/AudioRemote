@@ -25,7 +25,6 @@
 	import { PlayerController } from '$lib/player/controller.svelte';
 	import { colorOf } from '$lib/config/trackColors';
 	import { folderOf, titleLines } from '$lib/audio/source';
-	import TrackDialog from '$lib/components/player/TrackDialog.svelte';
 	import HiddenDialog from '$lib/components/player/HiddenDialog.svelte';
 	import LeaveDialog from '$lib/components/player/LeaveDialog.svelte';
 	import RemoteDialog from '$lib/components/player/RemoteDialog.svelte';
@@ -50,7 +49,18 @@
 	let fatal = $state<TranslationKey | null>(null);
 	/** Для якого треку відкрите вікно налаштувань. `null` — для жодного. */
 	let openFor = $state<string | null>(null);
+	let TrackDialogComponent = $state<
+		typeof import('$lib/components/player/TrackDialog.svelte').default | null
+	>(null);
 	let hiddenOpen = $state(false);
+
+	$effect(() => {
+		if (openFor && !TrackDialogComponent) {
+			void import('$lib/components/player/TrackDialog.svelte').then((module) => {
+				TrackDialogComponent = module.default;
+			});
+		}
+	});
 
 	/**
 	 * ВИХІД ЗІ СТОРІНКИ КОШТУЄ ТЕКИ — але лише в браузері.
@@ -759,10 +769,10 @@
 			/>
 		{/if}
 
-		{#if openFor}
+		{#if openFor && TrackDialogComponent}
 			{@const chosen = controller.entries.find((entry) => entry.id === openFor)}
 			{#if chosen}
-				<TrackDialog track={chosen} {controller} onclose={() => (openFor = null)} />
+				<TrackDialogComponent track={chosen} {controller} onclose={() => (openFor = null)} />
 			{/if}
 		{/if}
 	{:else}
