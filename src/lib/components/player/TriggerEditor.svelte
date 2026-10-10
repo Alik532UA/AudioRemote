@@ -1,30 +1,33 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { IconCheck, IconTrash, IconWarning } from '$lib/config/icons';
+	import { IconCheck, IconLater, IconTrash, IconWarning } from '$lib/config/icons';
 	import { plural, t } from '$lib/i18n/i18n.svelte';
 	import { confirmed } from '$lib/services/confirmed.svelte';
 	import {
-		defaultSchedule,
 		emptyTrigger,
 		MAX_INTERVAL_SEC,
 		MIN_INTERVAL_SEC,
+		parseHeaders,
 		TRIGGER_TESTS,
-		withinSchedule,
 		type TrackTrigger,
 		type TriggerTest
 	} from '$lib/triggers/trigger';
+	import { describeNextDue } from '$lib/triggers/schedule';
 	import { FAULT_TEXT, triggerWatcher } from '$lib/triggers/watcher.svelte';
 	import type { BoardEditor } from '$lib/board/editor';
 	import Switch from '$lib/components/ui/Switch.svelte';
 	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
 	import Picker from '$lib/components/ui/Picker.svelte';
+	import ScheduleEditor from './ScheduleEditor.svelte';
+	import ApiScheduleSection from './ApiScheduleSection.svelte';
 
 	interface Props {
 		trackId: string;
 		controller: BoardEditor;
+		initialMode?: 'api' | 'schedule';
 	}
 
-	let { trackId, controller }: Props = $props();
+	let { trackId, controller, initialMode }: Props = $props();
 
 	/**
 	 * ЗАПУСК ТРЕКУ ЗА ЧУЖИМ API — ПОЛЯ, А НЕ ВСТАВЛЕНИЙ СКРИПТ.
@@ -44,7 +47,16 @@
 	 * `untrack` каже це прямо, а не лишає здогадуватися.
 	 */
 	let draft = $state<TrackTrigger>(
-		untrack(() => ({ ...emptyTrigger(), ...controller.triggerFor(trackId) }))
+		untrack(() => {
+			const existing = controller.triggerFor(trackId);
+			return {
+				...emptyTrigger(),
+				...existing,
+				mode: initialMode ?? existing?.mode ?? 'api',
+				headers: existing?.headers ?? {},
+				blocks: existing?.blocks ?? []
+			};
+		})
 	);
 	const saved = confirmed();
 
@@ -56,23 +68,11 @@
 	 */
 	let headersText = $state(
 		untrack(() =>
-			Object.entries(controller.triggerFor(trackId).headers)
+			Object.entries(controller.triggerFor(trackId)?.headers ?? {})
 				.map(([name, value]) => `${name}: ${value}`)
 				.join(String.fromCharCode(10))
 		)
 	);
-
-	const parseHeaders = (text: string): Record<string, string> => {
-		const headers: Record<string, string> = {};
-		for (const line of text.split(String.fromCharCode(10))) {
-			const at = line.indexOf(':');
-			if (at < 1) continue;
-			const name = line.slice(0, at).trim();
-			const value = line.slice(at + 1).trim();
-			if (name && value) headers[name] = value;
-		}
-		return headers;
-	};
 
 	const health = $derived(triggerWatcher.health[trackId] ?? null);
 
@@ -83,41 +83,30 @@
 	 * Сім рядків із годинами на кожному тригері перетворили б вікно на таблицю,
 	 * у якій головне — адреса й умова — губиться.
 	 */
-	const DAYS = [
-		'week.mon',
-		'week.tue',
-		'week.wed',
-		'week.thu',
-		'week.fri',
-		'week.sat',
-		'week.sun'
-	] as const;
-
-	let scheduleOn = $state(untrack(() => Boolean(draft.schedule)));
-
-	/** Зараз поза розкладом — це стан, а не помилка, і сказати про нього варто. */
-	const asleep = $derived(scheduleOn && !withinSchedule(draft.schedule));
-
-	/** Час першого дня — на всі інші. Вимкнені дні лишаються вимкненими. */
-	function sameEveryDay() {
-		const week = draft.schedule;
-		const first = week?.[0];
-		if (!week || !first) return;
-		draft.schedule = week.map((day) => ({ ...day, from: first.from, to: first.to }));
-	}
-
-	function toggleSchedule(next: boolean) {
-		scheduleOn = next;
-		draft.schedule = next ? (draft.schedule ?? defaultSchedule()) : null;
-	}
+	const nextInfo = $derived(draft.mode === 'schedule' ? describeNextDue(draft.blocks ?? []) : null);
+	const nextRunText = $derived.by(() => {
+		if (!nextInfo || nextInfo.kind === 'never') return t('schedule.nextNever');
+		if (nextInfo.kind === 'today') return t('schedule.nextToday', { time: nextInfo.time });
+		if (nextInfo.kind === 'tomorrow') return t('schedule.nextTomorrow', { time: nextInfo.time });
+		return t('schedule.nextDay', { day: t(nextInfo.dayKey), time: nextInfo.time });
+	});
 
 	function save() {
-		controller.setTrigger(trackId, {
-			...draft,
-			url: draft.url.trim(),
-			everySec: Math.max(MIN_INTERVAL_SEC, Math.round(draft.everySec) || MIN_INTERVAL_SEC),
-			headers: parseHeaders(headersText)
-		});
+		if (draft.mode === 'schedule') {
+			controller.setTrigger(trackId, {
+				...draft,
+				mode: 'schedule',
+				blocks: draft.blocks ?? []
+			});
+		} else {
+			controller.setTrigger(trackId, {
+				...draft,
+				mode: 'api',
+				url: draft.url.trim(),
+				everySec: Math.max(MIN_INTERVAL_SEC, Math.round(draft.everySec) || MIN_INTERVAL_SEC),
+				headers: parseHeaders(headersText)
+			});
+		}
 		saved.show();
 	}
 </script>
@@ -131,183 +120,147 @@
 -->
 <div class="trigger">
 	<section class="pane">
-		<h3 class="pane__title">{t('trigger.paneSource')}</h3>
-
-		<!--
-			Пояснення стоїть у коротшій колонці, і це не випадковість: у спільному
-			низі воно розтягувало вікно вниз рівно тоді, коли сусідня колонка вже
-			була найвищою. Тут воно займає порожнє місце, якого й так вистачало.
-		-->
-		<p class="muted">{t('trigger.lead')}</p>
+		<h3 class="pane__title">
+			{draft.mode === 'schedule' ? t('track.schedule') : t('trigger.paneSource')}
+		</h3>
 
 		<div class="field">
-			<label class="field__label" for="trigger-url">{t('trigger.url')}</label>
-			<input
-				id="trigger-url"
-				class="input mono"
-				type="url"
-				inputmode="url"
-				placeholder="https://"
-				bind:value={draft.url}
-				data-testid="trigger-url"
+			<span class="field__label" id="trigger-mode-label">{t('trigger.mode')}</span>
+			<Picker
+				row
+				labelledby="trigger-mode-label"
+				value={draft.mode ?? 'api'}
+				prefix="trigger-mode"
+				options={[
+					{ value: 'api', label: t('trigger.modeApi') },
+					{ value: 'schedule', label: t('trigger.modeSchedule') }
+				]}
+				onpick={(next) => (draft.mode = next as 'api' | 'schedule')}
 			/>
 		</div>
 
-		<div class="field">
-			<label class="field__label" for="trigger-every">{t('trigger.every')}</label>
-			<NumberStepper
-				id="trigger-every"
-				label={t('trigger.every')}
-				value={draft.everySec}
-				min={MIN_INTERVAL_SEC}
-				max={MAX_INTERVAL_SEC}
-				onchange={(next) => (draft.everySec = next)}
+		{#if draft.mode === 'schedule'}
+			<Switch
+				checked={draft.on}
+				label={t('trigger.onSchedule')}
+				testid="trigger-schedule-on-toggle"
+				onchange={(next) => (draft.on = next)}
 			/>
-		</div>
+			<div class="field">
+				<span class="field__label">{t('schedule.nextRun')}</span>
+				<p class="mono">{nextRunText}</p>
+			</div>
+		{:else}
+			<p class="muted">{t('trigger.lead')}</p>
 
-		<div class="field">
-			<label class="field__label" for="trigger-headers">{t('trigger.headers')}</label>
-			<textarea
-				id="trigger-headers"
-				class="input mono area"
-				rows="2"
-				spellcheck="false"
-				placeholder="Authorization: Bearer …"
-				bind:value={headersText}
-				data-testid="trigger-headers"
-			></textarea>
-			<p class="muted">{t('trigger.headersHint')}</p>
-		</div>
+			<div class="field">
+				<label class="field__label" for="trigger-url">{t('trigger.url')}</label>
+				<input
+					id="trigger-url"
+					class="input mono"
+					type="url"
+					inputmode="url"
+					placeholder="https://"
+					bind:value={draft.url}
+					data-testid="trigger-url"
+				/>
+			</div>
+
+			<div class="field">
+				<label class="field__label" for="trigger-every">{t('trigger.every')}</label>
+				<NumberStepper
+					id="trigger-every"
+					label={t('trigger.every')}
+					value={draft.everySec}
+					min={MIN_INTERVAL_SEC}
+					max={MAX_INTERVAL_SEC}
+					onchange={(next) => (draft.everySec = next)}
+				/>
+			</div>
+
+			<div class="field">
+				<label class="field__label" for="trigger-headers">{t('trigger.headers')}</label>
+				<textarea
+					id="trigger-headers"
+					class="input mono area"
+					rows="2"
+					spellcheck="false"
+					placeholder="Authorization: Bearer …"
+					bind:value={headersText}
+					data-testid="trigger-headers"
+				></textarea>
+				<p class="muted">{t('trigger.headersHint')}</p>
+			</div>
+		{/if}
 	</section>
 
 	<section class="pane">
-		<h3 class="pane__title">{t('trigger.paneWhen')}</h3>
+		<h3 class="pane__title">
+			{draft.mode === 'schedule' ? t('schedule.title') : t('trigger.paneWhen')}
+		</h3>
 
-		<Switch
-			checked={draft.on}
-			label={t('trigger.on')}
-			testid="trigger-on"
-			onchange={(next) => (draft.on = next)}
-		/>
-
-		<div class="field">
+		{#if draft.mode === 'schedule'}
+			<ScheduleEditor bind:blocks={draft.blocks!} />
+		{:else}
 			<Switch
-				checked={draft.onChange}
-				label={t('trigger.onChange')}
-				testid="trigger-onchange"
-				onchange={(next) => (draft.onChange = next)}
-			/>
-			<p class="muted">{t('trigger.onChangeHint')}</p>
-		</div>
-
-		<div class="field">
-			<label class="field__label" for="trigger-path">{t('trigger.path')}</label>
-			<input
-				id="trigger-path"
-				class="input mono"
-				type="text"
-				spellcheck="false"
-				bind:value={draft.path}
-				data-testid="trigger-path"
-			/>
-			<p class="muted">{t('trigger.pathHint')}</p>
-		</div>
-
-		<div class="field">
-			<span class="field__label" id="trigger-test-label">{t('trigger.test')}</span>
-			<Picker
-				row
-				labelledby="trigger-test-label"
-				value={draft.test}
-				prefix="trigger-test"
-				options={TRIGGER_TESTS.map((test) => ({
-					value: test,
-					label: t(`trigger.${test}`)
-				}))}
-				onpick={(next) => (draft.test = next as TriggerTest)}
-			/>
-		</div>
-
-		<div class="field">
-			<Switch
-				checked={scheduleOn}
-				label={t('trigger.schedule')}
-				testid="trigger-schedule"
-				onchange={toggleSchedule}
+				checked={draft.on}
+				label={t('trigger.on')}
+				testid="trigger-on"
+				onchange={(next) => (draft.on = next)}
 			/>
 
-			{#if scheduleOn && draft.schedule}
-				<ul class="week">
-					{#each draft.schedule as day, index (index)}
-						<li class="week__row" class:week__row--off={!day.on}>
-							<!--
-								День — сама кнопка, а не прапорець поруч із написом. Прапорець
-								браузера тут виглядав чужим і забирав ширину, якої в колонці
-								немає; до того ж «Пн» і галочка біля нього — це одна річ, а не
-								дві.
-							-->
-							<button
-								class="week__day"
-								type="button"
-								role="switch"
-								aria-checked={day.on}
-								onclick={() => (day.on = !day.on)}
-								data-testid="week-on-{index}"
-							>
-								{t(DAYS[index])}
-							</button>
-							<input
-								class="input week__time"
-								type="time"
-								aria-label={t('week.from', { day: t(DAYS[index]) })}
-								value={day.from}
-								disabled={!day.on}
-								oninput={(event) => (day.from = event.currentTarget.value)}
-								data-testid="week-from-{index}"
-							/>
-							<span class="week__dash">–</span>
-							<input
-								class="input week__time"
-								type="time"
-								aria-label={t('week.to', { day: t(DAYS[index]) })}
-								value={day.to}
-								disabled={!day.on}
-								oninput={(event) => (day.to = event.currentTarget.value)}
-								data-testid="week-to-{index}"
-							/>
-						</li>
-					{/each}
-				</ul>
-
-				<!--
-					Сім однакових рядків набирають руками рівно один раз, і після цього
-					цю кнопку шукають. Копіює перший рядок у решту — вимкнені дні
-					лишаються вимкненими, бо це окреме рішення.
-				-->
-				<button class="week__same" type="button" onclick={sameEveryDay} data-testid="week-same">
-					{t('trigger.scheduleSame')}
-				</button>
-
-				<p class="muted">{t('trigger.scheduleHint')}</p>
-				{#if asleep}
-					<p class="note note--warn" data-testid="schedule-asleep">
-						<span>{t('trigger.scheduleNow')}</span>
-					</p>
-				{/if}
-			{/if}
-		</div>
-
-		{#if draft.test !== 'truthy'}
 			<div class="field">
-				<label class="field__label" for="trigger-value">{t('trigger.value')}</label>
+				<Switch
+					checked={draft.onChange}
+					label={t('trigger.onChange')}
+					testid="trigger-onchange"
+					onchange={(next) => (draft.onChange = next)}
+				/>
+				<p class="muted">{t('trigger.onChangeHint')}</p>
+			</div>
+
+			<div class="field">
+				<label class="field__label" for="trigger-path">{t('trigger.path')}</label>
 				<input
-					id="trigger-value"
-					class="input"
+					id="trigger-path"
+					class="input mono"
 					type="text"
-					bind:value={draft.value}
-					data-testid="trigger-value"
+					spellcheck="false"
+					bind:value={draft.path}
+					data-testid="trigger-path"
+				/>
+				<p class="muted">{t('trigger.pathHint')}</p>
+			</div>
+
+			<div class="field">
+				<span class="field__label" id="trigger-test-label">{t('trigger.test')}</span>
+				<Picker
+					row
+					labelledby="trigger-test-label"
+					value={draft.test}
+					prefix="trigger-test"
+					options={TRIGGER_TESTS.map((test) => ({
+						value: test,
+						label: t(`trigger.${test}`)
+					}))}
+					onpick={(next) => (draft.test = next as TriggerTest)}
 				/>
 			</div>
+
+			<ApiScheduleSection bind:schedule={draft.schedule} />
+
+			{#if draft.test !== 'truthy'}
+				<div class="field">
+					<label class="field__label" for="trigger-value">{t('trigger.value')}</label>
+					<input
+						id="trigger-value"
+						class="input"
+						type="text"
+						bind:value={draft.value}
+						data-testid="trigger-value"
+					/>
+				</div>
+			{/if}
 		{/if}
 	</section>
 
@@ -320,43 +273,41 @@
 	-->
 	<footer class="foot">
 		<div class="foot__text">
-			<!--
-				Стан останнього опитування видно тут, бо найчастіша причина «не працює» —
-				не наш код, а заборона чужого сервера пускати браузер. Мовчання в цьому
-				місці виглядало б як зламаний застосунок.
-			-->
-			<p class="note" class:note--warn={health?.error} data-testid="trigger-health">
-				{#if health?.error}
-					<IconWarning size={18} aria-hidden="true" />
-					<!--
-						Текст добирається ТУТ, а не в опитувачі: там він застиг би мовою, яка
-						була на момент помилки, і не змінився б від перемикання мови.
-					-->
-					<span>
-						{t(FAULT_TEXT[health.error.code], {
-							detail: 'detail' in health.error ? health.error.detail : ''
-						})}
-					</span>
-				{:else if health}
-					<span>
-						{t('trigger.lastOk', { value: health.value })}
-						· {t('trigger.fires', { count: health.fires })}
-						<!--
-							Коли адресу слухає не один трек, це варто сказати: «опитано щойно»
-							на треку, який сам нічого не питав, інакше виглядало б помилкою.
-						-->
-						{#if health.shared > 1}
-							·
-							{plural(
-								{ one: 'trigger.sharedOne', few: 'trigger.sharedFew', other: 'trigger.sharedMany' },
-								health.shared
-							)}
-						{/if}
-					</span>
-				{:else}
-					<span>{t('trigger.never')}</span>
-				{/if}
-			</p>
+			{#if draft.mode === 'schedule'}
+				<p class="note" data-testid="schedule-next-status">
+					<IconLater size={18} aria-hidden="true" />
+					<span>{nextRunText}</span>
+				</p>
+			{:else}
+				<p class="note" class:note--warn={health?.error} data-testid="trigger-health">
+					{#if health?.error}
+						<IconWarning size={18} aria-hidden="true" />
+						<span>
+							{t(FAULT_TEXT[health.error.code], {
+								detail: 'detail' in health.error ? health.error.detail : ''
+							})}
+						</span>
+					{:else if health}
+						<span>
+							{t('trigger.lastOk', { value: health.value })}
+							· {t('trigger.fires', { count: health.fires })}
+							{#if health.shared > 1}
+								·
+								{plural(
+									{
+										one: 'trigger.sharedOne',
+										few: 'trigger.sharedFew',
+										other: 'trigger.sharedMany'
+									},
+									health.shared
+								)}
+							{/if}
+						</span>
+					{:else}
+						<span>{t('trigger.never')}</span>
+					{/if}
+				</p>
+			{/if}
 		</div>
 
 		<div class="row">
@@ -369,7 +320,7 @@
 				{/if}
 			</button>
 
-			{#if controller.triggerFor(trackId).url}
+			{#if controller.triggerFor(trackId).url || controller.triggerFor(trackId).mode === 'schedule'}
 				<button
 					class="btn btn--danger"
 					type="button"
@@ -429,86 +380,6 @@
 		/* Текст займає рядок, але не витісняє кнопки на власний. */
 		flex: 1 1 22rem;
 		min-width: 0;
-	}
-
-	/*
-	 * Тиждень списком, а не таблицею: сім рядків по три поля — це вже таблиця,
-	 * але їй бракує заголовків, і вирівнювання в ній коштувало б більше, ніж
-	 * дає. Тут кожен рядок сам за себе, а вузька колонка вікна не ламає його.
-	 */
-	.week {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap-xs);
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	.week__row {
-		display: flex;
-		align-items: center;
-		gap: var(--gap-xs);
-	}
-
-	/* Вимкнений день лишається на місці, але не тягне на себе увагу. */
-	.week__row--off {
-		opacity: 0.55;
-	}
-
-	.week__day {
-		flex: none;
-		width: 2.6rem;
-		min-height: 32px;
-		padding: 0;
-		border: 1px solid var(--border);
-		border-radius: var(--radius-sm);
-		background: var(--bg-surface-raised);
-		color: var(--text-secondary);
-		cursor: pointer;
-		font: inherit;
-		font-size: 0.8rem;
-		font-weight: 600;
-	}
-
-	.week__day[aria-checked='true'] {
-		border-color: var(--accent);
-		background: var(--accent-soft);
-		color: var(--accent);
-	}
-
-	.week__dash {
-		flex: none;
-		color: var(--text-muted);
-	}
-
-	.week__time {
-		flex: 1 1 0;
-		min-width: 0;
-		min-height: 32px;
-		padding-inline: var(--gap-xs);
-		font-size: 0.85rem;
-	}
-
-	/*
-	 * Годинник із поля часу прибраний: у колонці завширшки з долоню він з'їдав
-	 * місце, потрібне самим цифрам, а набирають їх однаково з клавіатури.
-	 */
-	.week__time::-webkit-calendar-picker-indicator {
-		display: none;
-	}
-
-	.week__same {
-		align-self: start;
-		padding: 0;
-		border: 0;
-		background: none;
-		color: var(--accent);
-		cursor: pointer;
-		font: inherit;
-		font-size: 0.8rem;
-		text-decoration: underline dotted;
-		text-underline-offset: 3px;
 	}
 
 	.area {

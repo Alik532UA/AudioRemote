@@ -31,7 +31,11 @@
 		{ name: 'Telegram', url: 'https://t.me/alik532', icon: 'message_telegram_512.svg' },
 		{ name: 'Viber', url: 'viber://chat?number=%2B380937251208', icon: 'message_viber_512.svg' },
 		{ name: 'WhatsApp', url: 'https://wa.me/380937251208', icon: 'message_whatsapp_512.svg' },
-		{ name: 'LinkedIn', url: 'https://linkedin.com/in/alik-qa-engineer', icon: 'message_linkedin_512.svg' }
+		{
+			name: 'LinkedIn',
+			url: 'https://linkedin.com/in/alik-qa-engineer',
+			icon: 'message_linkedin_512.svg'
+		}
 	];
 </script>
 

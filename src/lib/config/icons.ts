@@ -56,3 +56,4 @@ export { default as IconBan } from '@lucide/svelte/icons/ban';
 export { default as IconLater } from '@lucide/svelte/icons/clock';
 export { default as IconZap } from '@lucide/svelte/icons/zap';
 export { default as IconGrid } from '@lucide/svelte/icons/layout-grid';
+export { default as IconPlus } from '@lucide/svelte/icons/plus';

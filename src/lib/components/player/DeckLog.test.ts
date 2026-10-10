@@ -144,3 +144,17 @@ describe('формат часу в журналі деки', () => {
 		}
 	});
 });
+
+describe('події розкладу в журналі деки', () => {
+	it('показує постановку в чергу, скасування, прострочення та пропуск', () => {
+		const host = open([track('дзвінок', 'ruby')]);
+		deckLog.scheduleQueued('дзвінок');
+		deckLog.scheduleCancelled('дзвінок');
+		deckLog.scheduleExpired('дзвінок');
+		deckLog.scheduleMissed('дзвінок', '08:30');
+		flushSync();
+
+		const rows = host.querySelectorAll<HTMLElement>('[data-testid$="-row"]');
+		expect(rows).toHaveLength(4);
+	});
+});

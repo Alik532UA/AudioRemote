@@ -31,9 +31,12 @@ import { mark } from '$lib/services/breadcrumbs';
 import { deckLog, type DeckSource } from '$lib/services/deckLog.svelte';
 import { emptyTrigger, type TrackTrigger } from '$lib/triggers/trigger';
 import { triggerWatcher } from '$lib/triggers/watcher.svelte';
+import { schedulerWatcher } from '$lib/triggers/scheduler.svelte';
 import { AUTO_MIN_MS, nextAfter } from './nextTrack';
-import { applyPatch } from './adminPatch';
+import { applyPatchedTracks } from './adminPatch';
 import { toConfig, toEntries } from './configMap';
+import { executeRemote } from './remoteCommand';
+import { ScheduleQueue, type QueuedTrack } from './scheduleQueue.svelte';
 
 /** Трек так, як його бачить дошка. Форма спільна з пультом — див. `editor.ts`. */
 export type { BoardTrack };
@@ -122,6 +125,7 @@ export class PlayerController implements BoardEditor {
 
 	readonly engine: AudioEngine;
 	private readonly source: AudioSource;
+	readonly scheduleQueue = new ScheduleQueue();
 	private readonly cleanups: (() => void)[] = [];
 	private publishing = false;
 	/** Стан змінився, поки йшов запис. Оголосимо, щойно звільниться. */
@@ -175,6 +179,13 @@ export class PlayerController implements BoardEditor {
 	private lastAuto = 0;
 
 	private continueAfter(trackId: string): void {
+		const queued = this.scheduleQueue.pop();
+		if (queued) {
+			this.lastAuto = Date.now();
+			void this.playLocal(queued, 'schedule');
+			return;
+		}
+
 		const now = Date.now();
 		if (now - this.lastAuto < AUTO_MIN_MS) return;
 
@@ -233,6 +244,14 @@ export class PlayerController implements BoardEditor {
 	readonly playerOnlyCount: number = $derived(
 		this.entries.filter((entry) => entry.visibility === 'player').length
 	);
+
+	get queuedTrack(): QueuedTrack | null {
+		return this.scheduleQueue.queued;
+	}
+
+	cancelQueued(): void {
+		this.scheduleQueue.cancel();
+	}
 
 	/** Записати прибирання — або виконати одразу, якщо вже пізно. */
 	private track(cleanup: () => void): void {
@@ -309,6 +328,11 @@ export class PlayerController implements BoardEditor {
 		 */
 		triggerWatcher.onFire((trackId) => void this.playLocal(trackId, 'api'));
 		this.track(() => triggerWatcher.stop());
+
+		schedulerWatcher.onFire((trackId) => this.handleSchedule(trackId));
+		schedulerWatcher.onMissed((trackId, time) => deckLog.scheduleMissed(trackId, time));
+		this.track(() => schedulerWatcher.stop());
+		this.track(this.scheduleQueue.start());
 
 		const info: BoardInfo = await ensureBoard(this.board.key, this.board.name);
 		const { uid } = await import('$lib/net/firebase').then((module) => module.connect());
@@ -414,7 +438,9 @@ export class PlayerController implements BoardEditor {
 			this.play = { ...DEFAULT_PLAY, ...(config.play ?? {}) };
 
 			this.engine.setOrder(this.visible);
-			triggerWatcher.sync(this.snapshot());
+			const snap = this.snapshot();
+			triggerWatcher.sync(snap);
+			schedulerWatcher.sync(snap);
 			await this.publish();
 		} finally {
 			this.scanning = false;
@@ -686,7 +712,17 @@ export class PlayerController implements BoardEditor {
 	 */
 	setTrigger(trackId: string, trigger: TrackTrigger | null): void {
 		this.update(trackId, (entry) => ({ ...entry, trigger }));
-		triggerWatcher.sync(this.snapshot());
+		const snap = this.snapshot();
+		triggerWatcher.sync(snap);
+		schedulerWatcher.sync(snap);
+	}
+
+	private handleSchedule(trackId: string): void {
+		if (this.engine.playing) {
+			this.scheduleQueue.set(trackId);
+		} else {
+			void this.playLocal(trackId, 'schedule');
+		}
 	}
 
 	/** Готовий тригер для вікна: наявний або порожній зразок. */
@@ -769,22 +805,10 @@ export class PlayerController implements BoardEditor {
 			};
 			if (sent.rev !== this.adminRev) return 'admin.stale';
 
-			const wanted = Array.isArray(sent.tracks) ? sent.tracks : [];
-			const rest = [...this.entries];
-			const patched: BoardTrack[] = [];
-
-			for (const change of wanted) {
-				// Виймаємо зі `rest`, тож той самий трек, названий двічі, поїде в
-				// список один раз — а не задвоїться.
-				const at = rest.findIndex((entry) => entry.id === String(change.id));
-				if (at < 0) continue;
-				patched.push(applyPatch(rest.splice(at, 1)[0], change));
-			}
-
-			// Ті, про кого адміністратор не сказав нічого, лишаються — у кінці й у
-			// своєму порядку. Зникнути трек може лише разом із файлом.
-			this.entries = [...patched, ...rest];
-			triggerWatcher.sync(this.snapshot());
+			this.entries = applyPatchedTracks(this.entries, sent.tracks);
+			const snap = this.snapshot();
+			triggerWatcher.sync(snap);
+			schedulerWatcher.sync(snap);
 			await this.persist();
 			return null;
 		} catch {
@@ -911,46 +935,10 @@ export class PlayerController implements BoardEditor {
 	private async execute(command: Command): Promise<string | null> {
 		if (this.stopped) return null;
 		try {
-			switch (command.type) {
-				case 'play': {
-					const id = String(command.value ?? '');
-					/*
-					 * Пульт не мусить могти запустити те, чого йому не оголошували. Він
-					 * цього й не показує — але команда приходить мережею, і перевіряти
-					 * її треба тут, а не покладатися на чужий інтерфейс.
-					 */
-					if (this.entries.find((entry) => entry.id === id)?.visibility !== 'all') {
-						return 'error.fileGone';
-					}
-					await this.engine.play(id, this.repeatOf(id));
-					break;
-				}
-				case 'pause':
-					this.engine.pause();
-					break;
-				case 'resume':
-					await this.engine.resume();
-					break;
-				case 'stop':
-					this.engine.stop();
-					break;
-				case 'prev': {
-					const prev = this.engine.prevTrackId();
-					if (prev) await this.engine.play(prev, this.repeatOf(prev));
-					break;
-				}
-				case 'next': {
-					const next = this.engine.nextTrackId();
-					if (next) await this.engine.play(next, this.repeatOf(next));
-					break;
-				}
-				case 'volume':
-					this.engine.setVolume(Number(command.value ?? 0) / 100);
-					break;
-				case 'seek':
-					this.engine.seek(Number(command.value ?? 0));
-					break;
-			}
+			const rejected = await executeRemote(this.engine, command, this.entries, (id) =>
+				this.repeatOf(id)
+			);
+			if (rejected) return rejected;
 
 			this.trouble = null;
 			await this.announce();

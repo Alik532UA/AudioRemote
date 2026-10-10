@@ -42,3 +42,21 @@ export function applyPatch(entry: BoardTrack, change: Partial<BoardTrack>): Boar
 		trigger: toTrigger(change.trigger)
 	};
 }
+
+/**
+ * Застосувати зміни адміністратора до списку треків.
+ * Ті, що прийшли від адміністратора, оновлюються в його порядку;
+ * решта — лишаються в кінці зі своїм порядком.
+ */
+export function applyPatchedTracks(current: BoardTrack[], rawTracks: unknown): BoardTrack[] {
+	const wanted = Array.isArray(rawTracks) ? (rawTracks as Partial<BoardTrack>[]) : [];
+	const rest = [...current];
+	const patched: BoardTrack[] = [];
+
+	for (const change of wanted) {
+		const at = rest.findIndex((entry) => entry.id === String(change.id));
+		if (at < 0) continue;
+		patched.push(applyPatch(rest.splice(at, 1)[0], change));
+	}
+	return [...patched, ...rest];
+}

@@ -15,8 +15,7 @@
 		IconStop,
 		IconUp,
 		IconVolume,
-		IconWarning,
-		IconZap
+		IconWarning
 	} from '$lib/config/icons';
 	import { t, type TranslationKey } from '$lib/i18n/i18n.svelte';
 	import { boardSession } from '$lib/board/session.svelte';
@@ -34,6 +33,8 @@
 	import BoardNotices from '$lib/components/player/BoardNotices.svelte';
 	import BoardHead from '$lib/components/player/BoardHead.svelte';
 	import DeckLog from '$lib/components/player/DeckLog.svelte';
+	import DeckQueuedNotice from '$lib/components/player/DeckQueuedNotice.svelte';
+	import TrackTriggerMark from '$lib/components/player/TrackTriggerMark.svelte';
 	import FolderBar from '$lib/components/player/FolderBar.svelte';
 	import PlaybackPolicy from '$lib/components/player/PlaybackPolicy.svelte';
 	import ArmDialog from '$lib/components/player/ArmDialog.svelte';
@@ -134,10 +135,7 @@
 	 * на мить.
 	 */
 	function askFolder(): void {
-		if (!settings.folderHint) {
-			void controller?.pickFolder();
-			return;
-		}
+		if (!settings.folderHint) return void controller?.pickFolder();
 		folderHintOpen = true;
 	}
 	/** Вікно «увімкнути звук» закрили, не вмикаючи. Більше не питаємо. */
@@ -325,6 +323,16 @@
 							<p class="deck__now" data-testid="now-playing">
 								{current?.title ?? t('remote.nothing')}
 							</p>
+
+							{#if controller?.queuedTrack}
+								{@const queued = controller.entries.find(
+									(e) => e.id === controller?.queuedTrack?.trackId
+								)}
+								<DeckQueuedNotice
+									title={queued?.title ?? ''}
+									oncancel={() => controller?.cancelQueued()}
+								/>
+							{/if}
 
 							<!--
 								Смуга перемотки. Поки палець на ній, позиція з плеєра її не смикає:
@@ -657,20 +665,12 @@
 											</span>
 										{/if}
 
-										{#if settings.showTrigger && entry.trigger?.on}
-											<!--
-												Значок відповідає на «чому воно заграло саме́». Без нього про запуск
-												за API знав би лише той, хто відкрив налаштування саме цього треку.
-											-->
-											<span
-												class="tracks__zap"
-												title={t('track.trigger')}
-												aria-label={t('track.trigger')}
-												data-testid="trigger-mark-{entry.id}"
-											>
-												<IconZap size={14} aria-hidden="true" />
-											</span>
-										{/if}
+										<TrackTriggerMark
+											trackId={entry.id}
+											trigger={entry.trigger}
+											showTrigger={settings.showTrigger}
+											isQueued={controller?.queuedTrack?.trackId === entry.id}
+										/>
 
 										<div class="tracks__tools">
 											<button
@@ -1243,6 +1243,4 @@
 		flex: none;
 		gap: 2px;
 	}
-
-	/* --- Панель призначень -------------------------------------------------- */
 </style>

@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { IconClose, IconKeyboard, IconZap } from '$lib/config/icons';
+	import { IconKeyboard } from '$lib/config/icons';
 	import { t } from '$lib/i18n/i18n.svelte';
 	import { MAX_GAP_SEC, MAX_ICON, MAX_PLAYS } from '$lib/audio/boardConfig';
 	import { isAssignable, labelForCode, ordinalKey } from '$lib/hotkeys/hotkeys';
 	import type { BoardEditor, BoardTrack } from '$lib/board/editor';
+	import TrackDialogHead from './TrackDialogHead.svelte';
 	import TriggerEditor from './TriggerEditor.svelte';
 	import ColorPalette from '$lib/components/ui/ColorPalette.svelte';
 	import NumberStepper from '$lib/components/ui/NumberStepper.svelte';
@@ -48,16 +49,28 @@
 	let capturing = $state(false);
 	let rejected = $state<string | null>(null);
 	/**
-	 * Чи розгорнутий запуск за API.
-	 *
-	 * Згорнутий типово: цим користується одиниця з десяти. Розгортається сам,
-	 * якщо тригер уже налаштований, — інакше його не було б видно взагалі.
-	 *
-	 * Від цього ж залежить ширина вікна: три колонки потрібні тільки тоді, коли
-	 * є чим їх заповнити. Порожні дві третини поруч із підписом і палітрою — це
-	 * та сама марна порожнеча, тільки з іншого боку.
+	 * Чи розгорнутий запуск за API або розкладом.
 	 */
-	let triggerOpen = $state(untrack(() => controller.triggerFor(track.id).url.length > 0));
+	let activeTriggerMode = $state<'api' | 'schedule'>(
+		untrack(() => (controller.triggerFor(track.id).mode === 'schedule' ? 'schedule' : 'api'))
+	);
+	let triggerOpen = $state(
+		untrack(() => {
+			const tr = controller.triggerFor(track.id);
+			return Boolean(
+				tr.url.length > 0 || (tr.mode === 'schedule' && tr.blocks && tr.blocks.length > 0)
+			);
+		})
+	);
+
+	function toggleTrigger(mode: 'api' | 'schedule') {
+		if (triggerOpen && activeTriggerMode === mode) {
+			triggerOpen = false;
+		} else {
+			activeTriggerMode = mode;
+			triggerOpen = true;
+		}
+	}
 
 	$effect(() => {
 		node?.showModal();
@@ -112,40 +125,13 @@
 			не зробити — довелося б переносити елементи між контейнерами, а від
 			цього кнопка закриття щоразу опинялася б у новому місці.
 		-->
-		<header class="dialog__head">
-			<h2 class="dialog__title">{t('track.settings')}</h2>
-
-			<!-- Ім'я файлу лишається тим самим: застосунок нічого не перейменовує. -->
-			<p class="muted mono dialog__file">{track.path}</p>
-
-			<!--
-				Перемикач розділу стоїть у шапці, а не внизу списку полів: саме він
-				вирішує, наскільки велике це вікно, і шукати його під формою, яку
-				він же й відкриває, довелося б згори вниз і назад.
-			-->
-			<button
-				class="btn dialog__api"
-				class:btn--primary={triggerOpen}
-				type="button"
-				aria-expanded={triggerOpen}
-				onclick={() => (triggerOpen = !triggerOpen)}
-				data-testid="open-trigger-btn"
-			>
-				<IconZap size={18} aria-hidden="true" />
-				{t('track.trigger')}
-			</button>
-
-			<!-- Круглий вигляд кнопці закриття дає канонний локатор, не цей клас. -->
-			<button
-				class="dialog__close"
-				type="button"
-				aria-label={t('common.close')}
-				onclick={() => node?.close()}
-				data-testid="track-modal-close-btn"
-			>
-				<IconClose size={20} aria-hidden="true" />
-			</button>
-		</header>
+		<TrackDialogHead
+			path={track.path}
+			{triggerOpen}
+			{activeTriggerMode}
+			ontoggletrigger={toggleTrigger}
+			onclose={() => node?.close()}
+		/>
 
 		<!--
 			ТРИ КОЛОНКИ, А НЕ ОДИН СТОВПЕЦЬ.
@@ -299,7 +285,7 @@
 			</section>
 
 			{#if triggerOpen}
-				<TriggerEditor trackId={track.id} {controller} />
+				<TriggerEditor trackId={track.id} {controller} initialMode={activeTriggerMode} />
 			{/if}
 		</div>
 	</div>
@@ -355,61 +341,6 @@
 		max-height: inherit;
 		overflow: auto;
 		padding: var(--gap-lg);
-	}
-
-	.dialog__head {
-		display: grid;
-		grid-template-areas:
-			'title api close'
-			'file  api close';
-		grid-template-columns: 1fr auto auto;
-		align-items: center;
-		gap: var(--gap-xs) var(--gap-sm);
-	}
-
-	.dialog__title {
-		grid-area: title;
-		align-self: end;
-		font-size: 1.1rem;
-	}
-
-	.dialog__file {
-		grid-area: file;
-		align-self: start;
-		/* Довгий шлях переноситься по буквах, а не відсуває кнопки за край. */
-		word-break: break-all;
-		min-width: 0;
-	}
-
-	.dialog__api {
-		grid-area: api;
-	}
-
-	.dialog__close {
-		grid-area: close;
-	}
-
-	/*
-	 * На телефоні шапка стає трьома рядами.
-	 *
-	 * В один ряд назва й кнопка розділу лишали шляху файлу смужку завширшки з
-	 * три букви, і «Відбій.mp3» розсипався на три рядки. Ширини тут не
-	 * вистачає ні на що, крім хрестика, — отже, решта йде під низ.
-	 */
-	@media (max-width: 560px) {
-		.dialog__head {
-			grid-template-areas:
-				'title close'
-				'file  file'
-				'api   api';
-			grid-template-columns: 1fr auto;
-			gap: var(--gap-sm);
-		}
-
-		.dialog__api {
-			justify-content: center;
-			width: 100%;
-		}
 	}
 
 	.grid {

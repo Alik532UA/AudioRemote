@@ -241,7 +241,6 @@ const LEGACY_ALLOWED = new Set<string>([
 	'trigger-clear',
 	'trigger-headers',
 	'trigger-health',
-	'trigger-mark-{entry.id}',
 	'trigger-mark-{track.id}',
 	'trigger-path',
 	'trigger-save',

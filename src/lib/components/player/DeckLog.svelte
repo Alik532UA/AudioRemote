@@ -80,6 +80,14 @@
 	function say(note: DeckNote): string {
 		if (note.kind === 'came' || note.kind === 'went') return t(`logAct.${note.kind}`);
 		if (note.kind === 'trigger') return t('deckAct.trigger', { track: titleOf(note.trackId) });
+		if (note.kind === 'scheduleQueue')
+			return t('deckAct.scheduleQueue', { track: titleOf(note.trackId) });
+		if (note.kind === 'scheduleCancelled')
+			return t('deckAct.scheduleCancelled', { track: titleOf(note.trackId) });
+		if (note.kind === 'scheduleExpired')
+			return t('deckAct.scheduleExpired', { track: titleOf(note.trackId) });
+		if (note.kind === 'scheduleMissed')
+			return t('deckAct.scheduleMissed', { track: titleOf(note.trackId), time: note.who });
 		if (note.kind === 'play') return t('deckAct.play', { track: titleOf(note.trackId) });
 		if (note.kind === 'volume') return t('deckAct.volume', { n: `${note.value ?? 0}` });
 		if (note.kind === 'seek') return t('deckAct.seek');
@@ -167,7 +175,7 @@
 
 					<LogWho
 						side={t(`deckFrom.${note.source}`)}
-						name={note.who}
+						name={note.source === 'schedule' ? '' : note.who}
 						tone={note.source === 'self' ? 'own' : note.source}
 						testid="deck-note-{index}-who-text"
 					/>

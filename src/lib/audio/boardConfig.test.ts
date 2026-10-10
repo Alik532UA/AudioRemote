@@ -105,3 +105,44 @@ describe('значок треку', () => {
 		expect(config.tracks[0].icon).toBeUndefined();
 	});
 });
+
+describe('тригер треку', () => {
+	it('тригер за розкладом читається з блоками', () => {
+		const config = parseConfig(
+			JSON.stringify({
+				tracks: [
+					{
+						path: 'Дзвінок.mp3',
+						trigger: {
+							on: true,
+							mode: 'schedule',
+							blocks: [{ id: 'b1', days: [0, 2], times: ['8:30', '09:15'] }]
+						}
+					}
+				]
+			})
+		);
+		expect(config.tracks[0].trigger).toBeDefined();
+		expect(config.tracks[0].trigger?.mode).toBe('schedule');
+		expect(config.tracks[0].trigger?.blocks?.[0].times).toEqual(['08:30', '09:15']);
+	});
+
+	it('старий тригер без mode читається як api', () => {
+		const config = parseConfig(
+			JSON.stringify({
+				tracks: [
+					{
+						path: 'Сирена.mp3',
+						trigger: {
+							on: true,
+							url: 'https://example.com/api',
+							everySec: 15
+						}
+					}
+				]
+			})
+		);
+		expect(config.tracks[0].trigger?.mode).toBe('api');
+		expect(config.tracks[0].trigger?.url).toBe('https://example.com/api');
+	});
+});

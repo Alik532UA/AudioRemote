@@ -26,7 +26,17 @@ import { PresenceEvents } from './presenceLog';
  */
 
 /** Звідки прийшла дія. Різниця між ними — це і є головне тут. */
-export type DeckSource = 'self' | 'remote' | 'api';
+export type DeckSource = 'self' | 'remote' | 'api' | 'schedule';
+
+export type DeckNoteKind =
+	| CommandType
+	| 'trigger'
+	| 'came'
+	| 'went'
+	| 'scheduleQueue'
+	| 'scheduleCancelled'
+	| 'scheduleExpired'
+	| 'scheduleMissed';
 
 export interface DeckNote {
 	id: string;
@@ -34,10 +44,10 @@ export interface DeckNote {
 	/**
 	 * Що саме сталося.
 	 *
-	 * `trigger` — спрацював API; `came`/`went` — пульт прийшов або пішов; решта
-	 * — звичайні команди.
+	 * `trigger` — спрацював API; `came`/`went` — пульт прийшов або пішов;
+	 * події розкладу; решта — звичайні команди.
 	 */
-	kind: CommandType | 'trigger' | 'came' | 'went';
+	kind: DeckNoteKind;
 	/** Трек, якого це стосується. Порожньо — дія не про конкретний трек. */
 	trackId: string;
 	/** Число команди: гучність або позиція перемотки. */
@@ -96,6 +106,22 @@ class DeckLog {
 			source,
 			who: ''
 		});
+	}
+
+	scheduleQueued(trackId: string): void {
+		this.add({ kind: 'scheduleQueue', trackId, value: null, source: 'schedule', who: '' });
+	}
+
+	scheduleCancelled(trackId: string): void {
+		this.add({ kind: 'scheduleCancelled', trackId, value: null, source: 'self', who: '' });
+	}
+
+	scheduleExpired(trackId: string): void {
+		this.add({ kind: 'scheduleExpired', trackId, value: null, source: 'schedule', who: '' });
+	}
+
+	scheduleMissed(trackId: string, time: string): void {
+		this.add({ kind: 'scheduleMissed', trackId, value: null, source: 'schedule', who: time });
 	}
 
 	/**

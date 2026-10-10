@@ -7,6 +7,7 @@ import {
 	type TriggerTest,
 	type WeekSchedule
 } from '$lib/triggers/trigger';
+import { normalizeTime, type ScheduleBlock } from '$lib/triggers/schedule';
 
 /**
  * НАЛАШТУВАННЯ ДОШКИ ЖИВУТЬ У ФАЙЛІ ПОРУЧ ІЗ МУЗИКОЮ.
@@ -259,7 +260,11 @@ function visibilityOf(record: Record<string, unknown>): TrackVisibility {
 export function toTrigger(value: unknown): TrackTrigger | null {
 	if (typeof value !== 'object' || value === null) return null;
 	const record = value as Record<string, unknown>;
-	if (typeof record.url !== 'string' || record.url.length === 0) return null;
+
+	const mode = record.mode === 'schedule' ? 'schedule' : 'api';
+	if (mode === 'api' && (typeof record.url !== 'string' || record.url.length === 0)) {
+		return null;
+	}
 
 	const headers: Record<string, string> = {};
 	if (typeof record.headers === 'object' && record.headers !== null) {
@@ -272,19 +277,49 @@ export function toTrigger(value: unknown): TrackTrigger | null {
 		? (record.test as TriggerTest)
 		: 'truthy';
 
+	const blocks = toBlocks(record.blocks);
+
 	return {
 		on: record.on === true,
-		url: record.url,
+		mode,
+		url: typeof record.url === 'string' ? record.url : '',
 		everySec: typeof record.everySec === 'number' ? record.everySec : 30,
 		headers,
 		path: typeof record.path === 'string' ? record.path : '',
 		test,
 		value: typeof record.value === 'string' ? record.value : '',
-		// Відсутнє поле — це файл, записаний до появи вибору. Тодішній намір
-		// був саме «лише на зміну», тож типове значення його й повторює.
 		onChange: record.onChange !== false,
-		...(toSchedule(record.schedule) ? { schedule: toSchedule(record.schedule) } : {})
+		...(toSchedule(record.schedule) ? { schedule: toSchedule(record.schedule) } : {}),
+		...(blocks.length > 0 ? { blocks } : {})
 	};
+}
+
+function toBlocks(value: unknown): ScheduleBlock[] {
+	if (!Array.isArray(value)) return [];
+	const blocks: ScheduleBlock[] = [];
+	for (const item of value) {
+		if (typeof item !== 'object' || item === null) continue;
+		const record = item as Record<string, unknown>;
+		const days = Array.isArray(record.days)
+			? record.days.map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6)
+			: [];
+		const times = Array.isArray(record.times)
+			? record.times
+					.map((t) => (typeof t === 'string' ? normalizeTime(t) : null))
+					.filter((t): t is string => t !== null)
+			: [];
+		if (days.length === 0 && times.length === 0) continue;
+		const id =
+			typeof record.id === 'string' && record.id.trim()
+				? record.id.trim().slice(0, 32)
+				: Math.random().toString(36).slice(2, 9);
+		blocks.push({
+			id,
+			days: [...new Set(days)].sort((left, right) => left - right),
+			times: [...new Set(times)].sort((left, right) => left.localeCompare(right))
+		});
+	}
+	return blocks;
 }
 
 /**

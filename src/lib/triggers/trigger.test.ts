@@ -6,7 +6,8 @@ import {
 	readPath,
 	shouldFire,
 	triggerReady,
-	emptyTrigger
+	emptyTrigger,
+	parseHeaders
 } from './trigger';
 
 describe('читання значення з відповіді', () => {
@@ -265,5 +266,13 @@ describe('один запит на адресу', () => {
 			{ id: 'a', trigger: on({ url: 'https://b.example/api' }) }
 		]);
 		expect(first.map((g) => g.key)).toEqual(second.map((g) => g.key));
+	});
+
+	it('розбирає текст заголовків у мапу', () => {
+		expect(parseHeaders('Authorization: Bearer token\nX-Custom: 123')).toEqual({
+			Authorization: 'Bearer token',
+			'X-Custom': '123'
+		});
+		expect(parseHeaders('invalid line\n:empty name')).toEqual({});
 	});
 });

@@ -39,6 +39,8 @@
  * її назву, — а «відбій» тим, що більше не містить. Умови «містить» без
  * «не містить» вистачило б рівно на половину задачі.
  */
+import type { ScheduleBlock } from './schedule';
+
 export const TRIGGER_TESTS = [
 	'truthy',
 	'falsy',
@@ -49,10 +51,13 @@ export const TRIGGER_TESTS = [
 ] as const;
 
 export type TriggerTest = (typeof TRIGGER_TESTS)[number];
+export type TriggerMode = 'api' | 'schedule';
 
 export interface TrackTrigger {
 	/** Вимкнений тригер лишається записаним, але нічого не опитує. */
 	on: boolean;
+	/** Режим тригера: за API чи за розкладом. */
+	mode?: TriggerMode;
 	/** Адреса, яку опитувати. */
 	url: string;
 	/** Як часто питати, секунди. */
@@ -65,7 +70,7 @@ export interface TrackTrigger {
 	/** З чим порівнювати. Для `truthy` не потрібне. */
 	value: string;
 	/**
-	 * Тижневий розклад. Відсутній — дозволено цілодобово.
+	 * Тижневий розклад (вікно допуску для API). Відсутній — дозволено цілодобово.
 	 *
 	 * Лежить у самому тригері, а не в налаштуваннях дошки: години в різних
 	 * треків різні. Сирена потрібна, поки в залі люди; гонг на початок заняття —
@@ -81,6 +86,10 @@ export interface TrackTrigger {
 	 * і трек починався б спочатку на кожному опитуванні.
 	 */
 	onChange: boolean;
+	/**
+	 * Блоки днів і точок часу для режиму 'schedule'.
+	 */
+	blocks?: ScheduleBlock[];
 }
 
 /** Рідше за це не питаємо: чужий сервер не мусить страждати від нашої зручності. */
@@ -175,15 +184,18 @@ export function withinSchedule(
 	return overnight && minute < to;
 }
 
-export const emptyTrigger = (): TrackTrigger => ({
+export const emptyTrigger = (mode: TriggerMode = 'api'): TrackTrigger => ({
 	on: false,
+	mode,
 	url: '',
 	everySec: 30,
 	headers: {},
 	path: '',
 	test: 'truthy',
 	value: '',
-	onChange: true
+	onChange: true,
+	schedule: null,
+	blocks: []
 });
 
 /**
@@ -344,6 +356,26 @@ export function groupTriggers(
 	return [...groups.values()].sort((left, right) => left.key.localeCompare(right.key));
 }
 
-/** Чи має сенс опитувати: без адреси тригер нічого не означає. */
+/** Чи має сенс опитувати за API: увімкнений, режим не розклад і адреса валідна. */
 export const triggerReady = (trigger: TrackTrigger): boolean =>
-	trigger.on && /^https?:\/\/\S+$/i.test(trigger.url.trim());
+	trigger.on && trigger.mode !== 'schedule' && /^https?:\/\/\S+$/i.test(trigger.url.trim());
+
+/** Чи має розклад активні точки для спрацювання. */
+export const scheduleReady = (trigger: TrackTrigger): boolean =>
+	trigger.on &&
+	trigger.mode === 'schedule' &&
+	Array.isArray(trigger.blocks) &&
+	trigger.blocks.some((b) => b.days.length > 0 && b.times.length > 0);
+
+/** Розбір рядка заголовків "Name: Value" у мапу. */
+export function parseHeaders(text: string): Record<string, string> {
+	const headers: Record<string, string> = {};
+	for (const line of text.split('\n')) {
+		const at = line.indexOf(':');
+		if (at < 1) continue;
+		const name = line.slice(0, at).trim();
+		const value = line.slice(at + 1).trim();
+		if (name && value) headers[name] = value;
+	}
+	return headers;
+}

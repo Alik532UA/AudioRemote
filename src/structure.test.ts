@@ -233,7 +233,8 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	// 844 → 830: журнал дій додав рядок, а три мовчазні відмови (база не
 	// чути, бібліотеку відкинули, тека лише для читання) винесені одним
 	// органом — `BoardNotices`. Стеля опускається РАЗОМ із файлом.
-	'src/routes/player/+page.svelte': 830,
+	// 830 → 828: сповіщення черги розкладу винесене в `DeckQueuedNotice.svelte`.
+	'src/routes/player/+page.svelte': 828,
 	'src/routes/remote/+page.svelte': 866,
 	// 541 → 524: політика відтворення додала двадцять один рядок і вперлася б у
 	// стелю. Замість підняття з контролера винесений переклад «файл у теці ↔
@@ -243,7 +244,8 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	// Замість підняття з контролера винесена перевірка правки від
 	// адміністратора (`adminPatch.ts`) — найдовша його частина без мережі,
 	// звуку й стану. Стеля опускається РАЗОМ із файлом.
-	'src/lib/player/controller.svelte.ts': 506,
+	// 506 → 503: команди пульта винесені в `remoteCommand.ts`.
+	'src/lib/player/controller.svelte.ts': 503,
 	// 521 → 459: із панелі винесені дві самодостатні відповідальності —
 	// журнал діагностики (`DiagnosticsTrail.svelte`) і аварійне скидання
 	// (`HardResetButton.svelte`). Стеля опускається РАЗОМ із файлом, інакше
@@ -256,7 +258,8 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	'src/lib/components/settings/SettingsPanel.svelte': 402,
 	// 415 → 416: поле такту стало `NumberStepper`. Сам компонент винесений і
 	// лежить поза переліком; тут лишився рядок на його імпорт.
-	'src/lib/components/player/TriggerEditor.svelte': 416,
+	// 416 → 319: редактор розкладу винесено в `ScheduleEditor.svelte` та `ApiScheduleSection.svelte`.
+	'src/lib/components/player/TriggerEditor.svelte': 319,
 	// TrackDialog.svelte пішов звідси зовсім: власна копія палітри кольорів
 	// замінена на `ColorPalette`, і файл уклався в межу без жодного винятку.
 	// 329 → 331: по рядку `intent += 1` у `pause()` і `resume()`. Обидві команди
