@@ -149,7 +149,7 @@ export default defineConfig({
 		}
 	],
 	build: {
-		sourcemap: true
+		sourcemap: process.env.SOURCEMAPS === 'hidden' ? 'hidden' : false
 	},
 	/*
 	 * УМОВИ РОЗВʼЯЗАННЯ — БРАУЗЕРНІ, І ЛИШЕ ПІД VITEST.
