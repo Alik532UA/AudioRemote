@@ -32,7 +32,8 @@
 	<h1 class="fail__title">{title}</h1>
 
 	{#if page.error?.message}
-		<p class="fail__detail mono" data-testid="error-detail">{page.error.message}</p>
+		{@const detail = page.error.message}
+		<p class="fail__detail mono" data-testid="error-detail">{detail}</p>
 	{/if}
 
 	<a class="btn" href={resolve('/menu')} data-testid="error-to-menu">{t('error.toMenu')}</a>

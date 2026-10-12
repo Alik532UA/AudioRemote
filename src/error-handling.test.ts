@@ -200,4 +200,40 @@ describe('сітки безпеки (ERROR-HANDLING-v9 § 2)', () => {
 		}
 		expect(naked, `межа з await і без pending:\n${naked.join('\n')}`).toEqual([]);
 	});
+
+	it('доменні класи помилок наслідують AppError та коректно мапляться на ключі i18n', async () => {
+		const {
+			AppError,
+			ValidationError,
+			NotFoundError,
+			NetworkError,
+			AuthError,
+			errorToMessageKey
+		} = await import('$lib/errors');
+
+		const base = new AppError('CODE', 'msg');
+		expect(base).toBeInstanceOf(Error);
+		expect(base.code).toBe('CODE');
+
+		const val = new ValidationError({ field: 'required' });
+		expect(val).toBeInstanceOf(AppError);
+		expect(val.code).toBe('VALIDATION_ERROR');
+		expect(errorToMessageKey(val)).toBe('errors.validation');
+
+		const notFound = new NotFoundError('Item');
+		expect(notFound).toBeInstanceOf(AppError);
+		expect(errorToMessageKey(notFound)).toBe('errors.notFound');
+
+		const net = new NetworkError('Net failed', { status: 500 });
+		expect(net).toBeInstanceOf(AppError);
+		expect(net.status).toBe(500);
+		expect(errorToMessageKey(net)).toBe('errors.network');
+
+		const auth = new AuthError();
+		expect(auth).toBeInstanceOf(AppError);
+		expect(errorToMessageKey(auth)).toBe('errors.auth');
+
+		expect(errorToMessageKey(new Error('raw error'))).toBe('errors.unexpected');
+		expect(errorToMessageKey('string throw')).toBe('errors.unexpected');
+	});
 });
