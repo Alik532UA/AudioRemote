@@ -24,6 +24,7 @@
 	import { boardPanel } from '$lib/services/boardPanel.svelte';
 	import { narrow } from '$lib/services/narrow.svelte';
 	import { panelLog } from '$lib/services/panelLog.svelte';
+	import ServiceBadge from '$lib/components/ui/ServiceBadge.svelte';
 
 	let { children } = $props();
 
@@ -216,10 +217,7 @@
 		 * і з непіднятих налаштувань воно приходило порожнім — тобто підпис не
 		 * доїжджав НІКОЛИ, а виглядало це як «анонімний пульт».
 		 */
-		settings.load();
-		themeState.init();
-		screenView.init();
-		i18n.init();
+		settings.load(); themeState.init(); screenView.init(); i18n.init();
 		const unwatch = narrow.init();
 		ready = true;
 		mark('app:ready');
@@ -404,6 +402,7 @@
 	«не застосунок».
 -->
 <DesktopUpdatePrompt />
+<ServiceBadge />
 
 <style>
 	.shell {
