@@ -1,0 +1,1 @@
+import{h as o,f,j as l,E as p,k as v,l as y,n as m,p as i,H as T,q as A}from"./DP_iRo36.js";import{B as E}from"./Ccdy-iP0.js";function k(d,_,e){var s;o&&(s=A,f());var r=new E(d);l(()=>{var a=_()??null;if(o){var h=v(s),c=h===T,u=a!==null;if(c!==u){var t=y();m(t),r.anchor=t,i(!1),r.ensure(a,a&&(n=>e(n,a))),i(!0);return}}r.ensure(a,a&&(n=>e(n,a)))},p)}export{k as c};

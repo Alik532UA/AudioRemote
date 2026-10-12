@@ -79,4 +79,3 @@ const e=({status:n,message:t})=>`<!doctype html>
 	</body>
 </html>
 `;export{e as default};
-//# sourceMappingURL=wbPk3Yxo.js.map

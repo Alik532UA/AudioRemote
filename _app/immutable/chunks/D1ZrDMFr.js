@@ -1,2 +1,0 @@
-import{h as o,d as f,f as l,E as v,i as y,j as m,k as p,l as i,H as T,n as A}from"./C9nbrs_Y.js";import{B as E}from"./DCD3qnRX.js";function k(d,_,e){var s;o&&(s=A,f());var r=new E(d);l(()=>{var a=_()??null;if(o){var h=y(s),c=h===T,u=a!==null;if(c!==u){var t=m();p(t),r.anchor=t,i(!1),r.ensure(a,a&&(n=>e(n,a))),i(!0);return}}r.ensure(a,a&&(n=>e(n,a)))},v)}export{k as c};
-//# sourceMappingURL=D1ZrDMFr.js.map

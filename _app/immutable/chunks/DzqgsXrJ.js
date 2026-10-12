@@ -1,0 +1,2 @@
+import{b as s,c as a}from"./DyU5zn_X.js";const n="trail",c="trail.prev",i=30,l=Date.now();function f(t){try{const o=s(n,[]);o.push({at:Date.now()-l,step:t}),a(n,o.slice(-i))}catch{}}function h(){try{const t=s(n,[]);t.length>0&&a(c,t),a(n,[])}catch{}}const u=()=>s(n,[]),p=()=>s(c,[]);function T(){const t=(o,r)=>r.length===0?[]:[o,...r.map(e=>`  +${e.at}ms  ${e.step}`)];return["AudioRemote 0.0.236",navigator.userAgent,...t("— попередній сеанс (обривається там, де впало) —",p()),...t("— цей сеанс —",u())].join(`
+`)}export{f as m,h as r,T as t};
