@@ -1,4 +1,5 @@
 import { browser, dev } from '$app/environment';
+import { SvelteURL } from 'svelte/reactivity';
 import { trailAsText } from './breadcrumbs';
 
 export type LogLevel = 'info' | 'warn' | 'error';
@@ -22,7 +23,7 @@ export function maskText(str: string): string {
 
 export function scrubUrl(raw: string): string {
 	try {
-		const url = new URL(raw);
+		const url = new SvelteURL(raw);
 		for (const name of [...url.searchParams.keys()]) {
 			if (SENSITIVE_PARAM.test(name)) url.searchParams.set(name, 'REDACTED');
 		}

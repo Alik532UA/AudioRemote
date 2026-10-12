@@ -84,7 +84,7 @@ describe('структура проєкту (PROJECT-STRUCTURE-v9)', () => {
  * `src/app.html` і `src/app.d.ts` не імпортують нічого й тому точками входу не
  * є: перший — шаблон, другий — оголошення типів.
  */
-const ENTRIES = sources.filter((f) => /^src\/routes\//.test(f));
+const ENTRIES = sources.filter((f) => /^src\/routes\//.test(f) || /^src\/hooks\./.test(f));
 
 function resolveImport(from: string, spec: string): string | null {
 	let base: string;

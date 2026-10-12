@@ -175,6 +175,12 @@ if (shell) {
 	);
 }
 
+// --- 5. Beta checklist поза індексом (BETA-CHECKLIST § 5.5) ----------------
+const sitemap = read('sitemap.xml') ?? '';
+expect('чеклист поза sitemap.xml', !sitemap.includes('beta-test-checklists'));
+const robots = read('robots.txt') ?? '';
+expect('чеклист без Disallow у robots.txt', !robots.includes('beta-test-checklists'));
+
 // --- Підсумок --------------------------------------------------------------
 if (failures.length > 0) {
 	console.error(`check:build — ${failures.length} із ${checks} перевірок не пройшли:\n`);

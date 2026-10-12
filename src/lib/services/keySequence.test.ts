@@ -75,7 +75,7 @@ describe('keySequence', () => {
 			closest: (sel: string) => sel.includes('input') ? {} : null
 		};
 
-		seq.handle({ code: 'KeyV', target: dummyInput as any });
+		seq.handle({ code: 'KeyV', target: dummyInput as unknown as EventTarget });
 		expect(seq.count).toBe(0);
 	});
 });
