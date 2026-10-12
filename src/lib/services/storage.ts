@@ -42,9 +42,11 @@ const sessionStore = (): Storage | null => {
 	}
 };
 
+const toKey = (key: string): string => (key.startsWith(PREFIX) ? key : PREFIX + key);
+
 export function readItem(key: string): string | null {
 	try {
-		return store()?.getItem(PREFIX + key) ?? null;
+		return store()?.getItem(toKey(key)) ?? null;
 	} catch {
 		return null;
 	}
@@ -52,7 +54,7 @@ export function readItem(key: string): string | null {
 
 export function writeItem(key: string, value: string): void {
 	try {
-		store()?.setItem(PREFIX + key, value);
+		store()?.setItem(toKey(key), value);
 	} catch {
 		/* приватний режим або переповнена квота — не привід ламати екран */
 	}
@@ -60,9 +62,33 @@ export function writeItem(key: string, value: string): void {
 
 export function removeItem(key: string): void {
 	try {
-		store()?.removeItem(PREFIX + key);
+		store()?.removeItem(toKey(key));
 	} catch {
 		/* те саме */
+	}
+}
+
+export function readSessionItem(key: string): string | null {
+	try {
+		return sessionStore()?.getItem(toKey(key)) ?? null;
+	} catch {
+		return null;
+	}
+}
+
+export function writeSessionItem(key: string, value: string): void {
+	try {
+		sessionStore()?.setItem(toKey(key), value);
+	} catch {
+		/* приватний режим або переповнена квота */
+	}
+}
+
+export function removeSessionItem(key: string): void {
+	try {
+		sessionStore()?.removeItem(toKey(key));
+	} catch {
+		/* ignore */
 	}
 }
 
@@ -124,4 +150,19 @@ export function readJson<T>(key: string, fallback: T): T {
 
 export function writeJson(key: string, value: unknown): void {
 	writeItem(key, JSON.stringify(value));
+}
+
+export function readSessionJson<T>(key: string, fallback: T): T {
+	const raw = readSessionItem(key);
+	if (raw === null) return fallback;
+	try {
+		return JSON.parse(raw) as T;
+	} catch {
+		removeSessionItem(key);
+		return fallback;
+	}
+}
+
+export function writeSessionJson(key: string, value: unknown): void {
+	writeSessionItem(key, JSON.stringify(value));
 }

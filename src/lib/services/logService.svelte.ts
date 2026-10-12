@@ -2,6 +2,8 @@ import { browser, dev } from '$app/environment';
 import { SvelteURL } from 'svelte/reactivity';
 import { trailAsText } from './breadcrumbs';
 
+import { readSessionJson, writeSessionJson } from './storage';
+
 export type LogLevel = 'info' | 'warn' | 'error';
 
 export interface LogEntry {
@@ -13,7 +15,7 @@ export interface LogEntry {
 }
 
 const MAX_LOGS = 1000;
-const SESSION_STORAGE_KEY = 'audioremote_logs_history';
+const SESSION_STORAGE_KEY = 'logs_history';
 const EMAIL_REGEX = /[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+/g;
 const SENSITIVE_PARAM = /^(token|access_token|code|state|key|api_?key|password|email)$/i;
 
@@ -41,14 +43,9 @@ class LogService {
 
 	constructor() {
 		if (browser) {
-			try {
-				const saved = window.sessionStorage?.getItem(SESSION_STORAGE_KEY);
-				if (saved) {
-					const parsed = JSON.parse(saved);
-					if (Array.isArray(parsed)) this.logs = parsed;
-				}
-			} catch {
-				// Ignore storage quota error
+			const saved = readSessionJson<LogEntry[] | null>(SESSION_STORAGE_KEY, null);
+			if (saved && Array.isArray(saved)) {
+				this.logs = saved;
 			}
 		}
 	}
@@ -56,10 +53,7 @@ class LogService {
 	private mirror(): void {
 		if (!browser || !this.mirrorEnabled) return;
 		try {
-			window.sessionStorage?.setItem(
-				SESSION_STORAGE_KEY,
-				JSON.stringify($state.snapshot(this.logs))
-			);
+			writeSessionJson(SESSION_STORAGE_KEY, $state.snapshot(this.logs));
 		} catch {
 			this.mirrorEnabled = false;
 		}

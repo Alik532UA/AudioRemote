@@ -1,3 +1,4 @@
+import { readSessionJson, removeSessionItem, writeSessionJson } from '$lib/services/storage';
 import type { BoardKind, BoardRole, SavedBoard } from './myBoards';
 
 /**
@@ -37,12 +38,7 @@ export interface ActiveBoard {
 }
 
 const readSession = (): ActiveBoard | null => {
-	try {
-		const raw = window.sessionStorage.getItem(SESSION_KEY);
-		return raw ? (JSON.parse(raw) as ActiveBoard) : null;
-	} catch {
-		return null;
-	}
+	return readSessionJson<ActiveBoard | null>(SESSION_KEY, null);
 };
 
 class BoardSession {
@@ -55,20 +51,12 @@ class BoardSession {
 
 	open(board: ActiveBoard): void {
 		this.current = board;
-		try {
-			window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(board));
-		} catch {
-			/* приватний режим — дошка проживе до перезавантаження */
-		}
+		writeSessionJson(SESSION_KEY, board);
 	}
 
 	close(): void {
 		this.current = null;
-		try {
-			window.sessionStorage.removeItem(SESSION_KEY);
-		} catch {
-			/* нічого прибирати */
-		}
+		removeSessionItem(SESSION_KEY);
 	}
 }
 
