@@ -132,7 +132,9 @@ const breakdown = Object.entries(levels)
 	.map(([level, n]) => `${n} ${level}`)
 	.join(', ');
 
-console.log(`🔒 npm audit: ${total} знахідок${breakdown ? ` (${breakdown})` : ''}, поріг ${THRESHOLD[0]}`);
+console.log(
+	`🔒 npm audit: ${total} знахідок${breakdown ? ` (${breakdown})` : ''}, поріг ${THRESHOLD[0]}`
+);
 
 if (blocking > 0) {
 	console.error(`❌ уразливостей рівня ${THRESHOLD.join('/')}: ${blocking}`);

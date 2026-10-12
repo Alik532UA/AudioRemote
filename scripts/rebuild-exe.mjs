@@ -29,10 +29,14 @@ if (!existsSync(cargo)) {
 
 console.log('Збираю нативну частину…\n');
 
-const built = spawnSync(cargo, ['build', '--manifest-path', join(root, 'src-tauri', 'Cargo.toml')], {
-	stdio: 'inherit',
-	cwd: root
-});
+const built = spawnSync(
+	cargo,
+	['build', '--manifest-path', join(root, 'src-tauri', 'Cargo.toml')],
+	{
+		stdio: 'inherit',
+		cwd: root
+	}
+);
 
 if (built.status !== 0) {
 	console.error('\nЗбірка впала.');

@@ -72,7 +72,7 @@ describe('keySequence', () => {
 		});
 
 		const dummyInput = {
-			closest: (sel: string) => sel.includes('input') ? {} : null
+			closest: (sel: string) => (sel.includes('input') ? {} : null)
 		};
 
 		seq.handle({ code: 'KeyV', target: dummyInput as unknown as EventTarget });

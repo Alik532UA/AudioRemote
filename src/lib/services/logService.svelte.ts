@@ -56,7 +56,10 @@ class LogService {
 	private mirror(): void {
 		if (!browser || !this.mirrorEnabled) return;
 		try {
-			window.sessionStorage?.setItem(SESSION_STORAGE_KEY, JSON.stringify($state.snapshot(this.logs)));
+			window.sessionStorage?.setItem(
+				SESSION_STORAGE_KEY,
+				JSON.stringify($state.snapshot(this.logs))
+			);
 		} catch {
 			this.mirrorEnabled = false;
 		}

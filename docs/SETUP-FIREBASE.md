@@ -68,8 +68,8 @@ gh secret set FIREBASE_SERVICE_ACCOUNT -R Alik532UA/AudioRemote < "C:/Users/alik
 
 ## Крок 4. Видати сервісному акаунтові права
 
-**Цей крок обовʼязковий.** Ключа замало: ключ каже, *хто* стукає, ролі кажуть,
-*що* йому можна. Типовий ключ Firebase Admin SDK вміє читати правила, але
+**Цей крок обовʼязковий.** Ключа замало: ключ каже, _хто_ стукає, ролі кажуть,
+_що_ йому можна. Типовий ключ Firebase Admin SDK вміє читати правила, але
 **не вміє їх викладати** — це виміряно на сусідньому `Slovko`, де прогін упав
 двічі поспіль, спершу на `serviceusage`, потім на `firebaserules`.
 
@@ -81,10 +81,10 @@ gh secret set FIREBASE_SERVICE_ACCOUNT -R Alik532UA/AudioRemote < "C:/Users/alik
    приймає і назву, і ідентифікатор);
 5. **SAVE**.
 
-| Що викладається | Роль у консолі | Ідентифікатор |
-|---|---|---|
-| `database.rules.json` | Firebase Realtime Database Admin | `roles/firebasedatabase.admin` |
-| — (перевірка, що API увімкнені) | Service Usage Consumer | `roles/serviceusage.serviceUsageConsumer` |
+| Що викладається                 | Роль у консолі                   | Ідентифікатор                             |
+| ------------------------------- | -------------------------------- | ----------------------------------------- |
+| `database.rules.json`           | Firebase Realtime Database Admin | `roles/firebasedatabase.admin`            |
+| — (перевірка, що API увімкнені) | Service Usage Consumer           | `roles/serviceusage.serviceUsageConsumer` |
 
 Ролей саме дві, а не чотири, як у `Slovko`: тут `firebase.json` описує лише
 `database`, тобто Firestore і його індекси не викладаються взагалі. Другий

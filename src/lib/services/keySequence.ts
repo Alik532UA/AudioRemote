@@ -17,7 +17,8 @@ export interface KeyStroke {
 	target?: EventTarget | null;
 }
 
-const EDITABLE_SELECTOR = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+const EDITABLE_SELECTOR =
+	'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
 
 export function isEditableTarget(target: EventTarget | null | undefined): boolean {
 	const element = target as HTMLElement | null | undefined;
@@ -69,7 +70,8 @@ export function createKeySequence(options: {
 			count += 1;
 			if (timer) clearTimeout(timer);
 
-			const threshold = typeof options.threshold === 'function' ? options.threshold() : options.threshold;
+			const threshold =
+				typeof options.threshold === 'function' ? options.threshold() : options.threshold;
 			if (count >= threshold) {
 				reset();
 				options.onComplete();

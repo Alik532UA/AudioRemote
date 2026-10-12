@@ -17,7 +17,9 @@ describe('logService', () => {
 
 	it('masks sensitive emails and parameters', () => {
 		expect(maskText('User test@example.com logged in')).toContain('***@***.***');
-		expect(scrubUrl('https://example.com/api?token=secret123&other=val')).toContain('token=REDACTED');
+		expect(scrubUrl('https://example.com/api?token=secret123&other=val')).toContain(
+			'token=REDACTED'
+		);
 	});
 
 	it('generates formatted log report', () => {
