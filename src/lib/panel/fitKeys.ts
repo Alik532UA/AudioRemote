@@ -76,10 +76,12 @@ export function fitKeys(node: HTMLElement, labels: string) {
 		node.style.setProperty('--key-size', `${fitted}px`);
 	};
 
+	let rafId = 0;
 	const schedule = () => {
 		if (queued) return;
 		queued = true;
-		queueMicrotask(run);
+		cancelAnimationFrame(rafId);
+		rafId = requestAnimationFrame(run);
 	};
 
 	const watcher = new ResizeObserver(schedule);
@@ -102,6 +104,7 @@ export function fitKeys(node: HTMLElement, labels: string) {
 		update: schedule,
 		destroy() {
 			stopped = true;
+			cancelAnimationFrame(rafId);
 			watcher.disconnect();
 			document.removeEventListener('visibilitychange', onShow);
 		}

@@ -101,6 +101,9 @@ export function logCrashes(target: CrashTarget, note: (step: string) => void = m
 		 * менше, ніж його відсутність.
 		 */
 		try {
+			const failure = event as ErrorEvent;
+			const msg = String(failure.message ?? failure.error ?? '');
+			if (msg.includes('ResizeObserver loop')) return;
 			const step = summarize(event).slice(0, CAP);
 			if (step === last) return;
 			last = step;
