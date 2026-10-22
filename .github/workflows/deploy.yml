@@ -52,7 +52,7 @@ jobs:
       # Емулятор Realtime Database — java-процес. Без цього кроку
       # `emulators:exec` падає з «java not found», і це виглядає як зламані
       # правила.
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
@@ -176,7 +176,7 @@ jobs:
       # Емулятор бази — java-процес, і браузерний набір піднімає його сам
       # (`playwright.config.ts`). Без цього кроку описи ролей падають із
       # «java not found», і виглядає це як зламаний застосунок.
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
