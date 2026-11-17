@@ -546,7 +546,7 @@ svg {
  */
 @media (min-width: 900px) {
 	.board {
-		grid-template-columns: minmax(300px, 1fr) minmax(360px, 1.15fr);
+		grid-template-columns: minmax(min(300px, 100%), 1fr) minmax(min(360px, 100%), 1.15fr);
 	}
 
 	.board__col--side {
@@ -581,7 +581,7 @@ svg {
 	 * саме в нього дивляться найдовше.
 	 */
 	.board {
-		grid-template-columns: 280px minmax(340px, 1fr) minmax(400px, 1.4fr);
+		grid-template-columns: min(280px, 100%) minmax(min(340px, 100%), 1fr) minmax(min(400px, 100%), 1.4fr);
 	}
 }
 

@@ -1,7 +1,7 @@
-# PROJECT-CONTEXT — AudioRemote
+﻿# PROJECT-CONTEXT — AudioRemote
 
 Персональний шар над каноном. Крок 2 алгоритму
-[`selection_criteria/v9`](../sveltekit-canon/selection_criteria/v9/README.md) читає саме цей
+[`selection_criteria/v9`](../../sveltekit-canon/selection_criteria/v9/README.md) читає саме цей
 файл, а не вгадує параметри.
 
 Робочі правила для агента — короткі, у [AGENTS.md](AGENTS.md): які гейти ганяти,
@@ -101,7 +101,7 @@
 | Параметр               | Значення                                                                                       |
 | ---------------------- | ---------------------------------------------------------------------------------------------- |
 | Профіль канону         | **static** (`@sveltejs/adapter-static`)                                                        |
-| Продуктовий пакет      | **застосовується** ([`product_criteria/v1`](../sveltekit-canon/product_criteria/v1/README.md)) |
+| Продуктовий пакет      | **застосовується** ([`product_criteria/v1`](../../sveltekit-canon/product_criteria/v1/README.md)) |
 | Адреса                 | `alik532ua.github.io/AudioRemote/`                                                             |
 | `paths.base`           | з `BASE_PATH`, типово `/AudioRemote`                                                           |
 | Модель версії          | **бамп на коміт** — patch піднімає хук `.githooks/pre-commit` (VERSIONING-v9 § 1.2)            |
@@ -697,7 +697,7 @@
    У протилежної архітектури (оболонка везе вшиту збірку, як `HotPaste`)
    правильна відповідь протилежна: там воркер переживе оновлення exe й
    віддаватиме стару збірку. Канон називає обидва випадки —
-   [PWA § 5](../sveltekit-canon/selection_criteria/v9/platform/PWA-v9.md), правило
+   [PWA § 5](../../sveltekit-canon/selection_criteria/v9/platform/PWA-v9.md), правило
    `PWA-NO-SW-IN-SHELL`.
 
 2. **Потрібен захищений контекст** (https або localhost). І `crypto.subtle`, і
