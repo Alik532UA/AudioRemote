@@ -98,22 +98,22 @@
 
 ## 2. Параметри
 
-| Параметр               | Значення                                                                                       |
-| ---------------------- | ---------------------------------------------------------------------------------------------- |
-| Профіль канону         | **static** (`@sveltejs/adapter-static`)                                                        |
+| Параметр               | Значення                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| Профіль канону         | **static** (`@sveltejs/adapter-static`)                                                           |
 | Продуктовий пакет      | **застосовується** ([`product_criteria/v1`](../../sveltekit-canon/product_criteria/v1/README.md)) |
-| Адреса                 | `alik532ua.github.io/AudioRemote/`                                                             |
-| `paths.base`           | з `BASE_PATH`, типово `/AudioRemote`                                                           |
-| Модель версії          | **бамп на коміт** — patch піднімає хук `.githooks/pre-commit` (VERSIONING-v9 § 1.2)            |
-| Гілка розробки         | `main`                                                                                         |
-| Префікс `localStorage` | `audioremote_`                                                                                 |
-| Ключ `sessionStorage`  | `audioremote_active`                                                                           |
-| Локалізації            | 2 — `uk` (типова), `en`                                                                        |
-| Теми                   | 2 — світла, темна, плюс «як у пристрої» (відмова від вибору)                                   |
-| Палітра                | перенесена з `BGLog/brr-log/src/app/globals.css`: синьо-чорні поверхні, смарагдовий акцент     |
-| Хмара                  | Firebase **Realtime Database + Auth (анонімний)**. Firestore і Storage НЕ використовуються     |
-| Порти емулятора        | auth **9119**, database **9020**, UI **4040**                                                  |
-| Проєкт Firebase        | бойовий `audioremote` (RTDB europe-west1), емулятор `demo-audioremote`                         |
+| Адреса                 | `alik532ua.github.io/AudioRemote/`                                                                |
+| `paths.base`           | з `BASE_PATH`, типово `/AudioRemote`                                                              |
+| Модель версії          | **бамп на коміт** — patch піднімає хук `.githooks/pre-commit` (VERSIONING-v9 § 1.2)               |
+| Гілка розробки         | `main`                                                                                            |
+| Префікс `localStorage` | `audioremote_`                                                                                    |
+| Ключ `sessionStorage`  | `audioremote_active`                                                                              |
+| Локалізації            | 2 — `uk` (типова), `en`                                                                           |
+| Теми                   | 2 — світла, темна, плюс «як у пристрої» (відмова від вибору)                                      |
+| Палітра                | перенесена з `BGLog/brr-log/src/app/globals.css`: синьо-чорні поверхні, смарагдовий акцент        |
+| Хмара                  | Firebase **Realtime Database + Auth (анонімний)**. Firestore і Storage НЕ використовуються        |
+| Порти емулятора        | auth **9119**, database **9020**, UI **4040**                                                     |
+| Проєкт Firebase        | бойовий `audioremote` (RTDB europe-west1), емулятор `demo-audioremote`                            |
 
 ### Порти емулятора — реєстр
 

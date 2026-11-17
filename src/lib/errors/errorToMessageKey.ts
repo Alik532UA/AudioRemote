@@ -1,11 +1,7 @@
 import { AuthError, NetworkError, NotFoundError, ValidationError } from './AppError';
 
 export type ErrorMessageKey =
-	| 'errors.validation'
-	| 'errors.notFound'
-	| 'errors.network'
-	| 'errors.auth'
-	| 'errors.unexpected';
+	'errors.validation' | 'errors.notFound' | 'errors.network' | 'errors.auth' | 'errors.unexpected';
 
 /**
  * Помилка → ключ словника. Людина бачить t(ключ); err.message в інтерфейс не йде.

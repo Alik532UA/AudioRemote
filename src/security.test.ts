@@ -63,7 +63,9 @@ describe('безпека — CSP (SECURITY-v10 § 6)', () => {
 	it("script-src не має 'unsafe-inline' (SECURITY-v10 § 6.1)", () => {
 		const scriptSrc = /['"]script-src['"]:\s*\[([^\]]*)\]/.exec(svelteConfig)?.[1] ?? '';
 		expect(scriptSrc, 'директиву script-src не знайдено').not.toBe('');
-		expect(scriptSrc.includes('unsafe-inline'), "'unsafe-inline' заборонений у script-src").toBe(false);
+		expect(scriptSrc.includes('unsafe-inline'), "'unsafe-inline' заборонений у script-src").toBe(
+			false
+		);
 	});
 
 	it('власні інлайн-скрипти стоять ПІСЛЯ %sveltekit.head% (§ 6.3)', () => {

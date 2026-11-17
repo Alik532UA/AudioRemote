@@ -202,14 +202,8 @@ describe('сітки безпеки (ERROR-HANDLING-v9 § 2)', () => {
 	});
 
 	it('доменні класи помилок наслідують AppError та коректно мапляться на ключі i18n', async () => {
-		const {
-			AppError,
-			ValidationError,
-			NotFoundError,
-			NetworkError,
-			AuthError,
-			errorToMessageKey
-		} = await import('$lib/errors');
+		const { AppError, ValidationError, NotFoundError, NetworkError, AuthError, errorToMessageKey } =
+			await import('$lib/errors');
 
 		const base = new AppError('CODE', 'msg');
 		expect(base).toBeInstanceOf(Error);

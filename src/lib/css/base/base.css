@@ -581,7 +581,10 @@ svg {
 	 * саме в нього дивляться найдовше.
 	 */
 	.board {
-		grid-template-columns: min(280px, 100%) minmax(min(340px, 100%), 1fr) minmax(min(400px, 100%), 1.4fr);
+		grid-template-columns: min(280px, 100%) minmax(min(340px, 100%), 1fr) minmax(
+				min(400px, 100%),
+				1.4fr
+			);
 	}
 }
 
