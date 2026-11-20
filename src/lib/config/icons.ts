@@ -17,6 +17,7 @@
  */
 export { default as IconBoard } from '@lucide/svelte/icons/monitor-speaker';
 export { default as IconPhone } from '@lucide/svelte/icons/smartphone';
+export { default as IconBug } from '@lucide/svelte/icons/bug';
 export { default as IconTrash } from '@lucide/svelte/icons/trash-2';
 /*
  * ВІНИК, А НЕ СМІТНИК — для «Очистити журнал». Смітник тут уже означає
