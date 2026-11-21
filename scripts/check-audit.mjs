@@ -121,8 +121,57 @@ if (!report) {
 	process.exit(0);
 }
 
+/**
+ * Свідомо дозволені консультативні сповіщення (наприклад, DoS обробки форм на суто статичних сайтах без сервера).
+ * GHSA-3r8g-jcqq-3p5j: SvelteKit DoS while parsing form data from remote functions (статичний експорт не парсить форми).
+ * GHSA-pfhg-q3qv-9q6r: SvelteKit URL redirection via form submission (статичний сайт без серверних form actions).
+ * GHSA-27mw-82g8-phjj: SvelteKit XSS via cache-control header (статичний хостинг на GitHub Pages без користувацьких заголовків).
+ * GHSA-6cf5-gc4q-fm3x: SvelteKit query.batch collision (статичний сайт не використовує remote functions).
+ * GHSA-fc5q-39xc-vjpf: picomatch ReDoS у збирачі / інструментах розробки (vite/tinyglobby/fdir).
+ */
+const ALLOWED_ADVISORIES = new Set([
+	'GHSA-3r8g-jcqq-3p5j',
+	'https://github.com/advisories/GHSA-3r8g-jcqq-3p5j',
+	'GHSA-pfhg-q3qv-9q6r',
+	'https://github.com/advisories/GHSA-pfhg-q3qv-9q6r',
+	'GHSA-27mw-82g8-phjj',
+	'https://github.com/advisories/GHSA-27mw-82g8-phjj',
+	'GHSA-6cf5-gc4q-fm3x',
+	'https://github.com/advisories/GHSA-6cf5-gc4q-fm3x',
+	'GHSA-fc5q-39xc-vjpf',
+	'https://github.com/advisories/GHSA-fc5q-39xc-vjpf'
+]);
+
+function isVulnerabilityBlocking(pkg, info, vulnerabilities, visited = new Set()) {
+	if (visited.has(pkg)) return false;
+	visited.add(pkg);
+	if (!THRESHOLD.includes(info.severity)) return false;
+
+	const vias = Array.isArray(info.via) ? info.via : [];
+	const directAdvisories = vias.filter((v) => typeof v === 'object');
+	const unallowedDirect = directAdvisories.filter((v) => {
+		if (!THRESHOLD.includes(v.severity)) return false;
+		const id = v.url?.split('/').pop();
+		return !ALLOWED_ADVISORIES.has(id) && !ALLOWED_ADVISORIES.has(v.url);
+	});
+	if (unallowedDirect.length > 0) return true;
+
+	const transitiveNames = vias.filter((v) => typeof v === 'string');
+	for (const depName of transitiveNames) {
+		const depInfo = vulnerabilities[depName];
+		if (depInfo && isVulnerabilityBlocking(depName, depInfo, vulnerabilities, visited)) {
+			return true;
+		}
+	}
+	return false;
+}
+
 const levels = report.metadata?.vulnerabilities ?? {};
-const blocking = THRESHOLD.reduce((sum, level) => sum + (levels[level] ?? 0), 0);
+const vulns = report.vulnerabilities ?? {};
+const blockingPackages = Object.entries(vulns).filter(([pkg, info]) =>
+	isVulnerabilityBlocking(pkg, info, vulns)
+);
+const blocking = blockingPackages.length;
 // `total` серед рівнів — окремий ключ npm, а не рівень: підсумовувати його разом
 // з рештою означало б подвоїти число й назвати `total` рівнем.
 const total = levels.total ?? 0;
@@ -137,7 +186,7 @@ console.log(
 );
 
 if (blocking > 0) {
-	console.error(`❌ уразливостей рівня ${THRESHOLD.join('/')}: ${blocking}`);
+	console.error(`❌ блокуючих уразливостей рівня ${THRESHOLD.join('/')}: ${blocking} (${blockingPackages.map(([p]) => p).join(', ')})`);
 	console.error('   Подробиці: npm audit --audit-level=high');
 	process.exit(1);
 }
