@@ -6,7 +6,6 @@
 	import { debugMode } from '$lib/services/debugMode.svelte';
 	import { createKeySequence } from '$lib/services/keySequence';
 	import { logService } from '$lib/services/logService.svelte';
-	import ErrorLogModal from './ErrorLogModal.svelte';
 
 	let copied = $state(false);
 	let fallbackReport = $state<string | null>(null);
@@ -169,7 +168,11 @@
 	</div>
 {/if}
 
-<ErrorLogModal isOpen={modalOpen} onclose={() => (modalOpen = false)} />
+{#if modalOpen}
+	{#await import('./ErrorLogModal.svelte') then { default: ErrorLogModal }}
+		<ErrorLogModal isOpen={modalOpen} onclose={() => (modalOpen = false)} />
+	{/await}
+{/if}
 
 <style>
 	.service-badge-wrapper {

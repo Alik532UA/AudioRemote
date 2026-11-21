@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { focusTrap } from '$lib/utils/focusTrap';
 	import { logService, type LogLevel } from '$lib/services/logService.svelte';
-	import { IconBug, IconCheck, IconClose, IconCopy, IconInfo, IconTrash, IconWarning } from '$lib/config/icons';
+	import {
+		IconBug,
+		IconCheck,
+		IconClose,
+		IconCopy,
+		IconInfo,
+		IconTrash,
+		IconWarning
+	} from '$lib/config/icons';
 	import { onDestroy } from 'svelte';
 
 	interface Props {
@@ -22,9 +30,7 @@
 	const infoCount = $derived(logs.filter((e) => e.level === 'info').length);
 
 	const filteredList = $derived(
-		(activeFilter === 'all' ? logs : logs.filter((e) => e.level === activeFilter))
-			.slice()
-			.reverse()
+		(activeFilter === 'all' ? logs : logs.filter((e) => e.level === activeFilter)).slice().reverse()
 	);
 
 	onDestroy(() => {
@@ -57,7 +63,11 @@
 	function formatTime(iso: string): string {
 		try {
 			const d = new Date(iso);
-			return d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+			return d.toLocaleTimeString('uk-UA', {
+				hour: '2-digit',
+				minute: '2-digit',
+				second: '2-digit'
+			});
 		} catch {
 			return iso;
 		}
@@ -301,7 +311,9 @@
 		color: #f4f4f5;
 		opacity: 0.7;
 		cursor: pointer;
-		transition: opacity 0.15s ease, background 0.15s ease;
+		transition:
+			opacity 0.15s ease,
+			background 0.15s ease;
 	}
 	.btn-close:hover {
 		opacity: 1;

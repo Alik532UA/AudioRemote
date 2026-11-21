@@ -275,8 +275,8 @@ const OVERSIZED_ALLOWLIST: Readonly<Record<string, number>> = {
 	// новий запуск сюди не потрапляють навмисно.
 	'src/lib/audio/engine.svelte.ts': 340,
 	// Меню діагностики та модальне вікно журналу помилок (DEBUGGING-v10 § 2.4, § 2.5).
-	'src/lib/components/ui/ServiceBadge.svelte': 312,
-	'src/lib/components/ui/ErrorLogModal.svelte': 514
+	'src/lib/components/ui/ServiceBadge.svelte': 317,
+	'src/lib/components/ui/ErrorLogModal.svelte': 526
 };
 
 describe('розмір файлу (§ 7.1, PS-SIZE-RATCHET)', () => {

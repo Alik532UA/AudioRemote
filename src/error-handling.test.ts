@@ -154,7 +154,8 @@ describe('сітки безпеки (ERROR-HANDLING-v9 § 2)', () => {
 			// Помилка САМОГО SvelteKit, а не наша: там `message` — це «Not Found»
 			// чи текст із `load`, тобто рівно те, що людині й треба побачити.
 			'src/routes/+error.svelte': 'помилка навігації від фреймворку',
-			'src/lib/components/ui/ErrorLogModal.svelte': 'журнал діагностики та помилок (DEBUGGING-v10 § 2.5)'
+			'src/lib/components/ui/ErrorLogModal.svelte':
+				'журнал діагностики та помилок (DEBUGGING-v10 § 2.5)'
 		};
 
 		const leaking = walk('src')
